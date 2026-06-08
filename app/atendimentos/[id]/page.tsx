@@ -6,6 +6,7 @@ import Shell from "@/components/Shell";
 import {
   detalheAtendimento,
   fmtData,
+  fmtDataHora,
   paresFicha,
   statusBadge,
   type AtendimentoDetalhe,
@@ -39,7 +40,7 @@ function Balao({ m }: { m: Mensagem }) {
           }`}
         >
           {staff ? "Atendente" : "Cliente"}
-          {m.privado ? " · nota interna" : ""} · {fmtData(m.criado_em)}
+          {m.privado ? " · nota interna" : ""} · {fmtDataHora(m.criado_em)}
         </div>
       </div>
     </div>
@@ -110,7 +111,7 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                 <span className={statusBadge(d.status)}>{d.status}</span>
               </div>
               <div className="text-xs text-slate-400 mt-3">
-                Aberto em {fmtData(d.criado_em)} · {d.total_mensagens} mensagem(ns)
+                Aberto em {fmtDataHora(d.criado_em)} · {d.total_mensagens} mensagem(ns)
               </div>
             </div>
 

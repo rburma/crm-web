@@ -147,11 +147,24 @@ export function detalheAtendimento(id: number | string, msgLimit = 300): Promise
 }
 
 // ── Util ───────────────────────────────────────────────────────────
+// Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
+// o horario de verao historico do Brasil — corrige o "dia a menos".
 export function fmtData(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return String(iso).slice(0, 10);
-  return d.toLocaleDateString("pt-BR");
+  return d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+export function fmtDataHora(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso).slice(0, 16);
+  return d.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
 
 export function statusBadge(status: string): string {
@@ -175,30 +188,20 @@ export const ROTULO_FICHA: Record<string, string> = {
   endereco: "Endereço",
 };
 
-// Ordem de exibicao preferida; chaves desconhecidas vao ao fim, na ordem original.
-const _ORDEM_FICHA = [
-  "produto", "cor", "tamanho", "pedido", "loja_proxima",
-  "endereco", "cidade", "uf", "estado", "cep", "link",
-];
-
 export type ParFicha = { chave: string; rotulo: string; valor: string; isLink: boolean };
 
 // Transforma um objeto (custom/atributos) numa lista ordenada de pares exibiveis.
+// Mostra TODOS os campos da ficha, na ORDEM original (do formulario). Para chaves
+// canonicas (atributos do cliente) usa um rotulo amigavel; para a ficha completa
+// do atendimento, a propria chave JA E o rotulo do formulario.
 export function paresFicha(obj: Record<string, unknown> | null | undefined): ParFicha[] {
   if (!obj || typeof obj !== "object") return [];
-  const chaves = Object.keys(obj).filter((k) => {
-    const v = obj[k];
-    return v !== null && v !== undefined && String(v).trim() !== "";
-  });
-  chaves.sort((a, b) => {
-    const ia = _ORDEM_FICHA.indexOf(a);
-    const ib = _ORDEM_FICHA.indexOf(b);
-    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-  });
-  return chaves.map((k) => ({
-    chave: k,
-    rotulo: ROTULO_FICHA[k] ?? k,
-    valor: String(obj[k]),
-    isLink: k === "link" || /^https?:\/\//i.test(String(obj[k])),
-  }));
+  return Object.entries(obj)
+    .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "")
+    .map(([k, v]) => ({
+      chave: k,
+      rotulo: ROTULO_FICHA[k] ?? k,
+      valor: String(v),
+      isLink: k === "link" || /^https?:\/\//i.test(String(v)),
+    }));
 }

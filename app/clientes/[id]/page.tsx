@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { ficha360, fmtData, statusBadge, type Ficha } from "@/lib/api";
+import { ficha360, fmtData, paresFicha, statusBadge, type Ficha } from "@/lib/api";
 
 function Campo({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
   return (
@@ -74,6 +74,24 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                 <Campo rotulo="Cliente desde" valor={fmtData(f.criado_em)} />
               </div>
             </div>
+
+            {/* Dados adicionais (atributos: cidade, CEP, endereco, tamanho...) */}
+            {(() => {
+              const pares = paresFicha(f.atributos).filter((p) => p.chave !== "uf");
+              if (pares.length === 0) return null;
+              return (
+                <div className="card p-5">
+                  <div className="text-sm font-semibold text-slate-700 mb-3">
+                    Dados adicionais
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {pares.map((p) => (
+                      <Campo key={p.chave} rotulo={p.rotulo} valor={p.valor} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Clubes */}
             {f.clubes.length > 0 && (

@@ -6,6 +6,7 @@ import Shell from "@/components/Shell";
 import {
   detalheAtendimento,
   fmtData,
+  paresFicha,
   statusBadge,
   type AtendimentoDetalhe,
   type Mensagem,
@@ -112,6 +113,38 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                 Aberto em {fmtData(d.criado_em)} · {d.total_mensagens} mensagem(ns)
               </div>
             </div>
+
+            {/* Ficha do produto (custom do ticket: "Localizar produto" etc.) */}
+            {(() => {
+              const pares = paresFicha(d.custom);
+              if (pares.length === 0) return null;
+              return (
+                <div className="card p-5">
+                  <div className="text-sm font-semibold text-slate-700 mb-3">
+                    Ficha do produto
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {pares.map((p) => (
+                      <div key={p.chave}>
+                        <div className="text-xs text-slate-400">{p.rotulo}</div>
+                        {p.isLink ? (
+                          <a
+                            href={p.valor}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-brand-700 hover:underline break-all"
+                          >
+                            abrir ↗
+                          </a>
+                        ) : (
+                          <div className="text-sm text-slate-800 break-words">{p.valor}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Conversa */}
             <div className="card p-5 bg-slate-50/60">

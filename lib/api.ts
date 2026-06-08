@@ -105,12 +105,14 @@ export type AtendimentoDetalhe = {
   canal_origem: string | null;
   criado_em: string | null;
   encerrado_em: string | null;
+  custom: Record<string, unknown> | null;
   cliente: {
     id: number;
     nome: string | null;
     cpf: string | null;
     telefone: string | null;
     email: string | null;
+    atributos?: Record<string, unknown> | null;
   } | null;
   mensagens: Mensagem[];
   total_mensagens: number;
@@ -156,4 +158,47 @@ export function statusBadge(status: string): string {
   if (status === "encerrada") return "badge-gray";
   if (status === "em_espera") return "badge-amber";
   return "badge-green";
+}
+
+// Rotulos amigaveis das chaves da ficha (custom do ticket + atributos do cliente).
+export const ROTULO_FICHA: Record<string, string> = {
+  produto: "Produto",
+  cor: "Cor",
+  tamanho: "Tamanho",
+  link: "Link do produto",
+  pedido: "Nº do pedido",
+  loja_proxima: "Loja mais próxima",
+  cep: "CEP",
+  cidade: "Cidade",
+  uf: "UF",
+  estado: "Estado",
+  endereco: "Endereço",
+};
+
+// Ordem de exibicao preferida; chaves desconhecidas vao ao fim, na ordem original.
+const _ORDEM_FICHA = [
+  "produto", "cor", "tamanho", "pedido", "loja_proxima",
+  "endereco", "cidade", "uf", "estado", "cep", "link",
+];
+
+export type ParFicha = { chave: string; rotulo: string; valor: string; isLink: boolean };
+
+// Transforma um objeto (custom/atributos) numa lista ordenada de pares exibiveis.
+export function paresFicha(obj: Record<string, unknown> | null | undefined): ParFicha[] {
+  if (!obj || typeof obj !== "object") return [];
+  const chaves = Object.keys(obj).filter((k) => {
+    const v = obj[k];
+    return v !== null && v !== undefined && String(v).trim() !== "";
+  });
+  chaves.sort((a, b) => {
+    const ia = _ORDEM_FICHA.indexOf(a);
+    const ib = _ORDEM_FICHA.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  return chaves.map((k) => ({
+    chave: k,
+    rotulo: ROTULO_FICHA[k] ?? k,
+    valor: String(obj[k]),
+    isLink: k === "link" || /^https?:\/\//i.test(String(obj[k])),
+  }));
 }

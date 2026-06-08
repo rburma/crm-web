@@ -154,6 +154,26 @@ export function detalheAtendimento(id: number | string, msgLimit = 300): Promise
   return req<AtendimentoDetalhe>(`atendimentos/${id}?msg_limit=${msgLimit}`);
 }
 
+export type RespostaResult = {
+  id: number;
+  autor_tipo: string;
+  texto: string;
+  privado: boolean;
+  criado_em: string | null;
+  email: { tentado: boolean; ok: boolean; detalhe: string; para: string | null };
+};
+
+// Registra resposta do atendente (e envia por e-mail se enviarEmail + SMTP no servidor).
+export function responderAtendimento(
+  id: number | string, texto: string, privado: boolean, enviarEmail: boolean,
+): Promise<RespostaResult> {
+  return req<RespostaResult>(`atendimentos/${id}/responder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texto, privado, enviar_email: enviarEmail }),
+  });
+}
+
 export type MergeResult = {
   principal: ClienteResumo;
   fundidos: number[];

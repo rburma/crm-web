@@ -7,6 +7,7 @@ import {
   detalheAtendimento,
   fmtDataHora,
   paresFicha,
+  responderAtendimento,
   statusBadge,
   type AtendimentoDetalhe,
   type Mensagem,
@@ -51,23 +52,47 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // resposta do atendente
+  const [resp, setResp] = useState("");
+  const [privado, setPrivado] = useState(false);
+  const [enviarEmail, setEnviarEmail] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [respMsg, setRespMsg] = useState("");
+
+  async function carregar() {
+    try {
+      setD(await detalheAtendimento(params.id));
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    let vivo = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const r = await detalheAtendimento(params.id);
-        if (vivo) setD(r);
-      } catch (err) {
-        if (vivo) setErro(err instanceof Error ? err.message : "Erro");
-      } finally {
-        if (vivo) setLoading(false);
-      }
-    })();
-    return () => {
-      vivo = false;
-    };
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  async function enviarResposta() {
+    if (!resp.trim()) return;
+    setEnviando(true);
+    setRespMsg("");
+    try {
+      const r = await responderAtendimento(params.id, resp.trim(), privado, enviarEmail && !privado);
+      setResp("");
+      if (r.email.tentado) {
+        setRespMsg(r.email.ok ? `✓ E-mail enviado a ${r.email.para}` : `Registrado. E-mail NÃO enviado (${r.email.detalhe}).`);
+      } else {
+        setRespMsg(privado ? "✓ Nota interna registrada." : "✓ Resposta registrada.");
+      }
+      await carregar();
+    } catch (err) {
+      setRespMsg(err instanceof Error ? err.message : "Erro ao responder");
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   return (
     <Shell title="Atendimento">
@@ -195,6 +220,40 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                 </div>
               );
             })()}
+
+            {/* Responder (registra + envia e-mail se habilitado) */}
+            <div className="card p-5">
+              <div className="text-sm font-semibold text-slate-700 mb-2">Responder</div>
+              <textarea
+                className="input w-full min-h-[90px]"
+                placeholder="Escreva a resposta ao cliente ou uma nota interna…"
+                value={resp}
+                onChange={(e) => setResp(e.target.value)}
+              />
+              <div className="flex flex-wrap items-center gap-4 mt-2">
+                <label className="text-sm text-slate-600 flex items-center gap-1.5">
+                  <input type="checkbox" checked={privado} onChange={(e) => setPrivado(e.target.checked)} />
+                  Nota interna (não enviar)
+                </label>
+                <label className={`text-sm flex items-center gap-1.5 ${privado ? "text-slate-300" : "text-slate-600"}`}>
+                  <input
+                    type="checkbox"
+                    disabled={privado}
+                    checked={enviarEmail && !privado}
+                    onChange={(e) => setEnviarEmail(e.target.checked)}
+                  />
+                  Enviar por e-mail ao cliente
+                </label>
+                <button
+                  className="btn-primary ml-auto"
+                  onClick={enviarResposta}
+                  disabled={enviando || !resp.trim()}
+                >
+                  {enviando ? "Enviando…" : "Enviar"}
+                </button>
+              </div>
+              {respMsg && <div className="text-xs text-slate-500 mt-2">{respMsg}</div>}
+            </div>
 
             {/* Conversa */}
             <div className="card p-5 bg-slate-50/60">

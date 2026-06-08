@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { logout, usuarioLogado, type UsuarioLogado } from "@/lib/api";
 
 const NAV = [
   { href: "/clientes", label: "Clientes", icon: "👥" },
@@ -16,6 +18,8 @@ export default function Shell({
   title?: string;
 }) {
   const path = usePathname() ?? "";
+  const [u, setU] = useState<UsuarioLogado | null>(null);
+  useEffect(() => setU(usuarioLogado()), []);
   return (
     <div className="min-h-screen flex">
       <aside className="w-60 shrink-0 border-r border-[var(--line)] bg-white px-3 py-4 hidden md:flex md:flex-col">
@@ -43,7 +47,24 @@ export default function Shell({
           })}
         </nav>
         <div className="mt-auto px-2 text-xs text-slate-400">
-          Ricardo · Diretoria
+          {u ? (
+            <div>
+              <div className="text-slate-600 font-medium truncate">{u.nome || u.email}</div>
+              <button
+                onClick={() => {
+                  logout();
+                  window.location.href = "/login";
+                }}
+                className="text-slate-400 hover:underline mt-0.5"
+              >
+                Sair
+              </button>
+            </div>
+          ) : (
+            <Link href="/login" className="hover:underline">
+              Entrar
+            </Link>
+          )}
         </div>
       </aside>
 

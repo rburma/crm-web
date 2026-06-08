@@ -154,6 +154,36 @@ export function detalheAtendimento(id: number | string, msgLimit = 300): Promise
   return req<AtendimentoDetalhe>(`atendimentos/${id}?msg_limit=${msgLimit}`);
 }
 
+// ── Login / sessão ─────────────────────────────────────────────────
+export type UsuarioLogado = {
+  id: number; nome: string | null; email: string | null; papel: string; ativo: boolean;
+};
+
+export function login(email: string, senha: string): Promise<{ token: string; usuario: UsuarioLogado }> {
+  return req("auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, senha }),
+  });
+}
+
+export function salvarSessao(token: string, usuario: UsuarioLogado): void {
+  document.cookie = `crm_token=${token}; path=/; max-age=${7 * 86400}; samesite=lax`;
+  try { localStorage.setItem("crm_usuario", JSON.stringify(usuario)); } catch { /* ignore */ }
+}
+
+export function usuarioLogado(): UsuarioLogado | null {
+  try {
+    const s = typeof window !== "undefined" ? localStorage.getItem("crm_usuario") : null;
+    return s ? (JSON.parse(s) as UsuarioLogado) : null;
+  } catch { return null; }
+}
+
+export function logout(): void {
+  document.cookie = "crm_token=; path=/; max-age=0";
+  try { localStorage.removeItem("crm_usuario"); } catch { /* ignore */ }
+}
+
 export type RespostaResult = {
   id: number;
   autor_tipo: string;

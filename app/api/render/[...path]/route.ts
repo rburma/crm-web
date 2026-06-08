@@ -19,6 +19,11 @@ async function forward(req: NextRequest, path: string[]) {
   const target = `${API}/${path.map(encodeURIComponent).join("/")}${search}`;
 
   const headers: Record<string, string> = { "X-Usuario-Id": USER_ID };
+  // Login real: se o navegador tem o cookie de sessao, repassamos como X-CRM-Token
+  // (o motor resolve o usuario do token). Sem cookie, vale o X-Usuario-Id (admin) —
+  // ADITIVO: o piloto segue funcionando sem login enquanto nao ativarmos.
+  const token = req.cookies.get("crm_token")?.value;
+  if (token) headers["X-CRM-Token"] = token;
   if (GATE_USER && GATE_PASS) {
     headers["Authorization"] =
       "Basic " + Buffer.from(`${GATE_USER}:${GATE_PASS}`).toString("base64");

@@ -152,7 +152,7 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                   postava texto (98% das msgs sao notas do atendente). O pedido
                   dele e o ASSUNTO (+ ficha). Renderizamos como a 1a fala do
                   cliente p/ a conversa fazer sentido. */}
-              {d.assunto && (
+              {d.assunto && !d.mensagens.some((m) => m.autor_tipo === "consumidor") && (
                 <div className="flex justify-start mb-3">
                   <div className="max-w-[78%]">
                     <div className="rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words bg-white border border-[var(--line)] text-slate-800 rounded-bl-sm">

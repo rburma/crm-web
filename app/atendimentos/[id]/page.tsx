@@ -114,6 +114,55 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
               </div>
             </div>
 
+            {/* Ficha do cliente (resumo) — sempre no topo */}
+            {d.cliente && (() => {
+              const a = (d.cliente.atributos || {}) as Record<string, unknown>;
+              const av = (k: string) => {
+                const v = a[k];
+                return v != null && String(v).trim() !== "" ? String(v) : null;
+              };
+              const local = [av("cidade"), av("uf")].filter(Boolean).join(" / ");
+              return (
+                <div className="card p-5">
+                  <div className="text-sm font-semibold text-slate-700 mb-3">Cliente</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <div className="text-xs text-slate-400">Nome</div>
+                      <div className="text-sm">
+                        <Link href={`/clientes/${d.cliente.id}`} className="text-brand-700 hover:underline">
+                          {d.cliente.nome || "(cliente)"}
+                        </Link>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">E-mail</div>
+                      <div className="text-sm text-slate-800 break-words">{d.cliente.email || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Telefone</div>
+                      <div className="text-sm text-slate-800">{d.cliente.telefone || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">CPF</div>
+                      <div className="text-sm text-slate-800">{d.cliente.cpf || "—"}</div>
+                    </div>
+                    {local && (
+                      <div>
+                        <div className="text-xs text-slate-400">Cidade/UF</div>
+                        <div className="text-sm text-slate-800">{local}</div>
+                      </div>
+                    )}
+                    {av("loja_proxima") && (
+                      <div>
+                        <div className="text-xs text-slate-400">Loja mais próxima</div>
+                        <div className="text-sm text-slate-800">{av("loja_proxima")}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Ficha do produto (custom do ticket: "Localizar produto" etc.) */}
             {(() => {
               const pares = paresFicha(d.custom);

@@ -6,13 +6,17 @@ import Shell from "@/components/Shell";
 import {
   fmtData,
   listarAtendimentos,
+  listarMarcas,
   statusBadge,
   type AtendimentoItem,
+  type MarcaItem,
 } from "@/lib/api";
 
 export default function AtendimentosPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
+  const [marcaId, setMarcaId] = useState<number | null>(null);
+  const [marcas, setMarcas] = useState<MarcaItem[]>([]);
   const [items, setItems] = useState<AtendimentoItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -25,6 +29,7 @@ export default function AtendimentosPage() {
       const r = await listarAtendimentos({
         q: q.trim() || undefined,
         status: status || undefined,
+        marcaId,
         limit: 50,
       });
       setItems(r.items);
@@ -37,8 +42,9 @@ export default function AtendimentosPage() {
     }
   }
 
-  // Carrega os mais recentes na 1a abertura.
+  // Carrega marcas (filtro) + os atendimentos mais recentes na 1a abertura.
   useEffect(() => {
+    listarMarcas().then(setMarcas).catch(() => {});
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -59,6 +65,18 @@ export default function AtendimentosPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          <select
+            className="input w-44"
+            value={marcaId ?? ""}
+            onChange={(e) => setMarcaId(e.target.value === "" ? null : Number(e.target.value))}
+          >
+            <option value="">Todas as marcas</option>
+            {marcas.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nome || m.slug}
+              </option>
+            ))}
+          </select>
           <select
             className="input w-44"
             value={status}

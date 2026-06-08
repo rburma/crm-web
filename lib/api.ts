@@ -131,15 +131,23 @@ export function ficha360(id: number | string): Promise<Ficha> {
 export function listarAtendimentos(opts: {
   q?: string;
   status?: string;
+  marcaId?: number | null;
   limit?: number;
   offset?: number;
 } = {}): Promise<AtendimentosLista> {
   const qs = new URLSearchParams();
   if (opts.q) qs.set("q", opts.q);
   if (opts.status) qs.set("status", opts.status);
+  if (opts.marcaId != null) qs.set("marca_id", String(opts.marcaId));
   qs.set("limit", String(opts.limit ?? 50));
   qs.set("offset", String(opts.offset ?? 0));
   return req<AtendimentosLista>(`atendimentos?${qs.toString()}`);
+}
+
+export type MarcaItem = { id: number; slug: string; nome: string | null; ativo: boolean };
+
+export function listarMarcas(): Promise<MarcaItem[]> {
+  return req<MarcaItem[]>("marcas");
 }
 
 export function detalheAtendimento(id: number | string, msgLimit = 300): Promise<AtendimentoDetalhe> {

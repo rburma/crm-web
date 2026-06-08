@@ -116,7 +116,8 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
 
             {/* Ficha do cliente (resumo) — sempre no topo */}
             {d.cliente && (() => {
-              const a = (d.cliente.atributos || {}) as Record<string, unknown>;
+              const cli = d.cliente!;
+              const a = (cli.atributos || {}) as Record<string, unknown>;
               const av = (k: string) => {
                 const v = a[k];
                 return v != null && String(v).trim() !== "" ? String(v) : null;
@@ -129,22 +130,22 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                     <div>
                       <div className="text-xs text-slate-400">Nome</div>
                       <div className="text-sm">
-                        <Link href={`/clientes/${d.cliente.id}`} className="text-brand-700 hover:underline">
-                          {d.cliente.nome || "(cliente)"}
+                        <Link href={`/clientes/${cli.id}`} className="text-brand-700 hover:underline">
+                          {cli.nome || "(cliente)"}
                         </Link>
                       </div>
                     </div>
                     <div>
                       <div className="text-xs text-slate-400">E-mail</div>
-                      <div className="text-sm text-slate-800 break-words">{d.cliente.email || "—"}</div>
+                      <div className="text-sm text-slate-800 break-words">{cli.email || "—"}</div>
                     </div>
                     <div>
                       <div className="text-xs text-slate-400">Telefone</div>
-                      <div className="text-sm text-slate-800">{d.cliente.telefone || "—"}</div>
+                      <div className="text-sm text-slate-800">{cli.telefone || "—"}</div>
                     </div>
                     <div>
                       <div className="text-xs text-slate-400">CPF</div>
-                      <div className="text-sm text-slate-800">{d.cliente.cpf || "—"}</div>
+                      <div className="text-sm text-slate-800">{cli.cpf || "—"}</div>
                     </div>
                     {local && (
                       <div>

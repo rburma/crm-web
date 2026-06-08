@@ -285,6 +285,53 @@ export function statusBadge(status: string): string {
   return "badge-green";
 }
 
+// Telefone no padrao "+55 (DD) XXXXX-XXXX". Aceita com/sem 55, com/sem DDD.
+// Se nao reconhecer o formato, devolve os digitos crus (nunca mente).
+export function fmtTelefone(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  let d = String(raw).replace(/\D/g, "");
+  if (!d) return String(raw);
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2); // tira codigo do pais
+  let ddd = "";
+  let num = d;
+  if (d.length === 11 || d.length === 10) {
+    ddd = d.slice(0, 2);
+    num = d.slice(2);
+  } else if (d.length !== 9 && d.length !== 8) {
+    return "+55 " + d; // formato inesperado: devolve sem mascara
+  }
+  const numFmt =
+    num.length === 9 ? `${num.slice(0, 5)}-${num.slice(5)}`
+    : num.length === 8 ? `${num.slice(0, 4)}-${num.slice(4)}`
+    : num;
+  return ddd ? `+55 (${ddd}) ${numFmt}` : numFmt;
+}
+
+// CPF mascarado "000.000.000-00" (so visual; nao altera o dado).
+export function fmtCpf(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const c = String(raw).replace(/\D/g, "");
+  if (c.length !== 11) return String(raw);
+  return `${c.slice(0, 3)}.${c.slice(3, 6)}.${c.slice(6, 9)}-${c.slice(9)}`;
+}
+
+// Valida CPF pelos digitos verificadores (algoritmo oficial da Receita).
+export function cpfValido(raw: string | null | undefined): boolean {
+  if (!raw) return false;
+  const c = String(raw).replace(/\D/g, "");
+  if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  let s = 0;
+  for (let i = 0; i < 9; i++) s += parseInt(c[i], 10) * (10 - i);
+  let d1 = (s * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  if (d1 !== parseInt(c[9], 10)) return false;
+  s = 0;
+  for (let i = 0; i < 10; i++) s += parseInt(c[i], 10) * (11 - i);
+  let d2 = (s * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  return d2 === parseInt(c[10], 10);
+}
+
 // Rotulos amigaveis das chaves da ficha (custom do ticket + atributos do cliente).
 export const ROTULO_FICHA: Record<string, string> = {
   produto: "Produto",

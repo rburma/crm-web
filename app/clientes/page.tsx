@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import Shell from "@/components/Shell";
-import { buscarClientes, mergeClientes, type ClienteResumo } from "@/lib/api";
+import { buscarClientes, mergeClientes, fmtTelefone, fmtCpf, type ClienteResumo } from "@/lib/api";
 
 // Resultado da fusao client-side (preview): principal + preenche vazios dos outros.
 function previa(principal: ClienteResumo, outros: ClienteResumo[]): ClienteResumo {
@@ -171,7 +171,9 @@ export default function ClientesPage() {
                   <td className="td text-slate-600">
                     <div>{c.email || "—"}</div>
                     <div className="text-xs text-slate-400">
-                      {[c.telefone, c.cpf ? `CPF ${c.cpf}` : ""].filter(Boolean).join(" · ")}
+                      {[c.telefone ? fmtTelefone(c.telefone) : "", c.cpf ? `CPF ${fmtCpf(c.cpf)}` : ""]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
                   </td>
                   <td className="td"><span className="badge-gray">{c.uf || "—"}</span></td>
@@ -219,7 +221,7 @@ export default function ClientesPage() {
                       {c.nome || "(sem nome)"} <span className="text-slate-400">#{c.id}</span>
                     </div>
                     <div className="text-slate-500 text-xs">
-                      {[c.email, c.telefone, c.cpf ? `CPF ${c.cpf}` : "", c.uf]
+                      {[c.email, c.telefone ? fmtTelefone(c.telefone) : "", c.cpf ? `CPF ${fmtCpf(c.cpf)}` : "", c.uf]
                         .filter(Boolean)
                         .join(" · ") || "sem contato"}
                     </div>
@@ -234,8 +236,8 @@ export default function ClientesPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div><span className="text-slate-400">Nome:</span> {merged.nome || "—"}</div>
                   <div><span className="text-slate-400">E-mail:</span> {merged.email || "—"}</div>
-                  <div><span className="text-slate-400">Telefone:</span> {merged.telefone || "—"}</div>
-                  <div><span className="text-slate-400">CPF:</span> {merged.cpf || "—"}</div>
+                  <div><span className="text-slate-400">Telefone:</span> {merged.telefone ? fmtTelefone(merged.telefone) : "—"}</div>
+                  <div><span className="text-slate-400">CPF:</span> {merged.cpf ? fmtCpf(merged.cpf) : "—"}</div>
                   <div><span className="text-slate-400">UF:</span> {merged.uf || "—"}</div>
                 </div>
               </div>

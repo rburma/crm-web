@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { ficha360, fmtData, type Ficha } from "@/lib/api";
+import { ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type Ficha } from "@/lib/api";
 
 function Campo({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
   return (
@@ -99,14 +99,28 @@ export default function FichaPage({ params }: { params: { id: string } }) {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
                 <Campo rotulo="E-mail" valor={f.email} />
-                <Campo rotulo="Telefone" valor={f.telefone} />
-                <Campo rotulo="CPF" valor={f.cpf} />
+                <Campo rotulo="Telefone" valor={f.telefone ? fmtTelefone(f.telefone) : null} />
+                <Campo
+                  rotulo="CPF"
+                  valor={
+                    f.cpf ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {fmtCpf(f.cpf)}
+                        {cpfValido(f.cpf) ? (
+                          <span className="badge-green text-[10px] px-1.5 py-0">✓ válido</span>
+                        ) : (
+                          <span className="badge-amber text-[10px] px-1.5 py-0">verificar</span>
+                        )}
+                      </span>
+                    ) : null
+                  }
+                />
                 <Campo rotulo="Nascimento" valor={f.nascimento} />
                 <Campo rotulo="Idade" valor={calcIdade(f.nascimento)} />
                 <Campo rotulo="Primeiro atendimento" valor={fmtData(primeiro)} />
-                {av("tel_residencial") && <Campo rotulo="Tel. residencial" valor={av("tel_residencial")} />}
-                {av("tel_comercial") && <Campo rotulo="Tel. comercial" valor={av("tel_comercial")} />}
-                {av("tel_fixo") && <Campo rotulo="Tel. fixo" valor={av("tel_fixo")} />}
+                {av("tel_residencial") && <Campo rotulo="Tel. residencial" valor={fmtTelefone(av("tel_residencial"))} />}
+                {av("tel_comercial") && <Campo rotulo="Tel. comercial" valor={fmtTelefone(av("tel_comercial"))} />}
+                {av("tel_fixo") && <Campo rotulo="Tel. fixo" valor={fmtTelefone(av("tel_fixo"))} />}
                 {av("periodo_contato") && <Campo rotulo="Melhor horário" valor={av("periodo_contato")} />}
               </div>
             </div>

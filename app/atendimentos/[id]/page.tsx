@@ -6,6 +6,8 @@ import Shell from "@/components/Shell";
 import {
   detalheAtendimento,
   fmtDataHora,
+  fmtTelefone,
+  fmtCpf,
   paresFicha,
   responderAtendimento,
   statusBadge,
@@ -166,11 +168,11 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                     </div>
                     <div>
                       <div className="text-xs text-slate-400">Telefone</div>
-                      <div className="text-sm text-slate-800">{cli.telefone || "—"}</div>
+                      <div className="text-sm text-slate-800">{cli.telefone ? fmtTelefone(cli.telefone) : "—"}</div>
                     </div>
                     <div>
                       <div className="text-xs text-slate-400">CPF</div>
-                      <div className="text-sm text-slate-800">{cli.cpf || "—"}</div>
+                      <div className="text-sm text-slate-800">{cli.cpf ? fmtCpf(cli.cpf) : "—"}</div>
                     </div>
                     {local && (
                       <div>

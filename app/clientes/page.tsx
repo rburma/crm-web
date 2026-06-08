@@ -70,7 +70,7 @@ export default function ClientesPage() {
     setMerging(true);
     setErro("");
     try {
-      const r = await mergeClientes(principalId, [...sel]);
+      const r = await mergeClientes(principalId, Array.from(sel));
       setModal(false);
       setSel(new Set());
       setMsg(

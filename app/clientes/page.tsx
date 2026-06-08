@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import Shell from "@/components/Shell";
+import Pager from "@/components/Pager";
 import { buscarClientes, mergeClientes, fmtTelefone, fmtCpf, type ClienteResumo } from "@/lib/api";
+
+const PAGE = 50;
 
 // Resultado da fusao client-side (preview): principal + preenche vazios dos outros.
 function previa(principal: ClienteResumo, outros: ClienteResumo[]): ClienteResumo {
@@ -24,6 +27,8 @@ export default function ClientesPage() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const [buscou, setBuscou] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
 
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState(false);
@@ -31,8 +36,7 @@ export default function ClientesPage() {
   const [merging, setMerging] = useState(false);
   const [msg, setMsg] = useState("");
 
-  async function buscar(e?: React.FormEvent) {
-    e?.preventDefault();
+  async function carregar(pg: number) {
     if (!q.trim()) return;
     setLoading(true);
     setErro("");
@@ -40,13 +44,23 @@ export default function ClientesPage() {
     setBuscou(true);
     setSel(new Set());
     try {
-      setRows(await buscarClientes(q.trim(), 50));
+      const r = await buscarClientes(q.trim(), PAGE, pg * PAGE);
+      setRows(r.items);
+      setTotal(r.total);
+      setPage(pg);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao buscar");
       setRows([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
+  }
+
+  // Nova busca sempre volta para a 1ª página.
+  function buscar(e?: React.FormEvent) {
+    e?.preventDefault();
+    return carregar(0);
   }
 
   function toggle(id: number) {
@@ -183,10 +197,13 @@ export default function ClientesPage() {
           </table>
         </div>
 
-        {rows.length > 0 && (
-          <div className="text-xs text-slate-400 mt-3">
-            {rows.length} resultado(s) — marque 2+ e clique “Fundir” para juntar duplicados.
-          </div>
+        {buscou && total > 0 && (
+          <>
+            <Pager page={page} pageSize={PAGE} total={total} loading={loading} onPage={carregar} />
+            <div className="text-xs text-slate-400 mt-1">
+              Marque 2+ e clique “Fundir” para juntar duplicados.
+            </div>
+          </>
         )}
       </div>
 

@@ -38,12 +38,13 @@ async function forward(req: NextRequest, path: string[]) {
   try {
     const r = await fetch(target, init);
     const body = await r.text();
-    return new NextResponse(body, {
-      status: r.status,
-      headers: {
-        "Content-Type": r.headers.get("content-type") ?? "application/json",
-      },
-    });
+    const outHeaders: Record<string, string> = {
+      "Content-Type": r.headers.get("content-type") ?? "application/json",
+    };
+    // Repassa o total da paginação (clientes usa o header p/ "Página X de Y").
+    const totalCount = r.headers.get("x-total-count");
+    if (totalCount) outHeaders["X-Total-Count"] = totalCount;
+    return new NextResponse(body, { status: r.status, headers: outHeaders });
   } catch (e) {
     return NextResponse.json(
       { detail: "Falha ao falar com o motor.", erro: String(e) },

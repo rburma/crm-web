@@ -119,9 +119,24 @@ export type AtendimentoDetalhe = {
 };
 
 // ── Endpoints ──────────────────────────────────────────────────────
-export function buscarClientes(q: string, limit = 50, offset = 0): Promise<ClienteResumo[]> {
+export type ClientesPagina = { items: ClienteResumo[]; total: number };
+
+export async function buscarClientes(q: string, limit = 50, offset = 0): Promise<ClientesPagina> {
   const qs = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
-  return req<ClienteResumo[]>(`clientes?${qs.toString()}`);
+  const r = await fetch(`${BASE}/clientes?${qs.toString()}`, { cache: "no-store" });
+  if (!r.ok) {
+    let detail = `Erro ${r.status}`;
+    try {
+      const j = await r.json();
+      detail = j.detail ?? detail;
+    } catch {
+      /* mantem o detail padrao */
+    }
+    throw new Error(detail);
+  }
+  const items = (await r.json()) as ClienteResumo[];
+  const tc = Number(r.headers.get("X-Total-Count"));
+  return { items, total: Number.isFinite(tc) && tc > 0 ? tc : items.length };
 }
 
 export function ficha360(id: number | string): Promise<Ficha> {
@@ -190,8 +205,8 @@ export type UsuarioGestao = {
   ativo: boolean; tem_senha: boolean;
 };
 
-export function listarUsuarios(q = ""): Promise<UsuarioGestao[]> {
-  return req<UsuarioGestao[]>(`auth/usuarios?q=${encodeURIComponent(q)}`);
+export function listarUsuarios(q = "", limit = 200): Promise<UsuarioGestao[]> {
+  return req<UsuarioGestao[]>(`auth/usuarios?q=${encodeURIComponent(q)}&limit=${limit}`);
 }
 
 export function criarUsuario(dados: {

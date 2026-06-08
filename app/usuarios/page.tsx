@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import Pager from "@/components/Pager";
 import {
   atualizarUsuario,
   criarUsuario,
@@ -11,10 +12,12 @@ import {
 } from "@/lib/api";
 
 const PAPEIS = ["admin", "rede", "matriz", "master", "franqueado", "loja", "staff"];
+const PAGE = 50;
 
 export default function UsuariosPage() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<UsuarioGestao[]>([]);
+  const [page, setPage] = useState(0);
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,12 +34,15 @@ export default function UsuariosPage() {
     setErro("");
     try {
       setRows(await listarUsuarios(q.trim()));
+      setPage(0);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro");
     } finally {
       setLoading(false);
     }
   }
+
+  const visiveis = rows.slice(page * PAGE, (page + 1) * PAGE);
   useEffect(() => {
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,7 +122,7 @@ export default function UsuariosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {rows.map((u) => (
+              {visiveis.map((u) => (
                 <tr key={u.id}>
                   <td className="td">{u.nome || "—"}</td>
                   <td className="td text-slate-600">{u.email || "—"}</td>
@@ -146,6 +152,10 @@ export default function UsuariosPage() {
             </tbody>
           </table>
         </div>
+
+        {rows.length > 0 && (
+          <Pager page={page} pageSize={PAGE} total={rows.length} loading={loading} onPage={setPage} />
+        )}
       </div>
     </Shell>
   );

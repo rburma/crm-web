@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import Pager from "@/components/Pager";
 import {
   fmtData,
   listarAtendimentos,
@@ -12,6 +13,8 @@ import {
   type MarcaItem,
 } from "@/lib/api";
 
+const PAGE = 50;
+
 export default function AtendimentosPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -19,10 +22,11 @@ export default function AtendimentosPage() {
   const [marcas, setMarcas] = useState<MarcaItem[]>([]);
   const [items, setItems] = useState<AtendimentoItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
 
-  async function carregar() {
+  async function carregar(pg: number) {
     setLoading(true);
     setErro("");
     try {
@@ -30,22 +34,30 @@ export default function AtendimentosPage() {
         q: q.trim() || undefined,
         status: status || undefined,
         marcaId,
-        limit: 50,
+        limit: PAGE,
+        offset: pg * PAGE,
       });
       setItems(r.items);
       setTotal(r.total);
+      setPage(pg);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro");
       setItems([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   }
 
+  // Nova busca/filtro sempre volta para a 1ª página.
+  function buscar() {
+    return carregar(0);
+  }
+
   // Carrega marcas (filtro) + os atendimentos mais recentes na 1a abertura.
   useEffect(() => {
     listarMarcas().then(setMarcas).catch(() => {});
-    carregar();
+    carregar(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -55,7 +67,7 @@ export default function AtendimentosPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            carregar();
+            buscar();
           }}
           className="flex flex-wrap gap-2 mb-5"
         >
@@ -147,9 +159,7 @@ export default function AtendimentosPage() {
           </table>
         </div>
 
-        <div className="text-xs text-slate-400 mt-3">
-          {total.toLocaleString("pt-BR")} atendimento(s) no total — mostrando até 50.
-        </div>
+        <Pager page={page} pageSize={PAGE} total={total} loading={loading} onPage={carregar} />
       </div>
     </Shell>
   );

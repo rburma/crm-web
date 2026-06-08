@@ -8,6 +8,7 @@ import { logout, usuarioLogado, type UsuarioLogado } from "@/lib/api";
 const NAV = [
   { href: "/clientes", label: "Clientes", icon: "👥" },
   { href: "/atendimentos", label: "Atendimentos", icon: "💬" },
+  { href: "/usuarios", label: "Usuários", icon: "🔑" },
 ];
 
 export default function Shell({

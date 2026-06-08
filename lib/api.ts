@@ -184,6 +184,44 @@ export function logout(): void {
   try { localStorage.removeItem("crm_usuario"); } catch { /* ignore */ }
 }
 
+// ── Gestão de usuários (admin) ──────────────────────────────────────
+export type UsuarioGestao = {
+  id: number; nome: string | null; email: string | null; papel: string;
+  ativo: boolean; tem_senha: boolean;
+};
+
+export function listarUsuarios(q = ""): Promise<UsuarioGestao[]> {
+  return req<UsuarioGestao[]>(`auth/usuarios?q=${encodeURIComponent(q)}`);
+}
+
+export function criarUsuario(dados: {
+  nome: string; email: string; papel: string; senha?: string;
+}): Promise<UsuarioGestao> {
+  return req("auth/usuarios", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+}
+
+export function atualizarUsuario(
+  id: number, dados: { nome?: string; papel?: string; ativo?: boolean },
+): Promise<UsuarioGestao> {
+  return req(`auth/usuarios/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+}
+
+export function definirSenha(id: number, senha: string): Promise<{ ok: boolean }> {
+  return req(`auth/usuarios/${id}/senha`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ senha }),
+  });
+}
+
 export type RespostaResult = {
   id: number;
   autor_tipo: string;

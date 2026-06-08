@@ -104,6 +104,10 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                 <Campo rotulo="Nascimento" valor={f.nascimento} />
                 <Campo rotulo="Idade" valor={calcIdade(f.nascimento)} />
                 <Campo rotulo="Primeiro atendimento" valor={fmtData(primeiro)} />
+                {av("tel_residencial") && <Campo rotulo="Tel. residencial" valor={av("tel_residencial")} />}
+                {av("tel_comercial") && <Campo rotulo="Tel. comercial" valor={av("tel_comercial")} />}
+                {av("tel_fixo") && <Campo rotulo="Tel. fixo" valor={av("tel_fixo")} />}
+                {av("periodo_contato") && <Campo rotulo="Melhor horário" valor={av("periodo_contato")} />}
               </div>
             </div>
 

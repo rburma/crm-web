@@ -148,10 +148,25 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
 
             {/* Conversa */}
             <div className="card p-5 bg-slate-50/60">
-              {d.mensagens.length === 0 ? (
+              {/* Solicitacao inicial do cliente: no legado o cliente raramente
+                  postava texto (98% das msgs sao notas do atendente). O pedido
+                  dele e o ASSUNTO (+ ficha). Renderizamos como a 1a fala do
+                  cliente p/ a conversa fazer sentido. */}
+              {d.assunto && (
+                <div className="flex justify-start mb-3">
+                  <div className="max-w-[78%]">
+                    <div className="rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words bg-white border border-[var(--line)] text-slate-800 rounded-bl-sm">
+                      {d.assunto}
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-1 text-left">
+                      Cliente · abertura do atendimento · {fmtData(d.criado_em)}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {d.mensagens.map((m) => <Balao key={m.id} m={m} />)}
+              {d.mensagens.length === 0 && !d.assunto && (
                 <div className="text-sm text-slate-400">Sem mensagens.</div>
-              ) : (
-                d.mensagens.map((m) => <Balao key={m.id} m={m} />)
               )}
               {d.total_mensagens > d.mensagens.length && (
                 <div className="text-center text-xs text-slate-400 mt-2">

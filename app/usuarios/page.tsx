@@ -18,6 +18,7 @@ export default function UsuariosPage() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<UsuarioGestao[]>([]);
   const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,12 +30,14 @@ export default function UsuariosPage() {
   const [nSenha, setNSenha] = useState("");
   const [criando, setCriando] = useState(false);
 
-  async function carregar() {
+  async function carregar(pg: number) {
     setLoading(true);
     setErro("");
     try {
-      setRows(await listarUsuarios(q.trim()));
-      setPage(0);
+      const r = await listarUsuarios(q.trim(), PAGE, pg * PAGE);
+      setRows(r.items);
+      setTotal(r.total);
+      setPage(pg);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro");
     } finally {
@@ -42,9 +45,13 @@ export default function UsuariosPage() {
     }
   }
 
-  const visiveis = rows.slice(page * PAGE, (page + 1) * PAGE);
+  // Nova busca volta à 1ª página.
+  function buscar() {
+    return carregar(0);
+  }
+
   useEffect(() => {
-    carregar();
+    carregar(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -61,7 +68,7 @@ export default function UsuariosPage() {
       });
       setMsg(`Usuário ${nNome.trim()} criado.`);
       setNNome(""); setNEmail(""); setNSenha(""); setNPapel("loja");
-      await carregar();
+      await carregar(0);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao criar");
     } finally {
@@ -70,17 +77,17 @@ export default function UsuariosPage() {
   }
 
   async function setPapel(u: UsuarioGestao, papel: string) {
-    try { await atualizarUsuario(u.id, { papel }); await carregar(); }
+    try { await atualizarUsuario(u.id, { papel }); await carregar(page); }
     catch (err) { setErro(err instanceof Error ? err.message : "Erro"); }
   }
   async function toggleAtivo(u: UsuarioGestao) {
-    try { await atualizarUsuario(u.id, { ativo: !u.ativo }); await carregar(); }
+    try { await atualizarUsuario(u.id, { ativo: !u.ativo }); await carregar(page); }
     catch (err) { setErro(err instanceof Error ? err.message : "Erro"); }
   }
   async function senha(u: UsuarioGestao) {
     const s = window.prompt(`Nova senha para ${u.nome || u.email} (mín. 6):`);
     if (!s) return;
-    try { await definirSenha(u.id, s); setMsg(`Senha definida para ${u.email}.`); await carregar(); }
+    try { await definirSenha(u.id, s); setMsg(`Senha definida para ${u.email}.`); await carregar(page); }
     catch (err) { setErro(err instanceof Error ? err.message : "Erro"); }
   }
 
@@ -105,7 +112,7 @@ export default function UsuariosPage() {
         </form>
 
         {/* Busca + lista */}
-        <form onSubmit={(e) => { e.preventDefault(); carregar(); }} className="flex gap-2">
+        <form onSubmit={(e) => { e.preventDefault(); buscar(); }} className="flex gap-2">
           <input className="input flex-1" placeholder="Buscar por nome ou e-mail…" value={q} onChange={(e) => setQ(e.target.value)} />
           <button className="btn-ghost" disabled={loading}>{loading ? "…" : "Buscar"}</button>
         </form>
@@ -122,7 +129,7 @@ export default function UsuariosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {visiveis.map((u) => (
+              {rows.map((u) => (
                 <tr key={u.id}>
                   <td className="td">{u.nome || "—"}</td>
                   <td className="td text-slate-600">{u.email || "—"}</td>
@@ -153,8 +160,8 @@ export default function UsuariosPage() {
           </table>
         </div>
 
-        {rows.length > 0 && (
-          <Pager page={page} pageSize={PAGE} total={rows.length} loading={loading} onPage={setPage} />
+        {total > 0 && (
+          <Pager page={page} pageSize={PAGE} total={total} loading={loading} onPage={carregar} />
         )}
       </div>
     </Shell>

@@ -18,6 +18,25 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return r.json() as Promise<T>;
 }
 
+// Variante para listas paginadas: devolve o corpo (array) + o total (header
+// X-Total-Count, repassado pelo proxy). Usada por Clientes e Usuários.
+async function reqLista<T>(path: string): Promise<{ items: T[]; total: number }> {
+  const r = await fetch(`${BASE}/${path}`, { cache: "no-store" });
+  if (!r.ok) {
+    let detail = `Erro ${r.status}`;
+    try {
+      const j = await r.json();
+      detail = j.detail ?? detail;
+    } catch {
+      /* mantem o detail padrao */
+    }
+    throw new Error(detail);
+  }
+  const items = (await r.json()) as T[];
+  const tc = Number(r.headers.get("X-Total-Count"));
+  return { items, total: Number.isFinite(tc) && tc > 0 ? tc : items.length };
+}
+
 // ── Tipos ──────────────────────────────────────────────────────────
 export type ClienteResumo = {
   id: number;
@@ -121,22 +140,9 @@ export type AtendimentoDetalhe = {
 // ── Endpoints ──────────────────────────────────────────────────────
 export type ClientesPagina = { items: ClienteResumo[]; total: number };
 
-export async function buscarClientes(q: string, limit = 50, offset = 0): Promise<ClientesPagina> {
+export function buscarClientes(q: string, limit = 50, offset = 0): Promise<ClientesPagina> {
   const qs = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
-  const r = await fetch(`${BASE}/clientes?${qs.toString()}`, { cache: "no-store" });
-  if (!r.ok) {
-    let detail = `Erro ${r.status}`;
-    try {
-      const j = await r.json();
-      detail = j.detail ?? detail;
-    } catch {
-      /* mantem o detail padrao */
-    }
-    throw new Error(detail);
-  }
-  const items = (await r.json()) as ClienteResumo[];
-  const tc = Number(r.headers.get("X-Total-Count"));
-  return { items, total: Number.isFinite(tc) && tc > 0 ? tc : items.length };
+  return reqLista<ClienteResumo>(`clientes?${qs.toString()}`);
 }
 
 export function ficha360(id: number | string): Promise<Ficha> {
@@ -205,8 +211,11 @@ export type UsuarioGestao = {
   ativo: boolean; tem_senha: boolean;
 };
 
-export function listarUsuarios(q = "", limit = 200): Promise<UsuarioGestao[]> {
-  return req<UsuarioGestao[]>(`auth/usuarios?q=${encodeURIComponent(q)}&limit=${limit}`);
+export type UsuariosPagina = { items: UsuarioGestao[]; total: number };
+
+export function listarUsuarios(q = "", limit = 50, offset = 0): Promise<UsuariosPagina> {
+  const qs = `q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`;
+  return reqLista<UsuarioGestao>(`auth/usuarios?${qs}`);
 }
 
 export function criarUsuario(dados: {

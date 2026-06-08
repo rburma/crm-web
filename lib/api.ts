@@ -146,6 +146,22 @@ export function detalheAtendimento(id: number | string, msgLimit = 300): Promise
   return req<AtendimentoDetalhe>(`atendimentos/${id}?msg_limit=${msgLimit}`);
 }
 
+export type MergeResult = {
+  principal: ClienteResumo;
+  fundidos: number[];
+  ignorados: number[];
+  total_atendimentos: number;
+};
+
+// Funde varios clientes num so (principal sobrevive). Admin-only no backend.
+export function mergeClientes(principalId: number, ids: number[]): Promise<MergeResult> {
+  return req<MergeResult>("clientes/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ principal_id: principalId, ids }),
+  });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

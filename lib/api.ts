@@ -322,6 +322,22 @@ export function anonimizarCliente(id: number): Promise<ClienteResumo> {
   return req<ClienteResumo>(`clientes/${id}/anonimizar`, { method: "POST" });
 }
 
+// Chat de consultas (IA -> SQL somente leitura). Admin-only no backend.
+export type ConsultaIAResult = {
+  sql: string;
+  colunas: string[];
+  linhas: (string | number | boolean | null)[][];
+  n: number;
+};
+
+export function consultaIA(pergunta: string): Promise<ConsultaIAResult> {
+  return req<ConsultaIAResult>("ia/consulta", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta }),
+  });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

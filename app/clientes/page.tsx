@@ -36,6 +36,7 @@ export default function ClientesPage() {
   const [erro, setErro] = useState("");
   const [buscou, setBuscou] = useState(false);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE);
   const [total, setTotal] = useState(0);
 
   const selec = useSelecao(rows, (c) => String(c.id));
@@ -45,7 +46,7 @@ export default function ClientesPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  async function carregar(pg: number) {
+  async function carregar(pg: number, size = pageSize) {
     if (!q.trim()) return;
     setLoading(true);
     setErro("");
@@ -53,7 +54,7 @@ export default function ClientesPage() {
     setBuscou(true);
     selec.limpar();
     try {
-      const r = await buscarClientes(q.trim(), PAGE, pg * PAGE);
+      const r = await buscarClientes(q.trim(), size, pg * size);
       setRows(r.items);
       setTotal(r.total);
       setPage(pg);
@@ -257,7 +258,14 @@ export default function ClientesPage() {
 
         {buscou && total > 0 && (
           <>
-            <Pager page={page} pageSize={PAGE} total={total} loading={loading} onPage={carregar} />
+            <Pager
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              loading={loading}
+              onPage={carregar}
+              onPageSize={(n) => { setPageSize(n); carregar(0, n); }}
+            />
             <div className="text-xs text-slate-400 mt-1">
               Marque 2+ e clique “Fundir” para juntar duplicados.
             </div>

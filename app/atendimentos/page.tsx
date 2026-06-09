@@ -25,6 +25,7 @@ export default function AtendimentosPage() {
   const [items, setItems] = useState<AtendimentoItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
@@ -56,7 +57,7 @@ export default function AtendimentosPage() {
     }
   }
 
-  async function carregar(pg: number) {
+  async function carregar(pg: number, size = pageSize) {
     setLoading(true);
     setErro("");
     try {
@@ -64,8 +65,8 @@ export default function AtendimentosPage() {
         q: q.trim() || undefined,
         status: status || undefined,
         marcaId,
-        limit: PAGE,
-        offset: pg * PAGE,
+        limit: size,
+        offset: pg * size,
       });
       setItems(r.items);
       setTotal(r.total);
@@ -239,7 +240,14 @@ export default function AtendimentosPage() {
           </table>
         </div>
 
-        <Pager page={page} pageSize={PAGE} total={total} loading={loading} onPage={carregar} />
+        <Pager
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          loading={loading}
+          onPage={carregar}
+          onPageSize={(n) => { setPageSize(n); carregar(0, n); }}
+        />
       </div>
     </Shell>
   );

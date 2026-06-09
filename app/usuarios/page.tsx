@@ -20,6 +20,7 @@ export default function UsuariosPage() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<UsuarioGestao[]>([]);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE);
   const [total, setTotal] = useState(0);
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
@@ -37,11 +38,11 @@ export default function UsuariosPage() {
   const [bulkPapel, setBulkPapel] = useState("loja");
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  async function carregar(pg: number) {
+  async function carregar(pg: number, size = pageSize) {
     setLoading(true);
     setErro("");
     try {
-      const r = await listarUsuarios(q.trim(), PAGE, pg * PAGE);
+      const r = await listarUsuarios(q.trim(), size, pg * size);
       setRows(r.items);
       setTotal(r.total);
       setPage(pg);
@@ -227,7 +228,14 @@ export default function UsuariosPage() {
         </div>
 
         {total > 0 && (
-          <Pager page={page} pageSize={PAGE} total={total} loading={loading} onPage={carregar} />
+          <Pager
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            loading={loading}
+            onPage={carregar}
+            onPageSize={(n) => { setPageSize(n); carregar(0, n); }}
+          />
         )}
       </div>
     </Shell>

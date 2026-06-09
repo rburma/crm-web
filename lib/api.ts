@@ -295,6 +295,17 @@ export function mergeClientes(principalId: number, ids: number[]): Promise<Merge
   });
 }
 
+// Define (ou remove, se valor vazio) um atributo de cadastro em varios clientes.
+export function clientesBulkAtributo(
+  ids: number[], chave: string, valor: string,
+): Promise<BulkResult> {
+  return req<BulkResult>("clientes/bulk-atributo", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, chave, valor }),
+  });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

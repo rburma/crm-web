@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
-import { buscarClientes, mergeClientes, fmtTelefone, fmtCpf, type ClienteResumo } from "@/lib/api";
+import { useSelecao } from "@/lib/useSelecao";
+import {
+  buscarClientes,
+  mergeClientes,
+  clientesBulkAtributo,
+  fmtTelefone,
+  fmtCpf,
+  type ClienteResumo,
+} from "@/lib/api";
 
 const PAGE = 50;
 
@@ -30,10 +38,11 @@ export default function ClientesPage() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
 
-  const [sel, setSel] = useState<Set<number>>(new Set());
+  const selec = useSelecao(rows, (c) => String(c.id));
   const [modal, setModal] = useState(false);
   const [principalId, setPrincipalId] = useState<number | null>(null);
   const [merging, setMerging] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
   async function carregar(pg: number) {
@@ -42,7 +51,7 @@ export default function ClientesPage() {
     setErro("");
     setMsg("");
     setBuscou(true);
-    setSel(new Set());
+    selec.limpar();
     try {
       const r = await buscarClientes(q.trim(), PAGE, pg * PAGE);
       setRows(r.items);
@@ -63,16 +72,7 @@ export default function ClientesPage() {
     return carregar(0);
   }
 
-  function toggle(id: number) {
-    setSel((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  }
-
-  const selecionados = rows.filter((r) => sel.has(r.id));
+  const selecionados = rows.filter((r) => selec.tem(String(r.id)));
 
   function abrirMerge() {
     setPrincipalId(selecionados[0]?.id ?? null);
@@ -84,9 +84,9 @@ export default function ClientesPage() {
     setMerging(true);
     setErro("");
     try {
-      const r = await mergeClientes(principalId, Array.from(sel));
+      const r = await mergeClientes(principalId, selec.ids.map(Number));
       setModal(false);
-      setSel(new Set());
+      selec.limpar();
       setMsg(
         `Clientes fundidos. Sobreviveu #${r.principal.id} (${r.principal.nome || "sem nome"}) ` +
           `com ${r.total_atendimentos} atendimento(s).` +
@@ -98,6 +98,48 @@ export default function ClientesPage() {
     } finally {
       setMerging(false);
     }
+  }
+
+  async function editarAtributo() {
+    const ids = selec.ids.map(Number);
+    if (!ids.length) return;
+    const chave = window.prompt("Campo a definir (ex.: segmento, esporte, origem). Vazio cancela:");
+    if (!chave || !chave.trim()) return;
+    const valor = window.prompt(`Valor para "${chave.trim()}" nos ${ids.length} cliente(s). Vazio REMOVE o campo:`);
+    if (valor === null) return; // cancelou
+    if (!window.confirm(`Definir "${chave.trim()}" = "${valor}" em ${ids.length} cliente(s)?`)) return;
+    setBulkBusy(true);
+    setErro("");
+    setMsg("");
+    try {
+      const r = await clientesBulkAtributo(ids, chave.trim(), valor);
+      setMsg(`${r.ok} cliente(s) atualizado(s) (campo "${chave.trim()}").`);
+      selec.limpar();
+      await carregar(page);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro na ação em massa");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  // Exporta os clientes SELECIONADOS desta página em CSV (dados já carregados).
+  function exportarCsv() {
+    if (!selecionados.length) return;
+    const esc = (v: string | null) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const linhas = [
+      ["id", "nome", "cpf", "telefone", "email", "uf"].join(","),
+      ...selecionados.map((c) =>
+        [c.id, esc(c.nome), esc(c.cpf), esc(c.telefone), esc(c.email), esc(c.uf)].join(","),
+      ),
+    ];
+    const blob = new Blob(["﻿" + linhas.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `clientes_selecionados_${selecionados.length}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   const principal = selecionados.find((c) => c.id === principalId) || null;
@@ -127,23 +169,30 @@ export default function ClientesPage() {
           <div className="card border-green-200 bg-green-50 text-green-700 p-3 text-sm mb-4">{msg}</div>
         )}
 
-        {/* Barra de fusao */}
-        {sel.size >= 1 && (
-          <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-3 text-sm">
-            <span className="text-blue-800">{sel.size} cliente(s) selecionado(s)</span>
-            <div className="flex gap-2">
-              <button className="btn-ghost" onClick={() => setSel(new Set())}>
-                Limpar
-              </button>
-              <button
-                className="btn-primary"
-                disabled={sel.size < 2}
-                onClick={abrirMerge}
-                title={sel.size < 2 ? "Selecione ao menos 2" : "Fundir os selecionados"}
-              >
-                Fundir {sel.size >= 2 ? `(${sel.size})` : ""}
-              </button>
-            </div>
+        {/* Barra de seleção + ações em massa */}
+        {selec.count >= 1 && (
+          <div className="flex flex-wrap items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-3 text-sm">
+            <span className="text-blue-800 font-medium">{selec.count} cliente(s) selecionado(s)</span>
+            <span className="text-slate-300">·</span>
+            <button
+              className="btn-primary"
+              disabled={selec.count < 2 || bulkBusy}
+              onClick={abrirMerge}
+              title={selec.count < 2 ? "Selecione ao menos 2" : "Fundir os selecionados"}
+            >
+              Fundir {selec.count >= 2 ? `(${selec.count})` : ""}
+            </button>
+            <button className="btn-ghost" disabled={bulkBusy} onClick={editarAtributo}>
+              Editar atributo
+            </button>
+            <button className="btn-ghost" disabled={bulkBusy || selecionados.length === 0} onClick={exportarCsv}>
+              Exportar CSV
+            </button>
+            <span className="text-slate-300">·</span>
+            <button className="btn-ghost" disabled={bulkBusy} onClick={selec.limpar}>
+              Limpar
+            </button>
+            <span className="text-xs text-slate-400 ml-auto">dica: clique e Shift+clique para um intervalo</span>
           </div>
         )}
 
@@ -151,7 +200,15 @@ export default function ClientesPage() {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-[var(--line)]">
               <tr>
-                <th className="th w-10"></th>
+                <th className="th w-10">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={selec.todosDaPagina}
+                    onChange={selec.toggleAll}
+                    title="Selecionar todos desta página"
+                  />
+                </th>
                 <th className="th">Nome</th>
                 <th className="th">Contato</th>
                 <th className="th w-20">UF</th>
@@ -167,13 +224,14 @@ export default function ClientesPage() {
               {!loading && !buscou && (
                 <tr><td className="td text-slate-400" colSpan={4}>Digite um termo e busque — entre 304 mil clientes.</td></tr>
               )}
-              {rows.map((c) => (
-                <tr key={c.id} className={sel.has(c.id) ? "bg-blue-50/40" : "row-link"}>
+              {rows.map((c, idx) => (
+                <tr key={c.id} className={selec.tem(String(c.id)) ? "bg-blue-50/40" : "row-link"}>
                   <td className="td">
                     <input
                       type="checkbox"
-                      checked={sel.has(c.id)}
-                      onChange={() => toggle(c.id)}
+                      checked={selec.tem(String(c.id))}
+                      onClick={(e) => selec.toggleAt(idx, e.shiftKey)}
+                      onChange={() => { /* tratado em onClick */ }}
                       className="h-4 w-4"
                     />
                   </td>

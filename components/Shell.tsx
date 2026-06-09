@@ -9,6 +9,7 @@ const NAV = [
   { href: "/clientes", label: "Clientes", icon: "👥" },
   { href: "/atendimentos", label: "Atendimentos", icon: "💬" },
   { href: "/usuarios", label: "Usuários", icon: "🔑" },
+  { href: "/lgpd", label: "LGPD", icon: "🛡️" },
 ];
 
 export default function Shell({

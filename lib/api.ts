@@ -317,6 +317,11 @@ export function clientesBulkAtributo(
   });
 }
 
+// LGPD: anonimiza o titular (remove identificacao, preserva o registro). Admin-only.
+export function anonimizarCliente(id: number): Promise<ClienteResumo> {
+  return req<ClienteResumo>(`clientes/${id}/anonimizar`, { method: "POST" });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

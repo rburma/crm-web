@@ -246,6 +246,19 @@ export function definirSenha(id: number, senha: string): Promise<{ ok: boolean }
   });
 }
 
+export type BulkResult = { ok: number; falhas: { id?: number; motivo: string }[] };
+
+// Ação em lote sobre usuários: define papel, ativa ou desativa (não exclui).
+export function usuariosEmLote(
+  ids: number[], acao: "papel" | "ativar" | "desativar", papel?: string,
+): Promise<BulkResult> {
+  return req<BulkResult>("auth/usuarios/bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, acao, papel }),
+  });
+}
+
 export type RespostaResult = {
   id: number;
   autor_tipo: string;

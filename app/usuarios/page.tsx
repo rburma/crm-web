@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
+import { useSelecao } from "@/lib/useSelecao";
 import {
   atualizarUsuario,
   criarUsuario,
   definirSenha,
   listarUsuarios,
+  usuariosEmLote,
   type UsuarioGestao,
 } from "@/lib/api";
 
@@ -29,6 +31,11 @@ export default function UsuariosPage() {
   const [nPapel, setNPapel] = useState("loja");
   const [nSenha, setNSenha] = useState("");
   const [criando, setCriando] = useState(false);
+
+  // seleção + ações em massa
+  const selec = useSelecao(rows, (u) => String(u.id));
+  const [bulkPapel, setBulkPapel] = useState("loja");
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   async function carregar(pg: number) {
     setLoading(true);
@@ -91,6 +98,30 @@ export default function UsuariosPage() {
     catch (err) { setErro(err instanceof Error ? err.message : "Erro"); }
   }
 
+  async function aplicarBulk(acao: "papel" | "ativar" | "desativar") {
+    const ids = selec.ids.map(Number);
+    if (!ids.length) return;
+    const oque =
+      acao === "papel" ? `definir papel "${bulkPapel}"`
+      : acao === "ativar" ? "ativar" : "desativar";
+    if (!window.confirm(`${oque} para ${ids.length} usuário(s) selecionado(s)?`)) return;
+    setBulkBusy(true);
+    setErro("");
+    setMsg("");
+    try {
+      const r = await usuariosEmLote(ids, acao, acao === "papel" ? bulkPapel : undefined);
+      let m = `${r.ok} usuário(s) atualizado(s).`;
+      if (r.falhas.length) m += ` ${r.falhas.length} ignorado(s) (ex.: o próprio usuário).`;
+      setMsg(m);
+      selec.limpar();
+      await carregar(page);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro na ação em massa");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   return (
     <Shell title="Usuários">
       <div className="max-w-5xl space-y-5">
@@ -117,10 +148,36 @@ export default function UsuariosPage() {
           <button className="btn-ghost" disabled={loading}>{loading ? "…" : "Buscar"}</button>
         </form>
 
+        {/* Barra de ações em massa */}
+        {selec.count > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm">
+            <span className="text-blue-800 font-medium">{selec.count} selecionado(s)</span>
+            <span className="text-slate-300">·</span>
+            <select className="input py-1 text-xs w-32" value={bulkPapel} onChange={(e) => setBulkPapel(e.target.value)} disabled={bulkBusy}>
+              {PAPEIS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <button className="btn-ghost" disabled={bulkBusy} onClick={() => aplicarBulk("papel")}>Definir papel</button>
+            <button className="btn-ghost" disabled={bulkBusy} onClick={() => aplicarBulk("ativar")}>Ativar</button>
+            <button className="btn-ghost" disabled={bulkBusy} onClick={() => aplicarBulk("desativar")}>Desativar</button>
+            <span className="text-slate-300">·</span>
+            <button className="btn-ghost" disabled={bulkBusy} onClick={selec.limpar}>Limpar</button>
+            <span className="text-xs text-slate-400 ml-auto">dica: clique e Shift+clique para marcar um intervalo</span>
+          </div>
+        )}
+
         <div className="card overflow-hidden">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-[var(--line)]">
               <tr>
+                <th className="th w-10">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={selec.todosDaPagina}
+                    onChange={selec.toggleAll}
+                    title="Selecionar todos desta página"
+                  />
+                </th>
                 <th className="th">Nome</th>
                 <th className="th">E-mail</th>
                 <th className="th w-32">Papel</th>
@@ -129,8 +186,17 @@ export default function UsuariosPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {rows.map((u) => (
-                <tr key={u.id}>
+              {rows.map((u, idx) => (
+                <tr key={u.id} className={selec.tem(String(u.id)) ? "bg-blue-50/40" : ""}>
+                  <td className="td">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={selec.tem(String(u.id))}
+                      onClick={(e) => selec.toggleAt(idx, e.shiftKey)}
+                      onChange={() => { /* tratado em onClick */ }}
+                    />
+                  </td>
                   <td className="td">{u.nome || "—"}</td>
                   <td className="td text-slate-600">{u.email || "—"}</td>
                   <td className="td">
@@ -154,7 +220,7 @@ export default function UsuariosPage() {
                 </tr>
               ))}
               {!loading && rows.length === 0 && (
-                <tr><td className="td text-slate-400" colSpan={5}>Nenhum usuário.</td></tr>
+                <tr><td className="td text-slate-400" colSpan={6}>Nenhum usuário.</td></tr>
               )}
             </tbody>
           </table>

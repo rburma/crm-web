@@ -39,8 +39,12 @@ async function forward(req: NextRequest, path: string[]) {
 
   const init: RequestInit = { method: req.method, headers, cache: "no-store" };
   if (!["GET", "HEAD"].includes(req.method)) {
-    headers["Content-Type"] = req.headers.get("content-type") ?? "application/json";
-    init.body = await req.text();
+    // Preserva o Content-Type original (inclui o boundary do multipart) e
+    // repassa o corpo como BYTES — binario-seguro (ler como texto corromperia
+    // um upload .xlsx). Vale tanto p/ JSON quanto p/ multipart/form-data.
+    const ct = req.headers.get("content-type");
+    if (ct) headers["Content-Type"] = ct;
+    init.body = Buffer.from(await req.arrayBuffer());
   }
 
   try {

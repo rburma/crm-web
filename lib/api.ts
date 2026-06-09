@@ -339,6 +339,67 @@ export function consultaIA(pergunta: string): Promise<ConsultaIAResult> {
   });
 }
 
+// ── Importação de clientes por planilha (.xlsx) ─────────────────────
+// Campos de destino que o backend reconhece como "quentes" (o resto vira atributo).
+export const CAMPOS_IMPORT: { campo: string; rotulo: string }[] = [
+  { campo: "", rotulo: "— ignorar —" },
+  { campo: "nome", rotulo: "Nome" },
+  { campo: "cpf", rotulo: "CPF" },
+  { campo: "telefone", rotulo: "Telefone" },
+  { campo: "email", rotulo: "E-mail" },
+  { campo: "nascimento", rotulo: "Nascimento" },
+  { campo: "loja_ref", rotulo: "Loja (apelido/código/CNPJ/nome)" },
+  { campo: "tags", rotulo: "Tags (separadas por , ou ;)" },
+];
+
+export type ImportColunas = { colunas: string[]; amostra: string[][] };
+
+// Lê só o cabeçalho + amostra do .xlsx (para montar o mapeamento). Só leitura.
+export function importColunas(arquivo: File): Promise<ImportColunas> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  return req<ImportColunas>("importacoes/clientes/colunas", { method: "POST", body: fd });
+}
+
+export type ImportLinhaPreview = {
+  linha: number; acao: "novo" | "enriquece" | "erro";
+  consumidor_id?: number; loja_id?: number; motivo?: string;
+};
+export type ImportPreview = {
+  total: number; novos: number; enriquece: number;
+  erros: { linha: number; motivo: string }[];
+  amostra: ImportLinhaPreview[];
+};
+
+// Dry-run: classifica cada linha (novo/enriquece/erro). NÃO escreve nada.
+export function importPreview(
+  arquivo: File, mapeamento: Record<string, string>, origem: string,
+): Promise<ImportPreview> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  fd.append("mapeamento", JSON.stringify(mapeamento));
+  fd.append("origem", origem);
+  return req<ImportPreview>("importacoes/clientes/preview", { method: "POST", body: fd });
+}
+
+export type ImportResultado = {
+  importacao_id: number; origem: string; descricao: string | null;
+  total_linhas: number; novos: number; enriquecidos: number; erros: number;
+  detalhe: { linhas: { _linha: number; acao: string; motivo?: string }[] };
+};
+
+// Aplica de fato (cria/enriquece + multi-loja + identidade). Auditado no backend.
+export function importAplicar(
+  arquivo: File, mapeamento: Record<string, string>, origem: string, descricao?: string,
+): Promise<ImportResultado> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  fd.append("mapeamento", JSON.stringify(mapeamento));
+  fd.append("origem", origem);
+  if (descricao) fd.append("descricao", descricao);
+  return req<ImportResultado>("importacoes/clientes/aplicar", { method: "POST", body: fd });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

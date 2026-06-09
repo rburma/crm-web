@@ -9,6 +9,7 @@ import { logout, usuarioLogado, type UsuarioLogado } from "@/lib/api";
 const NAV = [
   { href: "/clientes", label: "Clientes", icon: "👥" },
   { href: "/atendimentos", label: "Atendimentos", icon: "💬" },
+  { href: "/importar", label: "Importar", icon: "📥" },
   { href: "/usuarios", label: "Usuários", icon: "🔑" },
   { href: "/lgpd", label: "LGPD", icon: "🛡️" },
 ];

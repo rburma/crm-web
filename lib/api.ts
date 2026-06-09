@@ -175,6 +175,17 @@ export function detalheAtendimento(id: number | string, msgLimit = 300): Promise
   return req<AtendimentoDetalhe>(`atendimentos/${id}?msg_limit=${msgLimit}`);
 }
 
+// Ação em lote sobre atendimentos: muda status ou define marca.
+export function atendimentosEmLote(
+  ids: number[], acao: "status" | "marca", valor: string,
+): Promise<BulkResult> {
+  return req<BulkResult>("atendimentos/bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, acao, valor }),
+  });
+}
+
 // ── Login / sessão ─────────────────────────────────────────────────
 export type UsuarioLogado = {
   id: number; nome: string | null; email: string | null; papel: string; ativo: boolean;

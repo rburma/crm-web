@@ -11,6 +11,10 @@ const API = (process.env.RENDER_API_URL ?? "https://crm-motor.onrender.com").rep
 const GATE_USER = process.env.RENDER_GATE_USER ?? "";
 const GATE_PASS = process.env.RENDER_GATE_PASS ?? "";
 const USER_ID = process.env.RENDER_USER_ID ?? "1";
+// Go-live: definir RENDER_SEND_USER_ID=0 (para de mandar a identidade-admin de
+// compatibilidade) e PROXY_SECRET (segredo do perímetro, casado com o do motor).
+const SEND_USER_ID = (process.env.RENDER_SEND_USER_ID ?? "1") === "1";
+const PROXY_SECRET = process.env.PROXY_SECRET ?? "";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +22,16 @@ async function forward(req: NextRequest, path: string[]) {
   const { search } = new URL(req.url);
   const target = `${API}/${path.map(encodeURIComponent).join("/")}${search}`;
 
-  const headers: Record<string, string> = { "X-Usuario-Id": USER_ID };
+  const headers: Record<string, string> = {};
+  // Identidade de compatibilidade do piloto (admin). No go-live, RENDER_SEND_USER_ID=0
+  // desliga isto e o motor (ALLOW_USER_ID_HEADER=0) passa a exigir token de login.
+  if (SEND_USER_ID) headers["X-Usuario-Id"] = USER_ID;
   // Login real: se o navegador tem o cookie de sessao, repassamos como X-CRM-Token
-  // (o motor resolve o usuario do token). Sem cookie, vale o X-Usuario-Id (admin) —
-  // ADITIVO: o piloto segue funcionando sem login enquanto nao ativarmos.
+  // (o motor resolve o usuario do token).
   const token = req.cookies.get("crm_token")?.value;
   if (token) headers["X-CRM-Token"] = token;
+  // Segredo de perímetro (se configurado): prova ao motor que o request veio do proxy.
+  if (PROXY_SECRET) headers["X-Proxy-Secret"] = PROXY_SECRET;
   if (GATE_USER && GATE_PASS) {
     headers["Authorization"] =
       "Basic " + Buffer.from(`${GATE_USER}:${GATE_PASS}`).toString("base64");

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
-import ChatIA from "@/components/ChatIA";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   buscarClientes,
@@ -151,7 +150,6 @@ export default function ClientesPage() {
   return (
     <Shell title="Clientes">
       <div className="max-w-5xl">
-        <ChatIA />
         <form onSubmit={buscar} className="flex gap-2 mb-5">
           <input
             className="input"

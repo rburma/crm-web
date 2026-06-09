@@ -75,6 +75,11 @@ export default function ChatIA() {
 
           {res && (
             <div className="mt-3 space-y-2">
+              {res.resposta && (
+                <div className="rounded-lg border border-brand-200 bg-white p-3 text-sm text-slate-800 whitespace-pre-wrap">
+                  {res.resposta}
+                </div>
+              )}
               <details className="text-xs text-slate-500">
                 <summary className="cursor-pointer">SQL gerado</summary>
                 <pre className="mt-1 p-2 bg-slate-100 rounded overflow-x-auto whitespace-pre-wrap text-[11px]">{res.sql}</pre>

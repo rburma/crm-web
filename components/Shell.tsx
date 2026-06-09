@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import ChatIA from "@/components/ChatIA";
 import { logout, usuarioLogado, type UsuarioLogado } from "@/lib/api";
 
 const NAV = [
@@ -74,7 +75,10 @@ export default function Shell({
         <header className="h-14 border-b border-[var(--line)] bg-white/80 backdrop-blur sticky top-0 z-10 flex items-center px-6">
           <h1 className="text-sm font-semibold text-slate-700">{title}</h1>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <ChatIA />
+          {children}
+        </main>
       </div>
     </div>
   );

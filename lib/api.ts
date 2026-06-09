@@ -328,6 +328,7 @@ export type ConsultaIAResult = {
   colunas: string[];
   linhas: (string | number | boolean | null)[][];
   n: number;
+  resposta?: string;
 };
 
 export function consultaIA(pergunta: string): Promise<ConsultaIAResult> {

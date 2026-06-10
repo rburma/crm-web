@@ -419,32 +419,108 @@ function SecaoAvaliacao({ marca, onErro, onOk }: {
   );
 }
 
-// ════════ 4. Páginas (links prontos) ════════
+// ════════ 4. Páginas (links prontos + QR codes) ════════
+function LinkComQr({ rotulo, url, arquivo }: { rotulo: string; url: string; arquivo: string }) {
+  const [qr, setQr] = useState("");
+  useEffect(() => {
+    let vivo = true;
+    import("qrcode").then((QRCode) =>
+      QRCode.toDataURL(url, { width: 512, margin: 1 })
+        .then((d: string) => { if (vivo) setQr(d); })
+        .catch(() => {})
+    );
+    return () => { vivo = false; };
+  }, [url]);
+  return (
+    <div className="border border-slate-200 rounded-lg p-3">
+      <p className="text-xs font-semibold text-slate-500 mb-1">{rotulo}</p>
+      <div className="flex items-center gap-3">
+        {qr ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={qr} alt="QR code" className="w-24 h-24 rounded border border-slate-200 bg-white shrink-0" />
+        ) : (
+          <div className="w-24 h-24 rounded border border-slate-200 bg-slate-50 shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <code className="block text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1.5 overflow-x-auto whitespace-nowrap mb-2">{url}</code>
+          <div className="flex gap-2">
+            <button className="btn-ghost text-xs px-2 py-1.5"
+              onClick={() => navigator.clipboard?.writeText(url)}>copiar link</button>
+            {qr && (
+              <a className="btn-ghost text-xs px-2 py-1.5" href={qr} download={`${arquivo}.png`}>
+                ⬇ baixar QR (imprimir)
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
   const [base, setBase] = useState("");
+  const [qLoja, setQLoja] = useState("");
+  const [lojas, setLojas] = useState<{ id: number; nome: string }[]>([]);
+  const [loja, setLoja] = useState<{ id: number; nome: string } | null>(null);
+
   useEffect(() => { setBase(window.location.origin); }, []);
-  const links = [
-    { rotulo: "Formulário público — abrir atendimento", url: `${base}/f/${marca.slug}` },
-    { rotulo: "Acompanhamento de atendimento", url: `${base}/acompanhar` },
-    { rotulo: "Avaliação (o cliente chega pelo acompanhamento ao encerrar)", url: `${base}/avaliar` },
-  ];
+  useEffect(() => {
+    if (!qLoja.trim() || loja) { setLojas([]); return; }
+    const t = setTimeout(() => {
+      listarLojas({ marcaId: marca.id, q: qLoja, limit: 8 })
+        .then((ls) => setLojas(ls.map((l) => ({ id: l.id, nome: l.nome }))))
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+  }, [qLoja, loja, marca.id]);
+
   return (
     <div className="max-w-2xl">
       <h2 className="font-bold mb-1">Páginas públicas de {marca.nome ?? marca.slug}</h2>
       <p className="text-sm text-slate-500 mb-4">
-        Links prontos para colocar no site, e-mail, bio do Instagram, QR code…
+        Links e QR codes prontos para o site, e-mail, bio do Instagram e para imprimir na loja.
       </p>
       <div className="space-y-3">
-        {links.map((l) => (
-          <div key={l.url} className="border border-slate-200 rounded-lg p-3">
-            <p className="text-xs font-semibold text-slate-500 mb-1">{l.rotulo}</p>
-            <div className="flex items-center gap-2">
-              <code className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1.5 flex-1 overflow-x-auto whitespace-nowrap">{l.url}</code>
-              <button className="btn-ghost text-xs px-2 py-1.5"
-                onClick={() => navigator.clipboard?.writeText(l.url)}>copiar</button>
-            </div>
+        <LinkComQr rotulo="Formulário público — abrir atendimento"
+          url={`${base}/f/${marca.slug}`} arquivo={`qr-atendimento-${marca.slug}`} />
+        <LinkComQr rotulo="Acompanhamento de atendimento"
+          url={`${base}/acompanhar`} arquivo="qr-acompanhar" />
+        <LinkComQr rotulo="⭐ Avaliação do SITE (marca, com ou sem compra)"
+          url={`${base}/avaliar-site/${marca.slug}`} arquivo={`qr-avaliacao-site-${marca.slug}`} />
+
+        {/* avaliação POR LOJA (QR pro balcão) */}
+        <div className="border border-amber-200 bg-amber-50/40 rounded-lg p-3">
+          <p className="text-xs font-semibold text-slate-600 mb-2">
+            ⭐ Avaliação POR LOJA (com ou sem compra) — gere o QR de cada loja para imprimir no balcão
+          </p>
+          <div className="relative">
+            {loja ? (
+              <div className="flex items-center justify-between input bg-white mb-3">
+                <span className="truncate text-sm">{loja.nome}</span>
+                <button className="text-xs text-slate-500 hover:underline ml-2"
+                  onClick={() => { setLoja(null); setQLoja(""); }}>trocar</button>
+              </div>
+            ) : (
+              <>
+                <input className="input mb-2" placeholder="🔎 Buscar a loja…" value={qLoja}
+                  onChange={(e) => setQLoja(e.target.value)} />
+                {lojas.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full -mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-44 overflow-y-auto">
+                    {lojas.map((l) => (
+                      <button key={l.id} className="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50"
+                        onClick={() => setLoja(l)}>{l.nome}</button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        ))}
+          {loja && (
+            <LinkComQr rotulo={`Avaliação da loja: ${loja.nome}`}
+              url={`${base}/avaliar-loja/${loja.id}`} arquivo={`qr-avaliacao-loja-${loja.id}`} />
+          )}
+        </div>
       </div>
       <p className="text-xs text-slate-400 mt-4">
         ⚠️ No piloto, as páginas ainda pedem a senha do portão. Quando você decidir publicar

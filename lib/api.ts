@@ -626,6 +626,44 @@ export function publicoAvaliar(
   });
 }
 
+// ── Avaliação ABERTA: da loja (QR) e do site — com ou sem compra ────
+export type AvaliacaoAbertaForm = {
+  marca: string | null; marca_slug: string; marca_tema: TemaMarca;
+  marca_logo_path: string | null;
+  loja_id: number | null; loja: string | null;
+  perguntas: string[];
+};
+export type AvaliacaoAbertaBody = {
+  nome: string; email?: string; telefone?: string; cpf?: string;
+  venda_ref?: string; notas: Record<string, number>; comentario?: string;
+};
+export type AvaliacaoAbertaResp = { ok: boolean; repetida: boolean; obrigado: string };
+
+export function publicoAvaliacaoLojaForm(lojaId: number | string): Promise<AvaliacaoAbertaForm> {
+  return req(`publico/avaliacao-loja/${lojaId}`);
+}
+export function publicoAvaliarLoja(
+  lojaId: number | string, body: AvaliacaoAbertaBody,
+): Promise<AvaliacaoAbertaResp> {
+  return req(`publico/avaliacao-loja/${lojaId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function publicoAvaliacaoSiteForm(slug: string): Promise<AvaliacaoAbertaForm> {
+  return req(`publico/avaliacao-site/${encodeURIComponent(slug)}`);
+}
+export function publicoAvaliarSite(
+  slug: string, body: AvaliacaoAbertaBody,
+): Promise<AvaliacaoAbertaResp> {
+  return req(`publico/avaliacao-site/${encodeURIComponent(slug)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 // ── ⚙️ Configurações (admin) ─────────────────────────────────────────
 export type MarcaConfig = {
   id: number; slug: string; nome: string | null; tema: TemaMarca;

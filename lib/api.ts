@@ -116,7 +116,9 @@ export type Mensagem = {
 export type AtendimentoDetalhe = {
   id: number;
   numero: string;
+  marca_id: number | null;
   marca: string | null;
+  loja_id: number | null;
   loja: string | null;
   assunto: string | null;
   status: string;
@@ -191,13 +193,14 @@ export type AtendimentoCriado = {
   id: number; numero: string; status: string;
   consumidor_id: number; cliente_nome: string | null;
   cliente_status: "existente" | "novo";
+  nome_divergente?: boolean;
   loja_id: number; marca_id: number | null; criado_em: string;
 };
 
 export function criarAtendimento(body: {
   loja_id: number;
   consumidor_id?: number;
-  novo_cliente?: { nome: string; telefone?: string; email?: string };
+  novo_cliente?: { nome: string; telefone?: string; email?: string; cpf?: string };
   assunto: string;
   mensagem: string;
   prioridade?: string;
@@ -224,6 +227,17 @@ export function mudarStatusAtendimento(
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
+  });
+}
+
+// Transfere o atendimento para outro departamento DA MESMA MARCA. Auditado.
+export function transferirAtendimento(
+  id: number | string, lojaId: number, motivo?: string,
+): Promise<{ id: number; status: string }> {
+  return req(`atendimentos/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ loja_id: lojaId, motivo }),
   });
 }
 
@@ -553,7 +567,7 @@ export function publicoCampos(slug: string, lojaId: number): Promise<CampoForm[]
 }
 export function publicoAbrir(body: {
   marca_slug: string; loja_id: number; nome: string; email: string;
-  telefone?: string; assunto: string; mensagem: string;
+  telefone?: string; cpf?: string; assunto: string; mensagem: string;
   campos?: Record<string, string>; aceita_contato?: boolean;
 }): Promise<{ numero: string; id: number; repetido: boolean; mensagem: string }> {
   return req("publico/atendimentos", {

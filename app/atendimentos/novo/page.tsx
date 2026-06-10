@@ -35,7 +35,7 @@ export default function NovoAtendimentoPage() {
   const [clientes, setClientes] = useState<ClienteResumo[]>([]);
   const [cliente, setCliente] = useState<ClienteResumo | null>(null);
   const [novoCliente, setNovoCliente] = useState(false);
-  const [nc, setNc] = useState({ nome: "", telefone: "", email: "" });
+  const [nc, setNc] = useState({ nome: "", telefone: "", email: "", cpf: "" });
 
   // atendimento
   const [assunto, setAssunto] = useState("");
@@ -75,8 +75,8 @@ export default function NovoAtendimentoPage() {
     if (!loja) { setErro("Escolha a loja/departamento."); return; }
     if (!novoCliente && !cliente) { setErro("Escolha o cliente (ou cadastre um novo)."); return; }
     if (novoCliente && nc.nome.trim().length < 2) { setErro("Nome do novo cliente é obrigatório."); return; }
-    if (novoCliente && !nc.telefone.trim() && !nc.email.trim()) {
-      setErro("Novo cliente precisa de telefone OU e-mail."); return;
+    if (novoCliente && !nc.telefone.trim() && !nc.email.trim() && !nc.cpf.trim()) {
+      setErro("Novo cliente precisa de telefone, e-mail OU CPF."); return;
     }
     if (assunto.trim().length < 2) { setErro("Preencha o assunto."); return; }
     if (!mensagem.trim()) { setErro("Preencha a mensagem do cliente."); return; }
@@ -85,7 +85,12 @@ export default function NovoAtendimentoPage() {
       const r = await criarAtendimento({
         loja_id: loja.id,
         ...(novoCliente
-          ? { novo_cliente: { nome: nc.nome.trim(), telefone: nc.telefone.trim() || undefined, email: nc.email.trim() || undefined } }
+          ? { novo_cliente: {
+              nome: nc.nome.trim(),
+              telefone: nc.telefone.trim() || undefined,
+              email: nc.email.trim() || undefined,
+              cpf: nc.cpf.trim() || undefined,
+            } }
           : { consumidor_id: cliente!.id }),
         assunto: assunto.trim(),
         mensagem: mensagem.trim(),
@@ -94,6 +99,15 @@ export default function NovoAtendimentoPage() {
         resposta_imediata: resposta.trim() || undefined,
         encerrar,
       });
+      if (novoCliente && r.cliente_status === "existente") {
+        alert(
+          `Este contato já existia na base: o atendimento foi vinculado a ` +
+          `"${r.cliente_nome ?? "cliente existente"}" (não duplicamos o cadastro).` +
+          (r.nome_divergente
+            ? `\n\n⚠️ ATENÇÃO: o nome digitado difere do cadastro — o conflito foi registrado para revisão.`
+            : "")
+        );
+      }
       router.push(`/atendimentos/${r.id}`);
     } catch (e) {
       setErro(String((e as Error).message || e));
@@ -182,12 +196,13 @@ export default function NovoAtendimentoPage() {
             </div>
           )}
           {novoCliente && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
               <div><label className="label">Nome *</label><input className="input" value={nc.nome} onChange={(e) => setNc({ ...nc, nome: e.target.value })} /></div>
               <div><label className="label">Telefone/WhatsApp</label><input className="input" value={nc.telefone} onChange={(e) => setNc({ ...nc, telefone: e.target.value })} /></div>
               <div><label className="label">E-mail</label><input className="input" value={nc.email} onChange={(e) => setNc({ ...nc, email: e.target.value })} /></div>
-              <p className="sm:col-span-3 text-[11px] text-slate-400">
-                Se o telefone/e-mail já existir na base, o sistema usa o cliente existente (não duplica).
+              <div><label className="label">CPF</label><input className="input" value={nc.cpf} onChange={(e) => setNc({ ...nc, cpf: e.target.value })} placeholder="000.000.000-00" /></div>
+              <p className="sm:col-span-2 text-[11px] text-slate-400">
+                Busca profunda: se telefone, e-mail OU CPF já existirem na base, o sistema usa o cliente existente (não duplica).
               </p>
             </div>
           )}

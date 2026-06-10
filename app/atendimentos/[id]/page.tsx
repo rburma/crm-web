@@ -8,11 +8,14 @@ import {
   fmtDataHora,
   fmtTelefone,
   fmtCpf,
+  listarLojas,
   mudarStatusAtendimento,
   paresFicha,
   responderAtendimento,
   statusBadge,
+  transferirAtendimento,
   type AtendimentoDetalhe,
+  type LojaItem,
   type Mensagem,
 } from "@/lib/api";
 
@@ -55,6 +58,11 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // transferência de departamento (mesma marca)
+  const [transfOpen, setTransfOpen] = useState(false);
+  const [transfQ, setTransfQ] = useState("");
+  const [transfLojas, setTransfLojas] = useState<LojaItem[]>([]);
+
   // resposta do atendente
   const [resp, setResp] = useState("");
   const [privado, setPrivado] = useState(false);
@@ -76,6 +84,30 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  // busca de lojas da MESMA marca p/ transferir (debounce)
+  useEffect(() => {
+    if (!transfOpen || d?.marca_id == null) { setTransfLojas([]); return; }
+    const t = setTimeout(() => {
+      listarLojas({ marcaId: d.marca_id!, q: transfQ, limit: 10 })
+        .then((ls) => setTransfLojas(ls.filter((l) => l.id !== d.loja_id)))
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transfOpen, transfQ, d?.marca_id]);
+
+  async function transferir(loja: LojaItem) {
+    if (!confirm(`Transferir este atendimento para:\n\n${loja.nome}?`)) return;
+    try {
+      await transferirAtendimento(params.id, loja.id);
+      setTransfOpen(false); setTransfQ("");
+      await carregar();
+      setRespMsg("✓ Atendimento transferido.");
+    } catch (err) {
+      setRespMsg(err instanceof Error ? err.message : "Erro ao transferir");
+    }
+  }
 
   async function enviarResposta() {
     if (!resp.trim()) return;
@@ -176,7 +208,35 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                     ↩️ Reabrir
                   </button>
                 )}
+                {d.marca_id != null && (
+                  <button
+                    className="btn-ghost text-xs px-3 py-1.5"
+                    onClick={() => setTransfOpen((v) => !v)}
+                    title="Transferir para outro departamento da mesma marca"
+                  >
+                    ↪️ Transferir
+                  </button>
+                )}
               </div>
+              {transfOpen && (
+                <div className="mt-3 border border-slate-200 rounded-lg p-3">
+                  <label className="label">Transferir para (lojas da marca {d.marca ?? ""})</label>
+                  <input className="input" placeholder="🔎 Buscar departamento/loja…"
+                    value={transfQ} onChange={(e) => setTransfQ(e.target.value)} autoFocus />
+                  <div className="mt-1 max-h-44 overflow-y-auto">
+                    {transfLojas.map((l) => (
+                      <button key={l.id}
+                        className="block w-full text-left px-3 py-1.5 text-sm rounded hover:bg-slate-50"
+                        onClick={() => transferir(l)}>
+                        {l.nome}
+                      </button>
+                    ))}
+                    {transfQ.trim() !== "" && transfLojas.length === 0 && (
+                      <p className="text-xs text-slate-400 px-2 py-2">Nenhuma loja encontrada.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Ficha do cliente (resumo) — sempre no topo */}

@@ -36,6 +36,7 @@ export default function FormPublicoPage() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [cpf, setCpf] = useState("");
   const [assunto, setAssunto] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [aceite, setAceite] = useState(false);
@@ -77,6 +78,7 @@ export default function FormPublicoPage() {
       const r = await publicoAbrir({
         marca_slug: slug, loja_id: loja.id,
         nome: nome.trim(), email: email.trim(), telefone: telefone.trim() || undefined,
+        cpf: cpf.trim() || undefined,
         assunto: assunto.trim(), mensagem: mensagem.trim(),
         campos: valores, aceita_contato: aceite,
       });
@@ -168,9 +170,14 @@ export default function FormPublicoPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
         <div><label className="label">Telefone / WhatsApp</label>
           <input className="input" value={telefone} onChange={(e) => setTelefone(e.target.value)} /></div>
-        <div><label className="label">Assunto *</label>
-          <input className="input" value={assunto} onChange={(e) => setAssunto(e.target.value)}
-            placeholder="Ex.: troca de produto, pedido nº…" /></div>
+        <div><label className="label">CPF (ajuda a localizar seu cadastro)</label>
+          <input className="input" value={cpf} onChange={(e) => setCpf(e.target.value)}
+            placeholder="000.000.000-00" /></div>
+      </div>
+      <div className="mt-3">
+        <label className="label">Assunto *</label>
+        <input className="input" value={assunto} onChange={(e) => setAssunto(e.target.value)}
+          placeholder="Ex.: troca de produto, pedido nº…" />
       </div>
       <div className="mt-3">
         <label className="label">Mensagem *</label>

@@ -216,7 +216,9 @@ function PubLayout({ marca, cor, children }: {
   marca: PublicoMarca; cor: string; children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
+    <div className="min-h-screen py-8 px-4"
+      style={{ background: `linear-gradient(180deg, ${cor}26 0%, ${cor}0d 180px, #f3f5f9 420px)` }}>
+      <div className="fixed top-0 left-0 right-0 h-1.5 z-10" style={{ background: cor }} />
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-5">
           {marca.logo_path ? (

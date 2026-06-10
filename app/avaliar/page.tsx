@@ -27,11 +27,12 @@ function Estrelas({ valor, onChange }: {
 
 function AvaliarInner() {
   const sp = useSearchParams();
-  const numero = (sp?.get("n") ?? "").replace(/^#/, "");
-  const email = sp?.get("e") ?? "";
+  const [numero, setNumero] = useState((sp?.get("n") ?? "").replace(/^#/, ""));
+  const [email, setEmail] = useState(sp?.get("e") ?? "");
 
   const [form, setForm] = useState<PublicoAvaliacaoForm | null>(null);
   const [erro, setErro] = useState("");
+  const [buscando, setBuscando] = useState(false);
   const [notas, setNotas] = useState<Record<string, number>>({});
   const [comentario, setComentario] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -39,12 +40,26 @@ function AvaliarInner() {
 
   const cor = form?.marca_tema?.cor || "#0f6bd7";
 
+  async function buscar(n?: string, e?: string) {
+    const num = (n ?? numero).trim().replace(/^#/, "");
+    const em = (e ?? email).trim();
+    if (!num || !em) { setErro("Informe o número do atendimento e o e-mail."); return; }
+    setBuscando(true); setErro("");
+    try {
+      setForm(await publicoAvaliacaoForm(num, em));
+    } catch {
+      setErro("Atendimento não encontrado. Confira o número e o e-mail usado na abertura.");
+      setForm(null);
+    } finally {
+      setBuscando(false);
+    }
+  }
+
   useEffect(() => {
-    if (!numero || !email) { setErro("Link inválido — abra pela página de acompanhamento."); return; }
-    publicoAvaliacaoForm(numero, email)
-      .then(setForm)
-      .catch(() => setErro("Atendimento não encontrado. Confira o número e o e-mail."));
-  }, [numero, email]);
+    const n = sp?.get("n"); const e = sp?.get("e");
+    if (n && e) buscar(n.replace(/^#/, ""), e);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function enviar() {
     if (!form) return;
@@ -52,7 +67,10 @@ function AvaliarInner() {
     if (Object.keys(dadas).length === 0) { setErro("Dê ao menos uma nota."); return; }
     setEnviando(true); setErro("");
     try {
-      await publicoAvaliar(numero, email, dadas, comentario.trim() || undefined);
+      await publicoAvaliar(
+        numero.trim().replace(/^#/, ""), email.trim(), dadas,
+        comentario.trim() || undefined,
+      );
       setEnviado(true);
     } catch (e) {
       setErro(String((e as Error).message || e));
@@ -62,7 +80,9 @@ function AvaliarInner() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
+    <div className="min-h-screen py-8 px-4"
+      style={{ background: `linear-gradient(180deg, ${cor}26 0%, ${cor}0d 180px, #f3f5f9 420px)` }}>
+      <div className="fixed top-0 left-0 right-0 h-1.5 z-10" style={{ background: cor }} />
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-5">
           {form?.marca_logo_path ? (
@@ -82,7 +102,32 @@ function AvaliarInner() {
         </div>
 
         <div className="card p-6">
-          {erro && !form && <p className="text-sm text-slate-500">{erro}</p>}
+          {!form && (
+            <div>
+              <h2 className="text-lg font-bold mb-1">Avaliar atendimento</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                Informe o número do atendimento e o e-mail usado na abertura.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_auto] gap-3 items-end">
+                <div>
+                  <label className="label">Número do atendimento</label>
+                  <input className="input" placeholder="#562366" value={numero}
+                    onChange={(e) => setNumero(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">Seu e-mail</label>
+                  <input className="input" type="email" placeholder="voce@email.com" value={email}
+                    onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <button onClick={() => buscar()} disabled={buscando}
+                  className="text-white font-semibold rounded-lg px-5 py-2.5 disabled:opacity-50"
+                  style={{ background: cor }}>
+                  {buscando ? "Buscando…" : "Acessar"}
+                </button>
+              </div>
+              {erro && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">{erro}</div>}
+            </div>
+          )}
 
           {form && (enviado || form.ja_avaliada) && (
             <div className="text-center py-8">

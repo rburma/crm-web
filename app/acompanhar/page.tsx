@@ -5,6 +5,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   publicoAcompanhar,
+  publicoEncerrar,
   publicoResponder,
   type PublicoConversa,
 } from "@/lib/api";
@@ -67,7 +68,9 @@ function AcompanharInner() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] py-8 px-4">
+    <div className="min-h-screen py-8 px-4"
+      style={{ background: `linear-gradient(180deg, ${cor}26 0%, ${cor}0d 180px, #f3f5f9 420px)` }}>
+      <div className="fixed top-0 left-0 right-0 h-1.5 z-10" style={{ background: cor }} />
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-5">
           {conv?.marca_logo_path ? (
@@ -120,6 +123,22 @@ function AcompanharInner() {
               </div>
               {conv.assunto && <p className="text-sm font-semibold mb-3">{conv.assunto}</p>}
 
+              {conv.status !== "encerrada" && (
+                <button
+                  onClick={async () => {
+                    if (!confirm("Marcar como resolvido e encerrar o atendimento?")) return;
+                    setErro("");
+                    try {
+                      await publicoEncerrar(conv.numero, email.trim());
+                      await buscar(conv.numero, email.trim());
+                    } catch (e) {
+                      setErro(String((e as Error).message || e));
+                    }
+                  }}
+                  className="block w-full text-left rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800 mb-4 hover:bg-emerald-100">
+                  ✅ <b>Meu problema foi resolvido</b> — encerrar atendimento
+                </button>
+              )}
               {conv.pode_avaliar && (
                 <Link href={`/avaliar?n=${encodeURIComponent(conv.numero)}&e=${encodeURIComponent(email.trim())}`}
                   className="block rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 mb-4 hover:bg-amber-100">

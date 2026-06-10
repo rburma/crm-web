@@ -8,6 +8,7 @@ import {
   fmtDataHora,
   fmtTelefone,
   fmtCpf,
+  mudarStatusAtendimento,
   paresFicha,
   responderAtendimento,
   statusBadge,
@@ -138,6 +139,43 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
               </div>
               <div className="text-xs text-slate-400 mt-3">
                 Aberto em {fmtDataHora(d.criado_em)} · {d.total_mensagens} mensagem(ns)
+              </div>
+              {/* controles de status */}
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+                {d.status !== "encerrada" && (
+                  <button
+                    className="btn bg-emerald-600 text-white hover:bg-emerald-700 text-xs px-3 py-1.5"
+                    onClick={async () => {
+                      if (!confirm("Encerrar este atendimento? (O cliente poderá avaliar e, se responder, ele reabre.)")) return;
+                      try { await mudarStatusAtendimento(params.id, "encerrada"); await carregar(); }
+                      catch (err) { setRespMsg(err instanceof Error ? err.message : "Erro"); }
+                    }}
+                  >
+                    ✅ Encerrar atendimento
+                  </button>
+                )}
+                {d.status === "aberta" && (
+                  <button
+                    className="btn-ghost text-xs px-3 py-1.5"
+                    onClick={async () => {
+                      try { await mudarStatusAtendimento(params.id, "em_espera"); await carregar(); }
+                      catch (err) { setRespMsg(err instanceof Error ? err.message : "Erro"); }
+                    }}
+                  >
+                    ⏸ Em espera
+                  </button>
+                )}
+                {d.status !== "aberta" && (
+                  <button
+                    className="btn-ghost text-xs px-3 py-1.5"
+                    onClick={async () => {
+                      try { await mudarStatusAtendimento(params.id, "aberta"); await carregar(); }
+                      catch (err) { setRespMsg(err instanceof Error ? err.message : "Erro"); }
+                    }}
+                  >
+                    ↩️ Reabrir
+                  </button>
+                )}
               </div>
             </div>
 

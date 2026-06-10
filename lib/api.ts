@@ -216,6 +216,17 @@ export function detalheAtendimento(id: number | string, msgLimit = 300): Promise
   return req<AtendimentoDetalhe>(`atendimentos/${id}?msg_limit=${msgLimit}`);
 }
 
+// Muda o status do atendimento (aberta | em_espera | encerrada). Auditado.
+export function mudarStatusAtendimento(
+  id: number | string, status: "aberta" | "em_espera" | "encerrada",
+): Promise<{ id: number; status: string }> {
+  return req(`atendimentos/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
 // Ação em lote sobre atendimentos: muda status ou define marca.
 export function atendimentosEmLote(
   ids: number[], acao: "status" | "marca", valor: string,
@@ -569,6 +580,17 @@ export function publicoResponder(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, texto }),
+  });
+}
+
+// O cliente marca como resolvido (encerra; pode avaliar em seguida).
+export function publicoEncerrar(
+  numero: string, email: string,
+): Promise<{ ok: boolean; ja_encerrado: boolean }> {
+  return req(`publico/atendimentos/${encodeURIComponent(numero)}/encerrar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
   });
 }
 

@@ -49,13 +49,17 @@ async function forward(req: NextRequest, path: string[]) {
 
   try {
     const r = await fetch(target, init);
-    const body = await r.text();
+    // Resposta como BYTES — binário-seguro (ler como texto corrompia imagens,
+    // ex.: o logo da marca servido em /publico/logo/{id}). JSON passa igual.
+    const body = Buffer.from(await r.arrayBuffer());
     const outHeaders: Record<string, string> = {
       "Content-Type": r.headers.get("content-type") ?? "application/json",
     };
     // Repassa o total da paginação (clientes usa o header p/ "Página X de Y").
     const totalCount = r.headers.get("x-total-count");
     if (totalCount) outHeaders["X-Total-Count"] = totalCount;
+    const cache = r.headers.get("cache-control");
+    if (cache) outHeaders["Cache-Control"] = cache;
     return new NextResponse(body, { status: r.status, headers: outHeaders });
   } catch (e) {
     return NextResponse.json(

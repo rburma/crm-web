@@ -39,10 +39,33 @@ function calcIdade(nasc: string | null): string {
   return i >= 0 && i < 130 ? `${i} anos` : "—";
 }
 
+function iniciais(nome?: string | null): string {
+  const partes = (nome || "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+// Link de WhatsApp (BR): só-dígitos + DDI 55 quando vier sem.
+function waUrl(tel: string): string {
+  const d = (tel || "").replace(/\D/g, "");
+  return `https://wa.me/${d.length <= 11 ? `55${d}` : d}`;
+}
+
+function Stat({ rotulo, valor, tom }: { rotulo: string; valor: string; tom?: string }) {
+  return (
+    <div className="bg-slate-50 rounded-lg px-3 py-2">
+      <div className="text-[11px] text-slate-400">{rotulo}</div>
+      <div className={`text-sm font-semibold ${tom ?? "text-slate-700"}`}>{valor}</div>
+    </div>
+  );
+}
+
 export default function FichaPage({ params }: { params: { id: string } }) {
   const [f, setF] = useState<Ficha | null>(null);
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -73,6 +96,27 @@ export default function FichaPage({ params }: { params: { id: string } }) {
   const primeiro = f && f.atendimentos.length
     ? f.atendimentos[f.atendimentos.length - 1].criado_em
     : null;
+  const ultimo = f && f.atendimentos.length ? f.atendimentos[0].criado_em : null;
+  const situacao = f && f.atendimentos.length ? f.atendimentos[0].status : null;
+
+  async function copiar() {
+    if (!f) return;
+    const txt = [
+      f.nome,
+      f.email,
+      f.telefone ? fmtTelefone(f.telefone) : null,
+      f.cpf ? fmtCpf(f.cpf) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    try {
+      await navigator.clipboard.writeText(txt);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1500);
+    } catch {
+      /* clipboard indisponível */
+    }
+  }
 
   return (
     <Shell title="Ficha do cliente">
@@ -90,14 +134,61 @@ export default function FichaPage({ params }: { params: { id: string } }) {
           <div className="mt-4 space-y-5">
             {/* Cabecalho + Contato */}
             <div className="card p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">{f.nome || "(sem nome)"}</h2>
-                  <div className="text-sm text-slate-500 mt-0.5">{f.email || "sem e-mail"}</div>
+              <div className="flex items-start gap-4">
+                <div
+                  className="w-14 h-14 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-lg font-bold shrink-0"
+                  aria-hidden
+                >
+                  {iniciais(f.nome)}
                 </div>
-                <span className="badge-blue">{f.total_atendimentos} atendimento(s)</span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl font-bold text-slate-800 truncate">{f.nome || "(sem nome)"}</h2>
+                  <div className="text-sm text-slate-500 mt-0.5 truncate">{f.email || "sem e-mail"}</div>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {f.telefone && (
+                      <a
+                        href={waUrl(f.telefone)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-ghost text-xs px-3 py-1.5"
+                      >
+                        💬 WhatsApp
+                      </a>
+                    )}
+                    {f.email && (
+                      <a href={`mailto:${f.email}`} className="btn-ghost text-xs px-3 py-1.5">
+                        ✉️ E-mail
+                      </a>
+                    )}
+                    <button onClick={copiar} className="btn-ghost text-xs px-3 py-1.5">
+                      📋 {copiado ? "Copiado!" : "Copiar dados"}
+                    </button>
+                  </div>
+                </div>
+                <span className="badge-blue shrink-0">{f.total_atendimentos} atendimento(s)</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+
+              {/* mini-indicadores */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+                <Stat rotulo="Atendimentos" valor={String(f.total_atendimentos)} />
+                <Stat rotulo="Primeiro contato" valor={fmtData(primeiro)} />
+                <Stat rotulo="Último contato" valor={fmtData(ultimo)} />
+                <Stat
+                  rotulo="Situação recente"
+                  valor={situacao ?? "—"}
+                  tom={
+                    situacao === "encerrada"
+                      ? "text-slate-500"
+                      : situacao === "em_espera"
+                        ? "text-amber-600"
+                        : situacao
+                          ? "text-emerald-600"
+                          : "text-slate-400"
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-slate-100">
                 <Campo rotulo="E-mail" valor={f.email} />
                 <Campo rotulo="Telefone" valor={f.telefone ? fmtTelefone(f.telefone) : null} />
                 <Campo

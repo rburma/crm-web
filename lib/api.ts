@@ -765,7 +765,8 @@ export type DashboardResumo = {
   total_atendimentos: number;
   total_clientes: number;
   nps_geral: number | null;
-  volume_14d: { dia: string; qtd: number }[];
+  periodo_dias: number;
+  volume: { dia: string; qtd: number }[];
   por_marca: { marca: string; abertos: number; total: number }[];
   top_lojas: { loja: string; abertos: number }[];
   nps_por_marca: { marca: string; media: number; n: number }[];
@@ -786,8 +787,33 @@ export type DashboardResumo = {
   }[];
 };
 
-export async function dashboardResumo(): Promise<DashboardResumo> {
-  return req<DashboardResumo>("dashboard/resumo");
+export async function dashboardResumo(dias = 14): Promise<DashboardResumo> {
+  return req<DashboardResumo>(`dashboard/resumo?dias=${dias}`);
+}
+
+// Layout salvo do Painel (por usuário). Tudo opcional — a página aplica defaults.
+export type DashboardConfig = {
+  cards?: Record<string, boolean>;
+  secoes?: Record<string, boolean>;
+  ordem?: string[];
+  periodo?: number;
+};
+
+// Preferências por usuário (key-value JSON), salvas na conta (segue em qualquer
+// aparelho). Genérico — reaproveitável por outras telas customizáveis.
+export async function obterPreferencia<T = Record<string, unknown>>(
+  chave: string,
+): Promise<T> {
+  const r = await req<{ chave: string; valor: T }>(`preferencias/${chave}`);
+  return r.valor;
+}
+
+export async function salvarPreferencia(chave: string, valor: unknown): Promise<void> {
+  await req(`preferencias/${chave}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ valor }),
+  });
 }
 
 export function fmtData(iso: string | null | undefined): string {

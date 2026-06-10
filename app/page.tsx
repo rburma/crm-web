@@ -6,60 +6,98 @@ import Shell from "@/components/Shell";
 import {
   dashboardResumo,
   fmtDataHora,
+  obterPreferencia,
+  salvarPreferencia,
+  type DashboardConfig,
   type DashboardResumo,
 } from "@/lib/api";
 
 const nf = (n: number) => n.toLocaleString("pt-BR");
+const fmt1 = (n: number) =>
+  n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-// ── KPI ──────────────────────────────────────────────────────────────
-function Kpi({
-  rotulo,
-  valor,
-  sub,
-  tom,
-}: {
-  rotulo: string;
-  valor: string;
-  sub?: string;
-  tom?: string;
-}) {
+// ── Catálogo do que é configurável ───────────────────────────────────
+const CARDS: { key: string; label: string }[] = [
+  { key: "abertos", label: "Atendimentos abertos" },
+  { key: "em_espera", label: "Em espera" },
+  { key: "encerrados_hoje", label: "Encerrados hoje" },
+  { key: "novos_hoje", label: "Novos hoje" },
+  { key: "satisfacao", label: "Satisfação média" },
+  { key: "clientes", label: "Clientes na base" },
+];
+
+const SECOES: { key: string; label: string }[] = [
+  { key: "volume", label: "Volume de atendimentos" },
+  { key: "por_marca", label: "Atendimentos por marca" },
+  { key: "satisfacao_marca", label: "Satisfação por marca" },
+  { key: "top_lojas", label: "Top lojas (abertos)" },
+  { key: "recentes", label: "Últimos atendimentos abertos" },
+  { key: "avaliacoes", label: "Avaliações recentes" },
+];
+
+const PERIODOS = [7, 14, 30, 60];
+
+type Cfg = Required<DashboardConfig>;
+
+const DEFAULT_CFG: Cfg = {
+  cards: { abertos: true, em_espera: true, encerrados_hoje: true, novos_hoje: true, satisfacao: true, clientes: true },
+  secoes: { volume: true, por_marca: true, satisfacao_marca: true, top_lojas: true, recentes: true, avaliacoes: true },
+  ordem: SECOES.map((s) => s.key),
+  periodo: 14,
+};
+
+function mergeCfg(saved: DashboardConfig | null): Cfg {
+  const known = SECOES.map((s) => s.key);
+  const savedOrdem = (saved?.ordem ?? []).filter((k) => known.includes(k));
+  const ordem = [...savedOrdem, ...known.filter((k) => !savedOrdem.includes(k))];
+  const periodo = saved?.periodo && PERIODOS.includes(saved.periodo) ? saved.periodo : DEFAULT_CFG.periodo;
+  return {
+    cards: { ...DEFAULT_CFG.cards, ...(saved?.cards ?? {}) },
+    secoes: { ...DEFAULT_CFG.secoes, ...(saved?.secoes ?? {}) },
+    ordem,
+    periodo,
+  };
+}
+
+function mover(arr: string[], i: number, dir: -1 | 1): string[] {
+  const j = i + dir;
+  if (j < 0 || j >= arr.length) return arr;
+  const c = [...arr];
+  [c[i], c[j]] = [c[j], c[i]];
+  return c;
+}
+
+// ── Blocos visuais ───────────────────────────────────────────────────
+function Kpi({ rotulo, valor, sub, tom }: { rotulo: string; valor: string; sub?: string; tom?: string }) {
   return (
     <div className="card p-4">
       <div className="text-xs font-medium text-slate-500">{rotulo}</div>
-      <div className={`mt-1 text-3xl font-bold tracking-tight ${tom ?? "text-slate-800"}`}>
-        {valor}
-      </div>
+      <div className={`mt-1 text-3xl font-bold tracking-tight ${tom ?? "text-slate-800"}`}>{valor}</div>
       {sub ? <div className="mt-0.5 text-xs text-slate-400">{sub}</div> : null}
     </div>
   );
 }
 
-// ── Gráfico de barras (volume 14 dias), SVG na mão ──────────────────
 function VolumeChart({ dados }: { dados: { dia: string; qtd: number }[] }) {
-  const max = Math.max(1, ...dados.map((d) => d.qtd));
+  const max = Math.max(1, ...dados.map((x) => x.qtd));
   const W = 560;
   const H = 130;
   const n = Math.max(1, dados.length);
-  const gap = 6;
+  const gap = n > 30 ? 2 : 6;
   const bw = (W - gap * (n - 1)) / n;
   return (
-    <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full" role="img" aria-label="Volume de atendimentos nos últimos 14 dias">
-      {dados.map((d, i) => {
-        const h = Math.round((d.qtd / max) * H);
-        const x = i * (bw + gap);
-        const y = H - Math.max(h, 2);
-        const mostraData = i === 0 || i === n - 1 || i === Math.floor(n / 2);
+    <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full" role="img" aria-label="Volume de atendimentos por dia">
+      {dados.map((x, i) => {
+        const h = Math.round((x.qtd / max) * H);
+        const px = i * (bw + gap);
+        const py = H - Math.max(h, 2);
+        const marca = i === 0 || i === n - 1 || i === Math.floor(n / 2);
         return (
-          <g key={d.dia}>
-            <rect x={x} y={y} width={bw} height={Math.max(h, 2)} rx={3} className="fill-brand-500" />
-            {d.qtd > 0 ? (
-              <text x={x + bw / 2} y={y - 3} textAnchor="middle" className="fill-slate-400" style={{ fontSize: 9 }}>
-                {d.qtd}
-              </text>
-            ) : null}
-            {mostraData ? (
-              <text x={x + bw / 2} y={H + 13} textAnchor="middle" className="fill-slate-400" style={{ fontSize: 9 }}>
-                {d.dia.slice(8, 10)}/{d.dia.slice(5, 7)}
+          <g key={x.dia}>
+            <rect x={px} y={py} width={bw} height={Math.max(h, 2)} rx={n > 30 ? 1 : 3} className="fill-brand-500" />
+            {marca ? (
+              <text x={px + bw / 2} y={H + 13} textAnchor="middle" className="fill-slate-400" style={{ fontSize: 9 }}>
+                {x.dia.slice(8, 10)}/{x.dia.slice(5, 7)}
               </text>
             ) : null}
           </g>
@@ -69,20 +107,7 @@ function VolumeChart({ dados }: { dados: { dia: string; qtd: number }[] }) {
   );
 }
 
-// ── Barra horizontal ────────────────────────────────────────────────
-function BarH({
-  rotulo,
-  valor,
-  max,
-  texto,
-  cor,
-}: {
-  rotulo: string;
-  valor: number;
-  max: number;
-  texto?: string;
-  cor?: string;
-}) {
+function BarH({ rotulo, valor, max, texto, cor }: { rotulo: string; valor: number; max: number; texto?: string; cor?: string }) {
   const pct = max > 0 ? Math.round((valor / max) * 100) : 0;
   return (
     <div>
@@ -91,43 +116,279 @@ function BarH({
         <span className="text-slate-400 tabular-nums shrink-0">{texto ?? nf(valor)}</span>
       </div>
       <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-        <div
-          className={`h-full rounded-full ${cor ?? "bg-brand-500"}`}
-          style={{ width: `${Math.max(pct, 2)}%` }}
-        />
+        <div className={`h-full rounded-full ${cor ?? "bg-brand-500"}`} style={{ width: `${Math.max(pct, 2)}%` }} />
       </div>
     </div>
   );
 }
 
-function Estrelas({ media }: { media: number | null }) {
-  if (media == null) return <span className="text-slate-300">—</span>;
-  return (
-    <span className="text-amber-500 font-semibold tabular-nums">
-      {media.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★
-    </span>
-  );
-}
-
 function Secao({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="card p-4">
+    <div className="card p-4 h-full">
       <div className="text-sm font-semibold text-slate-700 mb-3">{titulo}</div>
       {children}
     </div>
   );
 }
 
+function renderKpi(key: string, d: DashboardResumo) {
+  switch (key) {
+    case "abertos":
+      return <Kpi rotulo="Atendimentos abertos" valor={nf(d.abertos)} tom="text-brand-700" />;
+    case "em_espera":
+      return <Kpi rotulo="Em espera" valor={nf(d.em_espera)} tom="text-amber-600" />;
+    case "encerrados_hoje":
+      return <Kpi rotulo="Encerrados hoje" valor={nf(d.encerrados_hoje)} tom="text-emerald-600" />;
+    case "novos_hoje":
+      return <Kpi rotulo="Novos hoje" valor={nf(d.novos_hoje)} />;
+    case "satisfacao":
+      return (
+        <Kpi
+          rotulo="Satisfação média"
+          valor={d.nps_geral != null ? `${fmt1(d.nps_geral)} ★` : "—"}
+          sub="últimos 90 dias"
+          tom="text-amber-500"
+        />
+      );
+    case "clientes":
+      return <Kpi rotulo="Clientes na base" valor={nf(d.total_clientes)} />;
+    default:
+      return null;
+  }
+}
+
+function renderSecao(key: string, d: DashboardResumo) {
+  const maxMarca = Math.max(1, ...d.por_marca.map((m) => m.total));
+  const maxLoja = Math.max(1, ...d.top_lojas.map((l) => l.abertos));
+  switch (key) {
+    case "volume":
+      return (
+        <Secao titulo={`Volume de atendimentos — últimos ${d.periodo_dias} dias`}>
+          <VolumeChart dados={d.volume} />
+        </Secao>
+      );
+    case "por_marca":
+      return (
+        <Secao titulo="Atendimentos por marca">
+          {d.por_marca.length === 0 ? (
+            <div className="text-sm text-slate-400">Sem dados ainda.</div>
+          ) : (
+            <div className="space-y-2.5">
+              {d.por_marca.map((m) => (
+                <BarH key={m.marca} rotulo={m.marca} valor={m.total} max={maxMarca} texto={`${nf(m.total)} · ${nf(m.abertos)} abertos`} />
+              ))}
+            </div>
+          )}
+        </Secao>
+      );
+    case "satisfacao_marca":
+      return (
+        <Secao titulo="Satisfação por marca (média 1–5)">
+          {d.nps_por_marca.length === 0 ? (
+            <div className="text-sm text-slate-400">Sem avaliações recentes.</div>
+          ) : (
+            <div className="space-y-2.5">
+              {d.nps_por_marca.map((m) => (
+                <BarH key={m.marca} rotulo={m.marca} valor={m.media} max={5} texto={`${fmt1(m.media)} ★ · ${nf(m.n)}`} cor="bg-amber-400" />
+              ))}
+            </div>
+          )}
+        </Secao>
+      );
+    case "top_lojas":
+      return (
+        <Secao titulo="Lojas com mais atendimentos abertos">
+          {d.top_lojas.length === 0 ? (
+            <div className="text-sm text-slate-400">Sem dados ainda.</div>
+          ) : (
+            <div className="space-y-2.5">
+              {d.top_lojas.map((l) => (
+                <BarH key={l.loja} rotulo={l.loja} valor={l.abertos} max={maxLoja} cor="bg-emerald-500" />
+              ))}
+            </div>
+          )}
+        </Secao>
+      );
+    case "recentes":
+      return (
+        <Secao titulo="Últimos atendimentos abertos">
+          {d.recentes_abertos.length === 0 ? (
+            <div className="text-sm text-slate-400">Nenhum atendimento aberto.</div>
+          ) : (
+            <div className="divide-y divide-slate-100 -mx-1">
+              {d.recentes_abertos.map((a) => (
+                <Link key={a.id} href={`/atendimentos/${a.id}`} className="flex items-center gap-3 px-1 py-2 hover:bg-slate-50 rounded transition">
+                  <span className="badge-blue shrink-0">#{a.numero}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm text-slate-700 truncate">{a.assunto || "(sem assunto)"}</span>
+                    <span className="block text-xs text-slate-400 truncate">
+                      {a.cliente || "—"}
+                      {a.marca ? ` · ${a.marca}` : ""}
+                    </span>
+                  </span>
+                  <span className="text-xs text-slate-400 shrink-0">{fmtDataHora(a.criado_em)}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Secao>
+      );
+    case "avaliacoes":
+      return (
+        <Secao titulo="Avaliações recentes">
+          {d.avaliacoes_recentes.length === 0 ? (
+            <div className="text-sm text-slate-400">Nenhuma avaliação com comentário ainda.</div>
+          ) : (
+            <div className="space-y-3">
+              {d.avaliacoes_recentes.map((a, i) => (
+                <div key={i} className="border-l-2 border-amber-300 pl-3">
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span className="text-amber-500 font-semibold">{a.media != null ? `${fmt1(a.media)} ★` : "—"}</span>
+                    <span className="truncate">{[a.marca, a.loja].filter(Boolean).join(" · ") || "—"}</span>
+                    <span className="ml-auto shrink-0">{fmtDataHora(a.criado_em)}</span>
+                  </div>
+                  <div className="text-sm text-slate-700 mt-0.5">“{a.comentario}”</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Secao>
+      );
+    default:
+      return null;
+  }
+}
+
+// ── Editor "Personalizar" ────────────────────────────────────────────
+function Editor({
+  rascunho,
+  setRascunho,
+  onSalvar,
+  onCancelar,
+  salvando,
+}: {
+  rascunho: Cfg;
+  setRascunho: (c: Cfg) => void;
+  onSalvar: () => void;
+  onCancelar: () => void;
+  salvando: boolean;
+}) {
+  return (
+    <div className="card p-4 mb-5 border-brand-200">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-semibold text-slate-700">Personalizar painel</div>
+        <button onClick={() => setRascunho(DEFAULT_CFG)} className="text-xs text-slate-400 hover:underline">
+          restaurar padrão
+        </button>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-5">
+        <div>
+          <div className="label">Cartões (KPIs)</div>
+          <div className="space-y-1.5">
+            {CARDS.map((c) => (
+              <label key={c.key} className="flex items-center gap-2 text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={!!rascunho.cards[c.key]}
+                  onChange={(e) => setRascunho({ ...rascunho, cards: { ...rascunho.cards, [c.key]: e.target.checked } })}
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="md:col-span-2">
+          <div className="label">Seções (ligar/desligar e ordenar)</div>
+          <div className="space-y-1.5">
+            {rascunho.ordem.map((k, i) => {
+              const meta = SECOES.find((s) => s.key === k);
+              if (!meta) return null;
+              return (
+                <div key={k} className="flex items-center gap-2 text-sm">
+                  <label className="flex items-center gap-2 text-slate-600 flex-1 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={!!rascunho.secoes[k]}
+                      onChange={(e) => setRascunho({ ...rascunho, secoes: { ...rascunho.secoes, [k]: e.target.checked } })}
+                    />
+                    <span className="truncate">{meta.label}</span>
+                  </label>
+                  <button
+                    onClick={() => setRascunho({ ...rascunho, ordem: mover(rascunho.ordem, i, -1) })}
+                    disabled={i === 0}
+                    className="btn-ghost px-2 py-1 text-xs"
+                    aria-label="Subir"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    onClick={() => setRascunho({ ...rascunho, ordem: mover(rascunho.ordem, i, 1) })}
+                    disabled={i === rascunho.ordem.length - 1}
+                    className="btn-ghost px-2 py-1 text-xs"
+                    aria-label="Descer"
+                  >
+                    ↓
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 mt-4 pt-3 border-t border-[var(--line)]">
+        <div className="flex items-center gap-2">
+          <span className="label mb-0">Gráfico de volume:</span>
+          <select
+            className="input w-auto py-1"
+            value={rascunho.periodo}
+            onChange={(e) => setRascunho({ ...rascunho, periodo: Number(e.target.value) })}
+          >
+            {PERIODOS.map((p) => (
+              <option key={p} value={p}>
+                últimos {p} dias
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={onCancelar} className="btn-ghost" disabled={salvando}>
+            Cancelar
+          </button>
+          <button onClick={onSalvar} className="btn-primary" disabled={salvando}>
+            {salvando ? "Salvando…" : "Salvar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Página ───────────────────────────────────────────────────────────
 export default function PainelPage() {
   const [d, setD] = useState<DashboardResumo | null>(null);
+  const [cfg, setCfg] = useState<Cfg>(DEFAULT_CFG);
+  const [rascunho, setRascunho] = useState<Cfg | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     let vivo = true;
     (async () => {
+      let saved: DashboardConfig | null = null;
       try {
-        const r = await dashboardResumo();
+        saved = await obterPreferencia<DashboardConfig>("dashboard");
+      } catch {
+        saved = null; // sem preferência salva (ou motor ainda sem deploy): usa padrão
+      }
+      const merged = mergeCfg(saved);
+      if (!vivo) return;
+      setCfg(merged);
+      try {
+        const r = await dashboardResumo(merged.periodo);
         if (vivo) setD(r);
       } catch (e) {
         if (vivo) setErro(e instanceof Error ? e.message : "Falha ao carregar o painel.");
@@ -140,139 +401,76 @@ export default function PainelPage() {
     };
   }, []);
 
-  const maxMarca = d ? Math.max(1, ...d.por_marca.map((m) => m.total)) : 1;
-  const maxLoja = d ? Math.max(1, ...d.top_lojas.map((l) => l.abertos)) : 1;
+  async function salvar() {
+    if (!rascunho) return;
+    setSalvando(true);
+    setErro("");
+    const periodoMudou = rascunho.periodo !== cfg.periodo;
+    try {
+      await salvarPreferencia("dashboard", rascunho);
+      setCfg(rascunho);
+      setRascunho(null);
+      if (periodoMudou) {
+        const r = await dashboardResumo(rascunho.periodo);
+        setD(r);
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  const secoesVisiveis = cfg.ordem.filter((k) => cfg.secoes[k]);
+  const cardsVisiveis = CARDS.filter((c) => cfg.cards[c.key]);
 
   return (
     <Shell title="Painel">
+      <div className="flex items-center justify-end mb-4">
+        {rascunho ? null : (
+          <button onClick={() => setRascunho(cfg)} className="btn-ghost text-sm">
+            ⚙ Personalizar
+          </button>
+        )}
+      </div>
+
+      {rascunho ? (
+        <Editor
+          rascunho={rascunho}
+          setRascunho={setRascunho}
+          onSalvar={salvar}
+          onCancelar={() => setRascunho(null)}
+          salvando={salvando}
+        />
+      ) : null}
+
       {loading ? (
         <div className="text-sm text-slate-500">Carregando o painel…</div>
       ) : erro ? (
         <div className="card p-4 text-sm text-red-600">{erro}</div>
       ) : d ? (
         <div className="space-y-5">
-          {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Kpi rotulo="Atendimentos abertos" valor={nf(d.abertos)} tom="text-brand-700" />
-            <Kpi rotulo="Em espera" valor={nf(d.em_espera)} tom="text-amber-600" />
-            <Kpi rotulo="Encerrados hoje" valor={nf(d.encerrados_hoje)} tom="text-emerald-600" />
-            <Kpi rotulo="Novos hoje" valor={nf(d.novos_hoje)} />
-            <Kpi
-              rotulo="Satisfação média"
-              valor={d.nps_geral != null ? `${d.nps_geral.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : "—"}
-              sub="últimos 90 dias"
-              tom="text-amber-500"
-            />
-            <Kpi rotulo="Clientes na base" valor={nf(d.total_clientes)} />
-          </div>
-
-          {/* Volume + por marca */}
-          <div className="grid lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2">
-              <Secao titulo="Volume de atendimentos — últimos 14 dias">
-                <VolumeChart dados={d.volume_14d} />
-              </Secao>
+          {cardsVisiveis.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {cardsVisiveis.map((c) => (
+                <div key={c.key}>{renderKpi(c.key, d)}</div>
+              ))}
             </div>
-            <Secao titulo="Atendimentos por marca">
-              {d.por_marca.length === 0 ? (
-                <div className="text-sm text-slate-400">Sem dados ainda.</div>
-              ) : (
-                <div className="space-y-2.5">
-                  {d.por_marca.map((m) => (
-                    <BarH
-                      key={m.marca}
-                      rotulo={m.marca}
-                      valor={m.total}
-                      max={maxMarca}
-                      texto={`${nf(m.total)} · ${nf(m.abertos)} abertos`}
-                    />
-                  ))}
-                </div>
-              )}
-            </Secao>
+          ) : null}
+
+          <div className="grid lg:grid-cols-2 gap-5 items-start">
+            {secoesVisiveis.map((k) => (
+              <div key={k} className={k === "volume" ? "lg:col-span-2" : ""}>
+                {renderSecao(k, d)}
+              </div>
+            ))}
           </div>
 
-          {/* NPS por marca + Top lojas */}
-          <div className="grid lg:grid-cols-2 gap-5">
-            <Secao titulo="Satisfação por marca (média 1–5)">
-              {d.nps_por_marca.length === 0 ? (
-                <div className="text-sm text-slate-400">Sem avaliações recentes.</div>
-              ) : (
-                <div className="space-y-2.5">
-                  {d.nps_por_marca.map((m) => (
-                    <BarH
-                      key={m.marca}
-                      rotulo={m.marca}
-                      valor={m.media}
-                      max={5}
-                      texto={`${m.media.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★ · ${nf(m.n)}`}
-                      cor="bg-amber-400"
-                    />
-                  ))}
-                </div>
-              )}
-            </Secao>
-            <Secao titulo="Lojas com mais atendimentos abertos">
-              {d.top_lojas.length === 0 ? (
-                <div className="text-sm text-slate-400">Sem dados ainda.</div>
-              ) : (
-                <div className="space-y-2.5">
-                  {d.top_lojas.map((l) => (
-                    <BarH key={l.loja} rotulo={l.loja} valor={l.abertos} max={maxLoja} cor="bg-emerald-500" />
-                  ))}
-                </div>
-              )}
-            </Secao>
-          </div>
-
-          {/* Recentes + avaliações */}
-          <div className="grid lg:grid-cols-2 gap-5">
-            <Secao titulo="Últimos atendimentos abertos">
-              {d.recentes_abertos.length === 0 ? (
-                <div className="text-sm text-slate-400">Nenhum atendimento aberto.</div>
-              ) : (
-                <div className="divide-y divide-slate-100 -mx-1">
-                  {d.recentes_abertos.map((a) => (
-                    <Link
-                      key={a.id}
-                      href={`/atendimentos/${a.id}`}
-                      className="flex items-center gap-3 px-1 py-2 hover:bg-slate-50 rounded transition"
-                    >
-                      <span className="badge-blue shrink-0">#{a.numero}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-sm text-slate-700 truncate">{a.assunto || "(sem assunto)"}</span>
-                        <span className="block text-xs text-slate-400 truncate">
-                          {a.cliente || "—"}
-                          {a.marca ? ` · ${a.marca}` : ""}
-                        </span>
-                      </span>
-                      <span className="text-xs text-slate-400 shrink-0">{fmtDataHora(a.criado_em)}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </Secao>
-            <Secao titulo="Avaliações recentes">
-              {d.avaliacoes_recentes.length === 0 ? (
-                <div className="text-sm text-slate-400">Nenhuma avaliação com comentário ainda.</div>
-              ) : (
-                <div className="space-y-3">
-                  {d.avaliacoes_recentes.map((a, i) => (
-                    <div key={i} className="border-l-2 border-amber-300 pl-3">
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <Estrelas media={a.media} />
-                        <span className="truncate">
-                          {[a.marca, a.loja].filter(Boolean).join(" · ") || "—"}
-                        </span>
-                        <span className="ml-auto shrink-0">{fmtDataHora(a.criado_em)}</span>
-                      </div>
-                      <div className="text-sm text-slate-700 mt-0.5">“{a.comentario}”</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Secao>
-          </div>
+          {cardsVisiveis.length === 0 && secoesVisiveis.length === 0 ? (
+            <div className="card p-6 text-center text-sm text-slate-400">
+              Tudo oculto. Clique em <b>Personalizar</b> para escolher o que mostrar.
+            </div>
+          ) : null}
 
           <div className="text-center text-xs text-slate-400 pt-1">
             {nf(d.total_atendimentos)} atendimentos no total · base de {nf(d.total_clientes)} clientes

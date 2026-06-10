@@ -400,6 +400,62 @@ export function importAplicar(
   return req<ImportResultado>("importacoes/clientes/aplicar", { method: "POST", body: fd });
 }
 
+// ── Equipe & Departamentos (matriz usuário↔loja, modelo do legado) ──
+export type EquipeResumo = {
+  totais: { vinculos: number; usuarios_vinculados: number; admins_globais: number };
+  marcas: { id: number; nome: string; lojas: number; usuarios: number }[];
+};
+export type LojaEquipe = { id: number; nome: string; usuarios: number; admins: number };
+export type MembroLoja = {
+  usuario_id: number; nome: string | null; email: string | null;
+  papel: string; ativo: boolean; admin_loja: boolean;
+};
+export type LojaDoUsuario = {
+  loja_id: number; loja: string; marca: string | null; admin_loja: boolean;
+};
+
+export function equipeResumo(): Promise<EquipeResumo> {
+  return req<EquipeResumo>("equipe/resumo");
+}
+export function equipeLojas(
+  marcaId: number, q = "", limit = 50, offset = 0,
+): Promise<{ total: number; items: LojaEquipe[] }> {
+  const qs = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
+  return req(`equipe/marcas/${marcaId}/lojas?${qs.toString()}`);
+}
+export function equipeUsuariosDaLoja(lojaId: number): Promise<MembroLoja[]> {
+  return req(`equipe/lojas/${lojaId}/usuarios`);
+}
+export function equipeVincular(
+  lojaId: number, usuarioId: number, admin: boolean,
+): Promise<{ ok: boolean }> {
+  return req(`equipe/lojas/${lojaId}/usuarios`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ usuario_id: usuarioId, admin }),
+  });
+}
+export function equipeAlterarAdmin(
+  lojaId: number, usuarioId: number, admin: boolean,
+): Promise<{ ok: boolean }> {
+  return req(`equipe/lojas/${lojaId}/usuarios/${usuarioId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ admin }),
+  });
+}
+export function equipeDesvincular(lojaId: number, usuarioId: number): Promise<{ ok: boolean }> {
+  return req(`equipe/lojas/${lojaId}/usuarios/${usuarioId}`, { method: "DELETE" });
+}
+export function equipeBuscarUsuarios(
+  q: string,
+): Promise<{ id: number; nome: string | null; email: string | null; papel: string }[]> {
+  return req(`equipe/usuarios/busca?q=${encodeURIComponent(q)}`);
+}
+export function equipeLojasDoUsuario(usuarioId: number): Promise<LojaDoUsuario[]> {
+  return req(`equipe/usuarios/${usuarioId}/lojas`);
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

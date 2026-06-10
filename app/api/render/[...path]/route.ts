@@ -32,6 +32,12 @@ async function forward(req: NextRequest, path: string[]) {
   if (token) headers["X-CRM-Token"] = token;
   // Segredo de perímetro (se configurado): prova ao motor que o request veio do proxy.
   if (PROXY_SECRET) headers["X-Proxy-Secret"] = PROXY_SECRET;
+  // IP REAL do navegador -> p/ o rate limit do motor contar por usuario (e nao
+  // tratar todo o trafego como vindo do proxy/Vercel). 1o IP da cadeia.
+  const ipCliente =
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+    (req.headers.get("x-real-ip") ?? "");
+  if (ipCliente) headers["X-Forwarded-For"] = ipCliente;
   if (GATE_USER && GATE_PASS) {
     headers["Authorization"] =
       "Basic " + Buffer.from(`${GATE_USER}:${GATE_PASS}`).toString("base64");

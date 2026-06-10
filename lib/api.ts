@@ -171,6 +171,47 @@ export function listarMarcas(): Promise<MarcaItem[]> {
   return req<MarcaItem[]>("marcas");
 }
 
+export type LojaItem = {
+  id: number; marca_id: number | null; nome: string;
+  cidade: string | null; uf: string | null; ativo: boolean;
+};
+
+// Lojas no escopo do usuário (com busca e limite — para pickers).
+export function listarLojas(opts: { marcaId?: number; q?: string; limit?: number } = {}): Promise<LojaItem[]> {
+  const qs = new URLSearchParams();
+  if (opts.marcaId != null) qs.set("marca_id", String(opts.marcaId));
+  if (opts.q) qs.set("q", opts.q);
+  qs.set("limit", String(opts.limit ?? 30));
+  return req<LojaItem[]>(`lojas?${qs.toString()}`);
+}
+
+// Cria atendimento INTERNO (telefone/balcão/WhatsApp). Cliente existente OU novo
+// (a identidade resolve: se telefone/e-mail já existem, usa o cliente existente).
+export type AtendimentoCriado = {
+  id: number; numero: string; status: string;
+  consumidor_id: number; cliente_nome: string | null;
+  cliente_status: "existente" | "novo";
+  loja_id: number; marca_id: number | null; criado_em: string;
+};
+
+export function criarAtendimento(body: {
+  loja_id: number;
+  consumidor_id?: number;
+  novo_cliente?: { nome: string; telefone?: string; email?: string };
+  assunto: string;
+  mensagem: string;
+  prioridade?: string;
+  canal_origem?: string;
+  resposta_imediata?: string;
+  encerrar?: boolean;
+}): Promise<AtendimentoCriado> {
+  return req<AtendimentoCriado>("atendimentos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export function detalheAtendimento(id: number | string, msgLimit = 300): Promise<AtendimentoDetalhe> {
   return req<AtendimentoDetalhe>(`atendimentos/${id}?msg_limit=${msgLimit}`);
 }

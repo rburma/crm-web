@@ -95,6 +95,11 @@ export default function AtendimentosPage() {
   return (
     <Shell title="Atendimentos">
       <div className="max-w-5xl">
+        <div className="flex justify-end mb-3">
+          <Link href="/atendimentos/novo" className="btn-primary text-sm">
+            ＋ Novo atendimento
+          </Link>
+        </div>
         <form
           onSubmit={(e) => {
             e.preventDefault();

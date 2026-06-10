@@ -19,34 +19,68 @@ import {
   type Mensagem,
 } from "@/lib/api";
 
-function Balao({ m }: { m: Mensagem }) {
+function iniciais(nome?: string | null): string {
+  const partes = (nome || "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+function Avatar({ nome, tipo }: { nome?: string | null; tipo: "staff" | "consumidor" }) {
+  const staff = tipo === "staff";
+  return (
+    <div
+      className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-semibold ${
+        staff ? "bg-brand-100 text-brand-700" : "bg-slate-200 text-slate-600"
+      }`}
+      aria-hidden
+    >
+      {staff ? "AT" : iniciais(nome)}
+    </div>
+  );
+}
+
+function iconeSistema(texto: string): string {
+  const t = texto.toLowerCase();
+  if (t.includes("transfer")) return "↪️";
+  if (t.includes("resolvid") || t.includes("encerr")) return "✅";
+  if (t.includes("espera")) return "⏸";
+  if (t.includes("reabr")) return "↩️";
+  return "•";
+}
+
+function Evento({ m, clienteNome }: { m: Mensagem; clienteNome?: string | null }) {
   if (m.autor_tipo === "sistema") {
     return (
-      <div className="text-center my-2">
-        <span className="badge-gray text-[11px]">{m.texto}</span>
+      <div className="flex justify-center my-3">
+        <span className="badge-gray text-[11px] inline-flex items-center gap-1.5">
+          <span aria-hidden>{iconeSistema(m.texto || "")}</span>
+          {m.texto}
+          <span className="text-slate-400">· {fmtDataHora(m.criado_em)}</span>
+        </span>
       </div>
     );
   }
   const staff = m.autor_tipo === "staff";
   return (
-    <div className={`flex ${staff ? "justify-end" : "justify-start"} mb-3`}>
-      <div className="max-w-[78%]">
+    <div className="flex gap-3 mb-4">
+      <Avatar nome={staff ? null : clienteNome} tipo={staff ? "staff" : "consumidor"} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 text-xs mb-1">
+          <span className="font-medium text-slate-700">{staff ? "Atendente" : clienteNome || "Cliente"}</span>
+          {m.privado ? <span className="badge-amber text-[10px]">nota interna</span> : null}
+          <span className="text-slate-400 ml-auto shrink-0">{fmtDataHora(m.criado_em)}</span>
+        </div>
         <div
-          className={`rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words ${
+          className={`rounded-xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words border ${
             staff
-              ? "bg-brand-600 text-white rounded-br-sm"
-              : "bg-white border border-[var(--line)] text-slate-800 rounded-bl-sm"
+              ? m.privado
+                ? "bg-amber-50 border-amber-200 text-slate-800"
+                : "bg-brand-50 border-brand-100 text-slate-800"
+              : "bg-white border-[var(--line)] text-slate-800"
           }`}
         >
           {m.texto || "—"}
-        </div>
-        <div
-          className={`text-[11px] text-slate-400 mt-1 ${
-            staff ? "text-right" : "text-left"
-          }`}
-        >
-          {staff ? "Atendente" : "Cliente"}
-          {m.privado ? " · nota interna" : ""} · {fmtDataHora(m.criado_em)}
         </div>
       </div>
     </div>
@@ -57,6 +91,7 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
   const [d, setD] = useState<AtendimentoDetalhe | null>(null);
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState("");
 
   // transferência de departamento (mesma marca)
   const [transfOpen, setTransfOpen] = useState(false);
@@ -355,33 +390,62 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
               {respMsg && <div className="text-xs text-slate-500 mt-2">{respMsg}</div>}
             </div>
 
-            {/* Conversa */}
-            <div className="card p-5 bg-slate-50/60">
-              {d.mensagens.length === 0 && !d.assunto && (
-                <div className="text-sm text-slate-400">Sem mensagens.</div>
-              )}
-              {/* mais RECENTES no topo (o backend ja devolve desc) */}
-              {d.mensagens.map((m) => <Balao key={m.id} m={m} />)}
-              {d.total_mensagens > d.mensagens.length && (
-                <div className="text-center text-xs text-slate-400 my-2">
-                  mostrando as {d.mensagens.length} mais recentes de {d.total_mensagens}
-                </div>
-              )}
-              {/* Abertura do atendimento (mais ANTIGA) por ULTIMO. No legado o
-                  cliente raramente postava texto; o pedido dele e o ASSUNTO. So
-                  aparece quando NAO ha mensagem do cliente (senao seria redundante). */}
-              {d.assunto && !d.mensagens.some((m) => m.autor_tipo === "consumidor") && (
-                <div className="flex justify-start mt-3">
-                  <div className="max-w-[78%]">
-                    <div className="rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words bg-white border border-[var(--line)] text-slate-800 rounded-bl-sm">
-                      {d.assunto}
+            {/* Conversa (timeline: mais RECENTES no topo; abertura por último) */}
+            <div className="card p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="text-sm font-semibold text-slate-700">Conversa</div>
+                <input
+                  className="input w-auto py-1 ml-auto max-w-[220px]"
+                  placeholder="🔎 Buscar na conversa…"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                />
+              </div>
+              {(() => {
+                const termo = busca.trim().toLowerCase();
+                const assunto = d.assunto || "";
+                const msgs = termo
+                  ? d.mensagens.filter((m) => (m.texto || "").toLowerCase().includes(termo))
+                  : d.mensagens;
+                const mostrarAbertura =
+                  assunto !== "" &&
+                  !d.mensagens.some((m) => m.autor_tipo === "consumidor") &&
+                  (!termo || assunto.toLowerCase().includes(termo));
+                if (msgs.length === 0 && !mostrarAbertura) {
+                  return (
+                    <div className="text-sm text-slate-400">
+                      {termo ? "Nada encontrado na conversa." : "Sem mensagens."}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-1 text-left">
-                      Cliente · abertura do atendimento · {fmtDataHora(d.criado_em)}
-                    </div>
-                  </div>
-                </div>
-              )}
+                  );
+                }
+                return (
+                  <>
+                    {msgs.map((m) => (
+                      <Evento key={m.id} m={m} clienteNome={d.cliente?.nome} />
+                    ))}
+                    {!termo && d.total_mensagens > d.mensagens.length && (
+                      <div className="text-center text-xs text-slate-400 my-2">
+                        mostrando as {d.mensagens.length} mais recentes de {d.total_mensagens}
+                      </div>
+                    )}
+                    {mostrarAbertura && (
+                      <div className="flex gap-3 mb-2 mt-1">
+                        <Avatar nome={d.cliente?.nome} tipo="consumidor" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs mb-1">
+                            <span className="font-medium text-slate-700">{d.cliente?.nome || "Cliente"}</span>
+                            <span className="badge-gray text-[10px]">abertura</span>
+                            <span className="text-slate-400 ml-auto shrink-0">{fmtDataHora(d.criado_em)}</span>
+                          </div>
+                          <div className="rounded-xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words border bg-white border-[var(--line)] text-slate-800">
+                            {assunto}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}

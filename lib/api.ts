@@ -81,6 +81,16 @@ export type Ficha = {
   atendimentos: AtendimentoResumo[];
   total_atendimentos: number;
   clubes: ClubeVinculo[];
+  avaliacoes_total: number;
+  avaliacoes_media: number | null;
+  avaliacoes_recentes: {
+    media: number | null;
+    comentario: string | null;
+    origem: string | null;
+    loja_id: number | null;
+    com_compra: boolean;
+    criado_em: string | null;
+  }[];
 };
 
 export type AtendimentoItem = {

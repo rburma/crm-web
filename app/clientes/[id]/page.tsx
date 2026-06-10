@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import { ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type Ficha } from "@/lib/api";
 
+const fmt1 = (n: number) =>
+  n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
 function Campo({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
   return (
     <div>
@@ -253,6 +256,38 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                 Enriquecimento por IA (perfil, interesses, propensão) — em breve.
               </div>
             </Bloco>
+
+            {/* Satisfação do cliente (avaliações dele) */}
+            {f.avaliacoes_total > 0 && (
+              <Bloco titulo="Satisfação do cliente">
+                <div className="flex items-baseline gap-3 mb-3">
+                  <div className="text-3xl font-bold text-amber-500">
+                    {f.avaliacoes_media != null ? `${fmt1(f.avaliacoes_media)} ★` : "—"}
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    {f.avaliacoes_total} avaliação(ões)
+                  </div>
+                </div>
+                {f.avaliacoes_recentes.filter((a) => a.comentario).length > 0 && (
+                  <div className="space-y-2.5">
+                    {f.avaliacoes_recentes
+                      .filter((a) => a.comentario)
+                      .map((a, i) => (
+                        <div key={i} className="border-l-2 border-amber-300 pl-3">
+                          <div className="flex items-center gap-2 text-xs text-slate-400">
+                            <span className="text-amber-500 font-semibold">
+                              {a.media != null ? `${fmt1(a.media)} ★` : "—"}
+                            </span>
+                            {a.com_compra && <span className="badge-green text-[10px]">com compra</span>}
+                            <span className="ml-auto">{fmtData(a.criado_em)}</span>
+                          </div>
+                          <div className="text-sm text-slate-700 mt-0.5">“{a.comentario}”</div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </Bloco>
+            )}
 
             {/* Atendimentos (Data, Assunto, Status — mais recente primeiro) */}
             <div className="card overflow-hidden">

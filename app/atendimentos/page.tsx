@@ -4,18 +4,46 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
+import ColunasConfig from "@/components/ColunasConfig";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   atendimentosEmLote,
   fmtData,
   listarAtendimentos,
   listarMarcas,
+  obterPreferencia,
   statusBadge,
   type AtendimentoItem,
   type MarcaItem,
 } from "@/lib/api";
 
 const PAGE = 50;
+
+// Catálogo de colunas da lista de atendimentos (o que pode ser exibido).
+const COLS_ATEND: {
+  key: string;
+  label: string;
+  th?: string;
+  render: (a: AtendimentoItem) => React.ReactNode;
+}[] = [
+  { key: "numero", label: "Nº", th: "th w-20", render: (a) => <span className="text-slate-500">#{a.numero}</span> },
+  {
+    key: "assunto",
+    label: "Assunto",
+    render: (a) => (
+      <Link href={`/atendimentos/${a.id}`} className="font-medium text-brand-700 hover:underline">
+        {a.assunto || `Atendimento ${a.numero}`}
+      </Link>
+    ),
+  },
+  { key: "cliente", label: "Cliente", render: (a) => <span className="text-slate-600">{a.cliente || "—"}</span> },
+  { key: "marca", label: "Marca", render: (a) => <span className="text-slate-600">{a.marca || "—"}</span> },
+  { key: "loja", label: "Loja", render: (a) => <span className="text-slate-600">{a.loja || "—"}</span> },
+  { key: "status", label: "Status", th: "th w-28", render: (a) => <span className={statusBadge(a.status)}>{a.status}</span> },
+  { key: "data", label: "Aberto em", th: "th w-28", render: (a) => <span className="text-slate-500">{fmtData(a.criado_em)}</span> },
+];
+const COLS_ATEND_DEFAULT = ["assunto", "cliente", "status", "data"];
+const COLS_ATEND_KEYS = COLS_ATEND.map((c) => c.key);
 
 export default function AtendimentosPage() {
   const [q, setQ] = useState("");
@@ -29,6 +57,7 @@ export default function AtendimentosPage() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
+  const [cols, setCols] = useState<string[]>(COLS_ATEND_DEFAULT);
 
   // seleção + ações em massa
   const selec = useSelecao(items, (a) => String(a.id));
@@ -88,6 +117,12 @@ export default function AtendimentosPage() {
   // Carrega marcas (filtro) + os atendimentos mais recentes na 1a abertura.
   useEffect(() => {
     listarMarcas().then(setMarcas).catch(() => {});
+    obterPreferencia<{ cols?: string[] }>("cols_atendimentos")
+      .then((v) => {
+        const ok = (v.cols || []).filter((k) => COLS_ATEND_KEYS.includes(k));
+        if (ok.length) setCols(ok);
+      })
+      .catch(() => {});
     carregar(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -95,7 +130,13 @@ export default function AtendimentosPage() {
   return (
     <Shell title="Atendimentos">
       <div className="max-w-5xl">
-        <div className="flex justify-end mb-3">
+        <div className="flex justify-end items-center gap-2 mb-3">
+          <ColunasConfig
+            chave="cols_atendimentos"
+            todas={COLS_ATEND.map((c) => ({ key: c.key, label: c.label }))}
+            value={cols}
+            onChange={setCols}
+          />
           <Link href="/atendimentos/novo" className="btn-primary text-sm">
             ＋ Novo atendimento
           </Link>
@@ -191,23 +232,28 @@ export default function AtendimentosPage() {
                     title="Selecionar todos desta página"
                   />
                 </th>
-                <th className="th">Assunto</th>
-                <th className="th">Cliente</th>
-                <th className="th w-28">Status</th>
-                <th className="th w-28">Aberto em</th>
+                {cols.map((k) => {
+                  const c = COLS_ATEND.find((x) => x.key === k);
+                  if (!c) return null;
+                  return (
+                    <th key={k} className={c.th || "th"}>
+                      {c.label}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
               {loading && (
                 <tr>
-                  <td className="td text-slate-400" colSpan={5}>
+                  <td className="td text-slate-400" colSpan={cols.length + 1}>
                     Carregando…
                   </td>
                 </tr>
               )}
               {!loading && items.length === 0 && (
                 <tr>
-                  <td className="td text-slate-400" colSpan={5}>
+                  <td className="td text-slate-400" colSpan={cols.length + 1}>
                     Nenhum atendimento.
                   </td>
                 </tr>
@@ -223,22 +269,15 @@ export default function AtendimentosPage() {
                       onChange={() => { /* tratado em onClick */ }}
                     />
                   </td>
-                  <td className="td">
-                    <Link
-                      href={`/atendimentos/${a.id}`}
-                      className="font-medium text-brand-700 hover:underline"
-                    >
-                      {a.assunto || `Atendimento ${a.numero}`}
-                    </Link>
-                    {a.marca && (
-                      <span className="text-xs text-slate-400"> · {a.marca}</span>
-                    )}
-                  </td>
-                  <td className="td text-slate-600">{a.cliente || "—"}</td>
-                  <td className="td">
-                    <span className={statusBadge(a.status)}>{a.status}</span>
-                  </td>
-                  <td className="td text-slate-500">{fmtData(a.criado_em)}</td>
+                  {cols.map((k) => {
+                    const c = COLS_ATEND.find((x) => x.key === k);
+                    if (!c) return null;
+                    return (
+                      <td key={k} className="td">
+                        {c.render(a)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>

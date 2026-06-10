@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
+import ColunasConfig from "@/components/ColunasConfig";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   buscarClientes,
@@ -11,10 +12,35 @@ import {
   clientesBulkAtributo,
   fmtTelefone,
   fmtCpf,
+  obterPreferencia,
   type ClienteResumo,
 } from "@/lib/api";
 
 const PAGE = 50;
+
+// Catálogo de colunas da lista de clientes.
+const COLS_CLI: {
+  key: string;
+  label: string;
+  th?: string;
+  render: (c: ClienteResumo) => React.ReactNode;
+}[] = [
+  {
+    key: "nome",
+    label: "Nome",
+    render: (c) => (
+      <Link href={`/clientes/${c.id}`} className="font-medium text-brand-700 hover:underline">
+        {c.nome || "(sem nome)"}
+      </Link>
+    ),
+  },
+  { key: "email", label: "E-mail", render: (c) => <span className="text-slate-600 break-words">{c.email || "—"}</span> },
+  { key: "telefone", label: "Telefone", render: (c) => <span className="text-slate-600">{c.telefone ? fmtTelefone(c.telefone) : "—"}</span> },
+  { key: "cpf", label: "CPF", render: (c) => <span className="text-slate-600">{c.cpf ? fmtCpf(c.cpf) : "—"}</span> },
+  { key: "uf", label: "UF", th: "th w-20", render: (c) => <span className="badge-gray">{c.uf || "—"}</span> },
+];
+const COLS_CLI_DEFAULT = ["nome", "email", "telefone", "uf"];
+const COLS_CLI_KEYS = COLS_CLI.map((c) => c.key);
 
 // Resultado da fusao client-side (preview): principal + preenche vazios dos outros.
 function previa(principal: ClienteResumo, outros: ClienteResumo[]): ClienteResumo {
@@ -45,6 +71,16 @@ export default function ClientesPage() {
   const [merging, setMerging] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [cols, setCols] = useState<string[]>(COLS_CLI_DEFAULT);
+
+  useEffect(() => {
+    obterPreferencia<{ cols?: string[] }>("cols_clientes")
+      .then((v) => {
+        const ok = (v.cols || []).filter((k) => COLS_CLI_KEYS.includes(k));
+        if (ok.length) setCols(ok);
+      })
+      .catch(() => {});
+  }, []);
 
   async function carregar(pg: number, size = pageSize) {
     if (!q.trim()) return;
@@ -150,6 +186,14 @@ export default function ClientesPage() {
   return (
     <Shell title="Clientes">
       <div className="max-w-5xl">
+        <div className="flex justify-end mb-2">
+          <ColunasConfig
+            chave="cols_clientes"
+            todas={COLS_CLI.map((c) => ({ key: c.key, label: c.label }))}
+            value={cols}
+            onChange={setCols}
+          />
+        </div>
         <form onSubmit={buscar} className="flex gap-2 mb-5">
           <input
             className="input"
@@ -210,46 +254,47 @@ export default function ClientesPage() {
                     title="Selecionar todos desta página"
                   />
                 </th>
-                <th className="th">Nome</th>
-                <th className="th">Contato</th>
-                <th className="th w-20">UF</th>
+                {cols.map((k) => {
+                  const c = COLS_CLI.find((x) => x.key === k);
+                  if (!c) return null;
+                  return (
+                    <th key={k} className={c.th || "th"}>
+                      {c.label}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
               {loading && (
-                <tr><td className="td text-slate-400" colSpan={4}>Carregando…</td></tr>
+                <tr><td className="td text-slate-400" colSpan={cols.length + 1}>Carregando…</td></tr>
               )}
               {!loading && buscou && rows.length === 0 && (
-                <tr><td className="td text-slate-400" colSpan={4}>Nenhum cliente encontrado.</td></tr>
+                <tr><td className="td text-slate-400" colSpan={cols.length + 1}>Nenhum cliente encontrado.</td></tr>
               )}
               {!loading && !buscou && (
-                <tr><td className="td text-slate-400" colSpan={4}>Digite um termo e busque — entre 304 mil clientes.</td></tr>
+                <tr><td className="td text-slate-400" colSpan={cols.length + 1}>Digite um termo e busque — entre 304 mil clientes.</td></tr>
               )}
-              {rows.map((c, idx) => (
-                <tr key={c.id} className={selec.tem(String(c.id)) ? "bg-blue-50/40" : "row-link"}>
+              {rows.map((cli, idx) => (
+                <tr key={cli.id} className={selec.tem(String(cli.id)) ? "bg-blue-50/40" : "row-link"}>
                   <td className="td">
                     <input
                       type="checkbox"
-                      checked={selec.tem(String(c.id))}
+                      checked={selec.tem(String(cli.id))}
                       onClick={(e) => selec.toggleAt(idx, e.shiftKey)}
                       onChange={() => { /* tratado em onClick */ }}
                       className="h-4 w-4"
                     />
                   </td>
-                  <td className="td">
-                    <Link href={`/clientes/${c.id}`} className="font-medium text-brand-700 hover:underline">
-                      {c.nome || "(sem nome)"}
-                    </Link>
-                  </td>
-                  <td className="td text-slate-600">
-                    <div>{c.email || "—"}</div>
-                    <div className="text-xs text-slate-400">
-                      {[c.telefone ? fmtTelefone(c.telefone) : "", c.cpf ? `CPF ${fmtCpf(c.cpf)}` : ""]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                  </td>
-                  <td className="td"><span className="badge-gray">{c.uf || "—"}</span></td>
+                  {cols.map((k) => {
+                    const c = COLS_CLI.find((x) => x.key === k);
+                    if (!c) return null;
+                    return (
+                      <td key={k} className="td">
+                        {c.render(cli)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>

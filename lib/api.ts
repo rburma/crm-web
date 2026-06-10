@@ -756,6 +756,40 @@ export function configExcluirPergunta(id: number): Promise<{ ok: boolean }> {
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".
+// ── Painel (dashboard) ──────────────────────────────────────────────
+export type DashboardResumo = {
+  abertos: number;
+  em_espera: number;
+  encerrados_hoje: number;
+  novos_hoje: number;
+  total_atendimentos: number;
+  total_clientes: number;
+  nps_geral: number | null;
+  volume_14d: { dia: string; qtd: number }[];
+  por_marca: { marca: string; abertos: number; total: number }[];
+  top_lojas: { loja: string; abertos: number }[];
+  nps_por_marca: { marca: string; media: number; n: number }[];
+  recentes_abertos: {
+    id: number;
+    numero: string;
+    assunto: string | null;
+    cliente: string | null;
+    marca: string | null;
+    criado_em: string | null;
+  }[];
+  avaliacoes_recentes: {
+    marca: string | null;
+    loja: string | null;
+    media: number | null;
+    comentario: string | null;
+    criado_em: string | null;
+  }[];
+};
+
+export async function dashboardResumo(): Promise<DashboardResumo> {
+  return req<DashboardResumo>("dashboard/resumo");
+}
+
 export function fmtData(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);

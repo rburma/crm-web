@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 
 const NAV = [
+  { href: "/", label: "Painel", icon: "📊" },
   { href: "/clientes", label: "Clientes", icon: "👥" },
   { href: "/atendimentos", label: "Atendimentos", icon: "💬" },
   { href: "/importar", label: "Importar", icon: "📥" },
@@ -63,7 +64,7 @@ export default function Shell({
         </div>
         <nav className="space-y-1">
           {NAV.map((n) => {
-            const active = path.startsWith(n.href);
+            const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
             return (
               <Link
                 key={n.href}

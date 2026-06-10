@@ -1,0 +1,455 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Shell from "@/components/Shell";
+import {
+  configCampos,
+  configCriarCampo,
+  configCriarPergunta,
+  configEditarCampo,
+  configEditarMarca,
+  configEditarPergunta,
+  configExcluirCampo,
+  configExcluirPergunta,
+  configImportarPerguntasPadrao,
+  configMarcas,
+  configPerguntas,
+  configRemoverLogo,
+  configSubirLogo,
+  listarLojas,
+  type CampoConfig,
+  type MarcaConfig,
+  type PerguntaConfig,
+} from "@/lib/api";
+
+type Secao = "aparencia" | "formulario" | "avaliacao" | "paginas";
+
+const SECOES: { id: Secao; rotulo: string }[] = [
+  { id: "aparencia", rotulo: "1. Marca & Aparência" },
+  { id: "formulario", rotulo: "2. Formulário de atendimento" },
+  { id: "avaliacao", rotulo: "3. Avaliação (NPS)" },
+  { id: "paginas", rotulo: "4. Páginas" },
+];
+
+export default function ConfiguracoesPage() {
+  const [marcas, setMarcas] = useState<MarcaConfig[]>([]);
+  const [marca, setMarca] = useState<MarcaConfig | null>(null);
+  const [secao, setSecao] = useState<Secao>("aparencia");
+  const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
+
+  const recarregarMarcas = useCallback(async (manterId?: number) => {
+    try {
+      const ms = await configMarcas();
+      setMarcas(ms);
+      const alvo = manterId ?? marca?.id;
+      setMarca(ms.find((m) => m.id === alvo) ?? ms[0] ?? null);
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marca?.id]);
+
+  useEffect(() => { recarregarMarcas(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, []);
+
+  function flash(msg: string) {
+    setAviso(msg);
+    setTimeout(() => setAviso(""), 2500);
+  }
+
+  return (
+    <Shell title="⚙️ Configurações">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <label className="label mb-0">Marca:</label>
+        <select className="input max-w-xs" value={marca?.id ?? ""}
+          onChange={(e) => setMarca(marcas.find((m) => m.id === Number(e.target.value)) ?? null)}>
+          {marcas.map((m) => <option key={m.id} value={m.id}>{m.nome ?? m.slug}</option>)}
+        </select>
+        {aviso && <span className="text-sm text-emerald-700">✅ {aviso}</span>}
+      </div>
+
+      {erro && <div className="card p-3 mb-3 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[230px_1fr] gap-4">
+        {/* menu de seções */}
+        <div className="card p-2 h-fit">
+          {SECOES.map((s) => (
+            <button key={s.id} onClick={() => setSecao(s.id)}
+              className={`w-full text-left rounded-lg px-3 py-2 text-sm transition ${
+                secao === s.id ? "bg-brand-50 text-brand-700 font-semibold" : "hover:bg-slate-50"
+              }`}>
+              {s.rotulo}
+            </button>
+          ))}
+        </div>
+
+        {/* conteúdo */}
+        <div className="card p-5">
+          {marca && secao === "aparencia" && (
+            <SecaoAparencia marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} />
+          )}
+          {marca && secao === "formulario" && (
+            <SecaoFormulario marca={marca} onErro={setErro} onOk={() => flash("Salvo!")} />
+          )}
+          {marca && secao === "avaliacao" && (
+            <SecaoAvaliacao marca={marca} onErro={setErro} onOk={() => flash("Salvo!")} />
+          )}
+          {marca && secao === "paginas" && <SecaoPaginas marca={marca} />}
+          {!marca && <p className="text-sm text-slate-400">Carregando…</p>}
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ════════ 1. Marca & Aparência ════════
+function SecaoAparencia({ marca, onSalvo, onErro }: {
+  marca: MarcaConfig; onSalvo: (m: MarcaConfig) => void; onErro: (e: string) => void;
+}) {
+  const [nome, setNome] = useState(marca.nome ?? "");
+  const [slug, setSlug] = useState(marca.slug);
+  const [cor, setCor] = useState(marca.tema?.cor ?? "#0f6bd7");
+  const [titulo, setTitulo] = useState(marca.tema?.titulo ?? "");
+  const [boasVindas, setBoasVindas] = useState(marca.tema?.boas_vindas ?? "");
+  const [rodape, setRodape] = useState(marca.tema?.rodape ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    setNome(marca.nome ?? ""); setSlug(marca.slug);
+    setCor(marca.tema?.cor ?? "#0f6bd7");
+    setTitulo(marca.tema?.titulo ?? "");
+    setBoasVindas(marca.tema?.boas_vindas ?? "");
+    setRodape(marca.tema?.rodape ?? "");
+  }, [marca]);
+
+  async function salvar() {
+    setSalvando(true); onErro("");
+    try {
+      const m = await configEditarMarca(marca.id, {
+        nome: nome.trim() || undefined,
+        slug: slug.trim() || undefined,
+        tema: { cor, titulo, boas_vindas: boasVindas, rodape },
+      });
+      onSalvo(m);
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function subirLogo(f: File | null) {
+    if (!f) return;
+    onErro("");
+    try {
+      const m = await configSubirLogo(marca.id, f);
+      onSalvo(m);
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    }
+  }
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <h2 className="font-bold">Marca & Aparência</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><label className="label">Nome da marca</label>
+          <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></div>
+        <div><label className="label">Endereço público (/f/…)</label>
+          <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} /></div>
+      </div>
+      <div className="flex items-end gap-4">
+        <div>
+          <label className="label">Cor primária</label>
+          <input type="color" className="h-10 w-20 rounded border border-slate-300" value={cor}
+            onChange={(e) => setCor(e.target.value)} />
+        </div>
+        <div className="flex-1">
+          <label className="label">Logo (PNG/JPG/WebP até 500KB)</label>
+          <div className="flex items-center gap-3">
+            {marca.logo_path ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={`/api/render/${marca.logo_path}?v=${Date.now()}`} alt="logo"
+                className="w-12 h-12 rounded-lg object-contain bg-white border border-slate-200" />
+            ) : (
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold"
+                style={{ background: cor }}>
+                {(nome || slug).slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="text-sm"
+              onChange={(e) => subirLogo(e.target.files?.[0] ?? null)} />
+            {marca.tem_logo && (
+              <button className="text-xs text-red-500 hover:underline"
+                onClick={async () => { onErro(""); try { onSalvo(await configRemoverLogo(marca.id)); } catch (e) { onErro(String((e as Error).message || e)); } }}>
+                remover
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      <div><label className="label">Título da página pública</label>
+        <input className="input" placeholder="Fale com a gente" value={titulo} onChange={(e) => setTitulo(e.target.value)} /></div>
+      <div><label className="label">Texto de boas-vindas</label>
+        <input className="input" placeholder="Conte o que aconteceu e nossa equipe responde…" value={boasVindas} onChange={(e) => setBoasVindas(e.target.value)} /></div>
+      <div><label className="label">Rodapé</label>
+        <input className="input" placeholder="Seus dados são usados somente para este contato." value={rodape} onChange={(e) => setRodape(e.target.value)} /></div>
+      <button className="btn-primary" onClick={salvar} disabled={salvando}>
+        {salvando ? "Salvando…" : "Salvar aparência"}
+      </button>
+    </div>
+  );
+}
+
+// ════════ 2. Formulário (campos extras) ════════
+function SecaoFormulario({ marca, onErro, onOk }: {
+  marca: MarcaConfig; onErro: (e: string) => void; onOk: () => void;
+}) {
+  const [campos, setCampos] = useState<CampoConfig[]>([]);
+  const [novoNome, setNovoNome] = useState("");
+  const [novoObrig, setNovoObrig] = useState(false);
+  const [novoLojaQ, setNovoLojaQ] = useState("");
+  const [lojasSug, setLojasSug] = useState<{ id: number; nome: string }[]>([]);
+  const [novaLoja, setNovaLoja] = useState<{ id: number; nome: string } | null>(null);
+
+  const carregar = useCallback(() => {
+    configCampos(marca.id).then(setCampos).catch((e) => onErro(String((e as Error).message || e)));
+  }, [marca.id, onErro]);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  useEffect(() => {
+    if (!novoLojaQ.trim()) { setLojasSug([]); return; }
+    const t = setTimeout(() => {
+      listarLojas({ marcaId: marca.id, q: novoLojaQ, limit: 8 })
+        .then((ls) => setLojasSug(ls.map((l) => ({ id: l.id, nome: l.nome }))))
+        .catch(() => {});
+    }, 250);
+    return () => clearTimeout(t);
+  }, [novoLojaQ, marca.id]);
+
+  async function criar() {
+    if (novoNome.trim().length < 2) { onErro("Dê um nome ao campo."); return; }
+    onErro("");
+    try {
+      await configCriarCampo({
+        marca_id: marca.id, loja_id: novaLoja?.id ?? null,
+        nome: novoNome.trim(), obrigatorio: novoObrig,
+      });
+      setNovoNome(""); setNovoObrig(false); setNovaLoja(null); setNovoLojaQ("");
+      carregar(); onOk();
+    } catch (e) { onErro(String((e as Error).message || e)); }
+  }
+
+  async function alternar(c: CampoConfig, patch: Parameters<typeof configEditarCampo>[1]) {
+    onErro("");
+    try { await configEditarCampo(c.id, patch); carregar(); onOk(); }
+    catch (e) { onErro(String((e as Error).message || e)); }
+  }
+
+  async function excluir(c: CampoConfig) {
+    if (!confirm(`Excluir o campo "${c.nome}"?`)) return;
+    onErro("");
+    try { await configExcluirCampo(c.id); carregar(); onOk(); }
+    catch (e) { onErro(String((e as Error).message || e)); }
+  }
+
+  const globais = campos.filter((c) => c.loja_id === null);
+  const porLoja = campos.filter((c) => c.loja_id !== null);
+
+  return (
+    <div>
+      <h2 className="font-bold mb-1">Campos extras do formulário</h2>
+      <p className="text-sm text-slate-500 mb-4">
+        Aparecem na página pública de abertura. <b>Toda a marca</b> = em todas as lojas;
+        <b> loja específica</b> = só naquela loja (como no helpcenter antigo).
+      </p>
+
+      {/* novo campo */}
+      <div className="border border-slate-200 rounded-lg p-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-[1.5fr_1fr_auto] gap-3 items-end">
+          <div><label className="label">Nome do campo</label>
+            <input className="input" placeholder="Ex.: Número do pedido (delivery)" value={novoNome}
+              onChange={(e) => setNovoNome(e.target.value)} /></div>
+          <div className="relative">
+            <label className="label">Escopo</label>
+            {novaLoja ? (
+              <div className="flex items-center justify-between input">
+                <span className="truncate text-xs">{novaLoja.nome}</span>
+                <button className="text-xs text-slate-400 ml-1" onClick={() => { setNovaLoja(null); setNovoLojaQ(""); }}>✕</button>
+              </div>
+            ) : (
+              <>
+                <input className="input" placeholder="Toda a marca (ou busque a loja…)" value={novoLojaQ}
+                  onChange={(e) => setNovoLojaQ(e.target.value)} />
+                {lojasSug.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-44 overflow-y-auto">
+                    {lojasSug.map((l) => (
+                      <button key={l.id} className="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50"
+                        onClick={() => setNovaLoja(l)}>{l.nome}</button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <button className="btn-primary" onClick={criar}>＋ Adicionar</button>
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-slate-600 mt-2">
+          <input type="checkbox" checked={novoObrig} onChange={(e) => setNovoObrig(e.target.checked)} />
+          obrigatório
+        </label>
+      </div>
+
+      {/* listas */}
+      {[{ titulo: `Campos de TODA a marca (${globais.length})`, lista: globais },
+        { titulo: `Campos por loja (${porLoja.length})`, lista: porLoja }].map((bloco) => (
+        <div key={bloco.titulo} className="mb-5">
+          <p className="text-xs font-semibold text-slate-400 uppercase mb-2">{bloco.titulo}</p>
+          <div className="space-y-1 max-h-72 overflow-y-auto">
+            {bloco.lista.map((c) => (
+              <div key={c.id} className={`flex items-center justify-between rounded-lg px-3 py-1.5 text-sm ${c.ativo ? "hover:bg-slate-50" : "opacity-50 bg-slate-50"}`}>
+                <span className="truncate">
+                  {c.nome}
+                  {c.loja_nome && <span className="text-xs text-slate-400 ml-2">({c.loja_nome})</span>}
+                </span>
+                <span className="shrink-0 flex items-center gap-2 ml-2">
+                  <button onClick={() => alternar(c, { obrigatorio: !c.obrigatorio })}
+                    className={c.obrigatorio ? "badge-amber" : "badge-gray"}
+                    title="Alternar obrigatório">
+                    {c.obrigatorio ? "Obrigatório" : "Opcional"}
+                  </button>
+                  <button onClick={() => alternar(c, { ativo: !c.ativo })}
+                    className="text-xs text-slate-500 hover:underline">
+                    {c.ativo ? "desativar" : "ativar"}
+                  </button>
+                  <button onClick={() => excluir(c)} className="text-xs text-red-500 hover:underline">excluir</button>
+                </span>
+              </div>
+            ))}
+            {bloco.lista.length === 0 && <p className="text-xs text-slate-400 px-2">Nenhum campo.</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ════════ 3. Avaliação (perguntas NPS) ════════
+function SecaoAvaliacao({ marca, onErro, onOk }: {
+  marca: MarcaConfig; onErro: (e: string) => void; onOk: () => void;
+}) {
+  const [perguntas, setPerguntas] = useState<PerguntaConfig[]>([]);
+  const [usandoPadrao, setUsandoPadrao] = useState(false);
+  const [padrao, setPadrao] = useState<string[]>([]);
+  const [novoTexto, setNovoTexto] = useState("");
+
+  const carregar = useCallback(() => {
+    configPerguntas(marca.id)
+      .then((r) => { setPerguntas(r.perguntas); setUsandoPadrao(r.usando_padrao); setPadrao(r.padrao); })
+      .catch((e) => onErro(String((e as Error).message || e)));
+  }, [marca.id, onErro]);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  async function importarPadrao() {
+    onErro("");
+    try { await configImportarPerguntasPadrao(marca.id); carregar(); onOk(); }
+    catch (e) { onErro(String((e as Error).message || e)); }
+  }
+  async function criar() {
+    if (novoTexto.trim().length < 3) { onErro("Escreva a pergunta."); return; }
+    onErro("");
+    try {
+      await configCriarPergunta({ marca_id: marca.id, texto: novoTexto.trim(), ordem: perguntas.length });
+      setNovoTexto(""); carregar(); onOk();
+    } catch (e) { onErro(String((e as Error).message || e)); }
+  }
+  async function alternar(p: PerguntaConfig, patch: Parameters<typeof configEditarPergunta>[1]) {
+    onErro("");
+    try { await configEditarPergunta(p.id, patch); carregar(); onOk(); }
+    catch (e) { onErro(String((e as Error).message || e)); }
+  }
+  async function excluir(p: PerguntaConfig) {
+    if (!confirm(`Excluir a pergunta "${p.texto}"?`)) return;
+    onErro("");
+    try { await configExcluirPergunta(p.id); carregar(); onOk(); }
+    catch (e) { onErro(String((e as Error).message || e)); }
+  }
+
+  return (
+    <div className="max-w-2xl">
+      <h2 className="font-bold mb-1">Perguntas da avaliação (escala 1–5 ⭐)</h2>
+      <p className="text-sm text-slate-500 mb-4">
+        O cliente avalia quando o atendimento é encerrado (link na página de acompanhamento).
+        Personalize por marca — ex.: perguntas de <b>delivery</b>.
+      </p>
+
+      {usandoPadrao && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-4 text-sm text-amber-800">
+          Esta marca está usando as <b>10 perguntas padrão</b> (do sistema antigo):
+          <ol className="list-decimal pl-5 mt-1 text-xs">
+            {padrao.map((p) => <li key={p}>{p}</li>)}
+          </ol>
+          <button className="mt-2 text-sm font-semibold underline" onClick={importarPadrao}>
+            Importar como editáveis (para personalizar)
+          </button>
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-4">
+        <input className="input" placeholder="Nova pergunta — ex.: O pedido chegou no prazo? (delivery)"
+          value={novoTexto} onChange={(e) => setNovoTexto(e.target.value)} />
+        <button className="btn-primary shrink-0" onClick={criar}>＋</button>
+      </div>
+
+      <div className="space-y-1">
+        {perguntas.map((p, i) => (
+          <div key={p.id} className={`flex items-center justify-between rounded-lg px-3 py-1.5 text-sm ${p.ativo ? "hover:bg-slate-50" : "opacity-50 bg-slate-50"}`}>
+            <span className="truncate">{i + 1}. {p.texto}</span>
+            <span className="shrink-0 flex items-center gap-2 ml-2">
+              <button onClick={() => alternar(p, { ativo: !p.ativo })} className="text-xs text-slate-500 hover:underline">
+                {p.ativo ? "desativar" : "ativar"}
+              </button>
+              <button onClick={() => excluir(p)} className="text-xs text-red-500 hover:underline">excluir</button>
+            </span>
+          </div>
+        ))}
+        {perguntas.length === 0 && !usandoPadrao && <p className="text-xs text-slate-400">Nenhuma pergunta.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ════════ 4. Páginas (links prontos) ════════
+function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
+  const [base, setBase] = useState("");
+  useEffect(() => { setBase(window.location.origin); }, []);
+  const links = [
+    { rotulo: "Formulário público — abrir atendimento", url: `${base}/f/${marca.slug}` },
+    { rotulo: "Acompanhamento de atendimento", url: `${base}/acompanhar` },
+    { rotulo: "Avaliação (o cliente chega pelo acompanhamento ao encerrar)", url: `${base}/avaliar` },
+  ];
+  return (
+    <div className="max-w-2xl">
+      <h2 className="font-bold mb-1">Páginas públicas de {marca.nome ?? marca.slug}</h2>
+      <p className="text-sm text-slate-500 mb-4">
+        Links prontos para colocar no site, e-mail, bio do Instagram, QR code…
+      </p>
+      <div className="space-y-3">
+        {links.map((l) => (
+          <div key={l.url} className="border border-slate-200 rounded-lg p-3">
+            <p className="text-xs font-semibold text-slate-500 mb-1">{l.rotulo}</p>
+            <div className="flex items-center gap-2">
+              <code className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1.5 flex-1 overflow-x-auto whitespace-nowrap">{l.url}</code>
+              <button className="btn-ghost text-xs px-2 py-1.5"
+                onClick={() => navigator.clipboard?.writeText(l.url)}>copiar</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-slate-400 mt-4">
+        ⚠️ No piloto, as páginas ainda pedem a senha do portão. Quando você decidir publicar
+        de verdade, liberamos só essas rotas para acesso aberto.
+      </p>
+    </div>
+  );
+}

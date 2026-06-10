@@ -18,6 +18,7 @@ const NAV = [
   { href: "/importar", label: "Importar", icon: "📥" },
   { href: "/equipe", label: "Equipe", icon: "🏪" },
   { href: "/usuarios", label: "Usuários", icon: "🔑" },
+  { href: "/configuracoes", label: "Configurações", icon: "⚙️" },
   { href: "/lgpd", label: "LGPD", icon: "🛡️" },
 ];
 

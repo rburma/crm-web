@@ -518,6 +518,167 @@ export function equipeLojasDoUsuario(usuarioId: number): Promise<LojaDoUsuario[]
   return req(`equipe/usuarios/${usuarioId}/lojas`);
 }
 
+// ── Páginas PÚBLICAS (formulário de abertura + acompanhamento) ──────
+export type TemaMarca = {
+  cor?: string; titulo?: string; boas_vindas?: string; rodape?: string;
+};
+export type PublicoMarca = {
+  id: number; slug: string; nome: string | null; tema: TemaMarca;
+  logo_path?: string | null;
+};
+export type CampoForm = {
+  id: number; nome: string; obrigatorio: boolean;
+  tipo: string; extra: string | null; loja_id: number | null;
+};
+
+export function publicoForm(slug: string): Promise<{ marca: PublicoMarca }> {
+  return req(`publico/form/${encodeURIComponent(slug)}`);
+}
+export function publicoLojas(slug: string, q = ""): Promise<{ id: number; nome: string }[]> {
+  return req(`publico/form/${encodeURIComponent(slug)}/lojas?q=${encodeURIComponent(q)}`);
+}
+export function publicoCampos(slug: string, lojaId: number): Promise<CampoForm[]> {
+  return req(`publico/form/${encodeURIComponent(slug)}/campos?loja_id=${lojaId}`);
+}
+export function publicoAbrir(body: {
+  marca_slug: string; loja_id: number; nome: string; email: string;
+  telefone?: string; assunto: string; mensagem: string;
+  campos?: Record<string, string>; aceita_contato?: boolean;
+}): Promise<{ numero: string; id: number; repetido: boolean; mensagem: string }> {
+  return req("publico/atendimentos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export type PublicoConversa = {
+  numero: string; status: string; assunto: string | null;
+  loja: string | null; marca: string | null; marca_tema: TemaMarca;
+  marca_logo_path?: string | null;
+  cliente_nome: string | null; criado_em: string | null;
+  pode_avaliar?: boolean; ja_avaliada?: boolean;
+  mensagens: { autor: "voce" | "equipe"; texto: string; criado_em: string | null }[];
+};
+export function publicoAcompanhar(numero: string, email: string): Promise<PublicoConversa> {
+  return req(`publico/atendimentos/${encodeURIComponent(numero)}?email=${encodeURIComponent(email)}`);
+}
+export function publicoResponder(
+  numero: string, email: string, texto: string,
+): Promise<{ ok: boolean; reaberto: boolean }> {
+  return req(`publico/atendimentos/${encodeURIComponent(numero)}/responder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, texto }),
+  });
+}
+
+export type PublicoAvaliacaoForm = {
+  numero: string; assunto: string | null; loja: string | null;
+  marca: string | null; marca_tema: TemaMarca; marca_logo_path?: string | null;
+  ja_avaliada: boolean; perguntas: string[];
+};
+export function publicoAvaliacaoForm(numero: string, email: string): Promise<PublicoAvaliacaoForm> {
+  return req(`publico/avaliacao/${encodeURIComponent(numero)}?email=${encodeURIComponent(email)}`);
+}
+export function publicoAvaliar(
+  numero: string, email: string, notas: Record<string, number>, comentario?: string,
+): Promise<{ ok: boolean }> {
+  return req(`publico/avaliacao/${encodeURIComponent(numero)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, notas, comentario }),
+  });
+}
+
+// ── ⚙️ Configurações (admin) ─────────────────────────────────────────
+export type MarcaConfig = {
+  id: number; slug: string; nome: string | null; tema: TemaMarca;
+  ativo: boolean; tem_logo: boolean; logo_path: string | null;
+};
+export type CampoConfig = {
+  id: number; marca_id: number | null; loja_id: number | null;
+  loja_nome: string | null; nome: string; obrigatorio: boolean;
+  tipo: string; ordem: number; ativo: boolean;
+};
+export type PerguntaConfig = {
+  id: number; marca_id: number; texto: string; ordem: number; ativo: boolean;
+};
+
+export function configMarcas(): Promise<MarcaConfig[]> {
+  return req("config/marcas");
+}
+export function configEditarMarca(
+  id: number, body: { nome?: string; slug?: string; tema?: Record<string, string> },
+): Promise<MarcaConfig> {
+  return req(`config/marcas/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function configSubirLogo(id: number, arquivo: File): Promise<MarcaConfig> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  return req(`config/marcas/${id}/logo`, { method: "POST", body: fd });
+}
+export function configRemoverLogo(id: number): Promise<MarcaConfig> {
+  return req(`config/marcas/${id}/logo`, { method: "DELETE" });
+}
+export function configCampos(marcaId: number): Promise<CampoConfig[]> {
+  return req(`config/marcas/${marcaId}/campos`);
+}
+export function configCriarCampo(body: {
+  marca_id: number; loja_id?: number | null; nome: string;
+  obrigatorio?: boolean; ordem?: number;
+}): Promise<CampoConfig> {
+  return req("config/campos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function configEditarCampo(
+  id: number, body: { nome?: string; obrigatorio?: boolean; ordem?: number; ativo?: boolean },
+): Promise<CampoConfig> {
+  return req(`config/campos/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function configExcluirCampo(id: number): Promise<{ ok: boolean }> {
+  return req(`config/campos/${id}`, { method: "DELETE" });
+}
+export function configPerguntas(marcaId: number): Promise<{
+  perguntas: PerguntaConfig[]; usando_padrao: boolean; padrao: string[];
+}> {
+  return req(`config/marcas/${marcaId}/perguntas`);
+}
+export function configImportarPerguntasPadrao(marcaId: number): Promise<{ ok: boolean; criadas: number }> {
+  return req(`config/marcas/${marcaId}/perguntas/importar-padrao`, { method: "POST" });
+}
+export function configCriarPergunta(body: {
+  marca_id: number; texto: string; ordem?: number;
+}): Promise<PerguntaConfig> {
+  return req("config/perguntas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function configEditarPergunta(
+  id: number, body: { texto?: string; ordem?: number; ativo?: boolean },
+): Promise<PerguntaConfig> {
+  return req(`config/perguntas/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function configExcluirPergunta(id: number): Promise<{ ok: boolean }> {
+  return req(`config/perguntas/${id}`, { method: "DELETE" });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

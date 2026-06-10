@@ -12,8 +12,13 @@ import { NextRequest, NextResponse } from "next/server";
  */
 const USER = process.env.APP_USER;
 const PASS = process.env.APP_PASS;
+// Interruptor de LANÇAMENTO: enquanto != "1", o site inteiro (inclusive as
+// paginas publicas dos clientes) fica atras da senha do piloto — "fechado".
+// Quando a programacao estiver pronta, definir PUBLICO_ABERTO=1 na Vercel para
+// abrir SO as paginas dos clientes (o admin continua protegido). Sem mexer em codigo.
+const PUBLICO_ABERTO = process.env.PUBLICO_ABERTO === "1";
 
-// Prefixos liberados (cliente final). startsWith cobre /avaliar, /avaliar-loja,
+// Prefixos das paginas do cliente final. startsWith cobre /avaliar, /avaliar-loja,
 // /avaliar-site, /f/<slug>, /acompanhar e o proxy das rotas publicas do motor.
 const PUBLICAS = ["/f/", "/acompanhar", "/avaliar", "/api/render/publico/"];
 
@@ -21,7 +26,7 @@ export function middleware(req: NextRequest) {
   if (!USER || !PASS) return NextResponse.next();
 
   const path = req.nextUrl.pathname;
-  if (PUBLICAS.some((p) => path === p || path.startsWith(p))) {
+  if (PUBLICO_ABERTO && PUBLICAS.some((p) => path === p || path.startsWith(p))) {
     return NextResponse.next();
   }
 

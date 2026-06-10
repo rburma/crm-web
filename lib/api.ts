@@ -257,6 +257,27 @@ export function logout(): void {
   try { localStorage.removeItem("crm_usuario"); } catch { /* ignore */ }
 }
 
+// ── "Entrar como" (impersonação — admin verifica a visão de outro usuário) ──
+export async function entrarComo(usuarioId: number): Promise<UsuarioLogado> {
+  const r = await req<{ token: string; usuario: UsuarioLogado }>(
+    `auth/impersonar/${usuarioId}`, { method: "POST" },
+  );
+  salvarSessao(r.token, r.usuario);
+  try { localStorage.setItem("crm_impersonando", "1"); } catch { /* ignore */ }
+  return r.usuario;
+}
+
+export function impersonando(): boolean {
+  try {
+    return typeof window !== "undefined" && localStorage.getItem("crm_impersonando") === "1";
+  } catch { return false; }
+}
+
+export function sairImpersonacao(): void {
+  logout();
+  try { localStorage.removeItem("crm_impersonando"); } catch { /* ignore */ }
+}
+
 // ── Gestão de usuários (admin) ──────────────────────────────────────
 export type UsuarioGestao = {
   id: number; nome: string | null; email: string | null; papel: string;

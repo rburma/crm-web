@@ -4,7 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import ChatIA from "@/components/ChatIA";
-import { logout, usuarioLogado, type UsuarioLogado } from "@/lib/api";
+import {
+  impersonando,
+  logout,
+  sairImpersonacao,
+  usuarioLogado,
+  type UsuarioLogado,
+} from "@/lib/api";
 
 const NAV = [
   { href: "/clientes", label: "Clientes", icon: "👥" },
@@ -24,9 +30,31 @@ export default function Shell({
 }) {
   const path = usePathname() ?? "";
   const [u, setU] = useState<UsuarioLogado | null>(null);
-  useEffect(() => setU(usuarioLogado()), []);
+  const [imp, setImp] = useState(false);
+  useEffect(() => {
+    setU(usuarioLogado());
+    setImp(impersonando());
+  }, []);
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col">
+      {imp && u && (
+        <div className="bg-amber-400 text-amber-950 text-sm px-4 py-2 flex items-center justify-center gap-3 sticky top-0 z-30">
+          <span>
+            👁 Você está vendo o sistema como <b>{u.nome || u.email}</b>
+            <span className="text-amber-800"> ({u.papel})</span> — o que aparece é o que ELE vê.
+          </span>
+          <button
+            onClick={() => {
+              sairImpersonacao();
+              window.location.href = "/equipe";
+            }}
+            className="underline font-semibold hover:text-amber-800"
+          >
+            voltar a ser admin
+          </button>
+        </div>
+      )}
+      <div className="flex flex-1">
       <aside className="w-60 shrink-0 border-r border-[var(--line)] bg-white px-3 py-4 hidden md:flex md:flex-col">
         <div className="px-2 mb-6">
           <div className="text-lg font-bold tracking-tight">WT · CRM</div>
@@ -81,6 +109,7 @@ export default function Shell({
           <ChatIA />
           {children}
         </main>
+      </div>
       </div>
     </div>
   );

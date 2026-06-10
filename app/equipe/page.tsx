@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import {
+  entrarComo,
   equipeAlterarAdmin,
   equipeBuscarUsuarios,
   equipeDesvincular,
@@ -127,6 +128,22 @@ export default function EquipePage() {
     try { setLojasUser(await equipeLojasDoUsuario(id)); } catch { setLojasUser([]); }
   }
 
+  async function comoUsuario(id: number, nome: string | null) {
+    if (!confirm(
+      `Entrar como "${nome ?? `#${id}`}"?\n\nUma nova janela vai abrir mostrando o sistema ` +
+      `exatamente como ELE vê (lojas/atendimentos do escopo dele).\n\nPara voltar, ` +
+      `clique em "voltar a ser admin" na faixa amarela.`
+    )) return;
+    setErro("");
+    try {
+      await entrarComo(id);
+      window.open("/atendimentos", "_blank");
+      window.location.reload();
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    }
+  }
+
   return (
     <Shell title="Equipe & Departamentos">
       {/* KPIs */}
@@ -230,6 +247,11 @@ export default function EquipePage() {
                         className={m.admin_loja ? "badge-green" : "badge-gray"}
                         title="Clique para alternar admin da loja">
                         {m.admin_loja ? "Admin da loja" : "Atendente"}
+                      </button>
+                      <button onClick={() => comoUsuario(m.usuario_id, m.nome)}
+                        className="text-xs text-brand-700 hover:underline"
+                        title="Abrir o sistema como este usuário (nova janela)">
+                        👁 entrar como
                       </button>
                       <button onClick={() => remover(m)} className="text-xs text-red-500 hover:underline">remover</button>
                     </div>

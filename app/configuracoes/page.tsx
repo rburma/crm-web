@@ -22,13 +22,14 @@ import {
   type PerguntaConfig,
 } from "@/lib/api";
 
-type Secao = "aparencia" | "formulario" | "avaliacao" | "paginas";
+type Secao = "aparencia" | "email" | "formulario" | "avaliacao" | "paginas";
 
 const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "aparencia", rotulo: "1. Marca & Aparência" },
-  { id: "formulario", rotulo: "2. Formulário de atendimento" },
-  { id: "avaliacao", rotulo: "3. Avaliação (NPS)" },
-  { id: "paginas", rotulo: "4. Páginas" },
+  { id: "email", rotulo: "2. E-mail da marca" },
+  { id: "formulario", rotulo: "3. Formulário de atendimento" },
+  { id: "avaliacao", rotulo: "4. Avaliação (NPS)" },
+  { id: "paginas", rotulo: "5. Páginas" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -87,6 +88,9 @@ export default function ConfiguracoesPage() {
         <div className="card p-5">
           {marca && secao === "aparencia" && (
             <SecaoAparencia marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} />
+          )}
+          {marca && secao === "email" && (
+            <SecaoEmail marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} />
           )}
           {marca && secao === "formulario" && (
             <SecaoFormulario marca={marca} onErro={setErro} onOk={() => flash("Salvo!")} />
@@ -196,6 +200,85 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
         <input className="input" placeholder="Seus dados são usados somente para este contato." value={rodape} onChange={(e) => setRodape(e.target.value)} /></div>
       <button className="btn-primary" onClick={salvar} disabled={salvando}>
         {salvando ? "Salvando…" : "Salvar aparência"}
+      </button>
+    </div>
+  );
+}
+
+// ════════ 2. E-mail da marca ════════
+function SecaoEmail({ marca, onSalvo, onErro }: {
+  marca: MarcaConfig; onSalvo: (m: MarcaConfig) => void; onErro: (e: string) => void;
+}) {
+  const env = marca.envio || {};
+  const [fromNome, setFromNome] = useState(env.from_nome ?? "");
+  const [fromEmail, setFromEmail] = useState(env.from_email ?? "");
+  const [replyTo, setReplyTo] = useState(env.reply_to ?? "");
+  const [assinatura, setAssinatura] = useState(env.assinatura ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    const e = marca.envio || {};
+    setFromNome(e.from_nome ?? "");
+    setFromEmail(e.from_email ?? "");
+    setReplyTo(e.reply_to ?? "");
+    setAssinatura(e.assinatura ?? "");
+  }, [marca]);
+
+  async function salvar() {
+    setSalvando(true);
+    onErro("");
+    try {
+      const m = await configEditarMarca(marca.id, {
+        envio: {
+          from_nome: fromNome,
+          from_email: fromEmail,
+          reply_to: replyTo,
+          assinatura: assinatura,
+        },
+      });
+      onSalvo(m);
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <h2 className="font-bold">E-mail da marca</h2>
+      <p className="text-sm text-slate-500">
+        Personalize os e-mails desta marca (confirmação de atendimento, convite de avaliação e respostas).
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="label">Nome do remetente</label>
+          <input className="input" placeholder="Atendimento WT" value={fromNome} onChange={(e) => setFromNome(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">E-mail do remetente (From)</label>
+          <input className="input" placeholder="atendimento@suamarca.com.br" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} />
+        </div>
+      </div>
+      <div>
+        <label className="label">Responder para (Reply-To)</label>
+        <input className="input" placeholder="fale@suamarca.com.br" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} />
+      </div>
+      <div>
+        <label className="label">Assinatura (vai no rodapé do e-mail)</label>
+        <textarea
+          className="input min-h-[80px]"
+          placeholder={"Equipe WT\nwww.suamarca.com.br"}
+          value={assinatura}
+          onChange={(e) => setAssinatura(e.target.value)}
+        />
+      </div>
+      <div className="text-xs text-slate-400">
+        Obs.: o <b>From</b> só aparece com esse e-mail se ele estiver verificado como remetente no provedor
+        (ex.: Google Workspace). O <b>Reply-To</b> e a <b>assinatura</b> sempre valem.
+      </div>
+      <button className="btn-primary" onClick={salvar} disabled={salvando}>
+        {salvando ? "Salvando…" : "Salvar e-mail"}
       </button>
     </div>
   );

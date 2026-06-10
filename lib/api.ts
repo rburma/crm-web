@@ -677,6 +677,7 @@ export function publicoAvaliarSite(
 // ── ⚙️ Configurações (admin) ─────────────────────────────────────────
 export type MarcaConfig = {
   id: number; slug: string; nome: string | null; tema: TemaMarca;
+  envio: Record<string, string>;
   ativo: boolean; tem_logo: boolean; logo_path: string | null;
 };
 export type CampoConfig = {
@@ -692,7 +693,13 @@ export function configMarcas(): Promise<MarcaConfig[]> {
   return req("config/marcas");
 }
 export function configEditarMarca(
-  id: number, body: { nome?: string; slug?: string; tema?: Record<string, string> },
+  id: number,
+  body: {
+    nome?: string;
+    slug?: string;
+    tema?: Record<string, string>;
+    envio?: Record<string, string>;
+  },
 ): Promise<MarcaConfig> {
   return req(`config/marcas/${id}`, {
     method: "PATCH",

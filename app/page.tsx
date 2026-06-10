@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import {
@@ -16,6 +15,20 @@ const nf = (n: number) => n.toLocaleString("pt-BR");
 const fmt1 = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+function fmtDur(min: number | null): string {
+  if (min == null) return "—";
+  const m = Math.round(min);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) {
+    const r = m % 60;
+    return r ? `${h}h ${r}min` : `${h}h`;
+  }
+  const d = Math.floor(h / 24);
+  const rh = h % 24;
+  return rh ? `${d}d ${rh}h` : `${d}d`;
+}
+
 // ── Catálogo do que é configurável ───────────────────────────────────
 const CARDS: { key: string; label: string }[] = [
   { key: "abertos", label: "Atendimentos abertos" },
@@ -23,6 +36,8 @@ const CARDS: { key: string; label: string }[] = [
   { key: "encerrados_hoje", label: "Encerrados hoje" },
   { key: "novos_hoje", label: "Novos hoje" },
   { key: "satisfacao", label: "Satisfação média" },
+  { key: "tempo_resposta", label: "Tempo médio 1ª resposta" },
+  { key: "tempo_resolucao", label: "Tempo médio de resolução" },
   { key: "clientes", label: "Clientes na base" },
 ];
 
@@ -30,20 +45,28 @@ const SECOES: { key: string; label: string }[] = [
   { key: "volume", label: "Volume de atendimentos" },
   { key: "por_marca", label: "Atendimentos por marca" },
   { key: "satisfacao_marca", label: "Satisfação por marca" },
+  { key: "ranking", label: "Ranking de lojas por avaliações" },
   { key: "top_lojas", label: "Top lojas (abertos)" },
-  { key: "recentes", label: "Últimos atendimentos abertos" },
   { key: "avaliacoes", label: "Avaliações recentes" },
 ];
 
 const PERIODOS = [7, 14, 30, 60];
+const RANKING_PERIODOS = [7, 30, 90, 365];
+const RANKING_LINHAS = [5, 10, 20, 0]; // 0 = todas
 
 type Cfg = Required<DashboardConfig>;
 
 const DEFAULT_CFG: Cfg = {
-  cards: { abertos: true, em_espera: true, encerrados_hoje: true, novos_hoje: true, satisfacao: true, clientes: true },
-  secoes: { volume: true, por_marca: true, satisfacao_marca: true, top_lojas: true, recentes: true, avaliacoes: true },
+  cards: {
+    abertos: true, em_espera: true, encerrados_hoje: true, novos_hoje: true,
+    satisfacao: true, tempo_resposta: true, tempo_resolucao: true, clientes: true,
+  },
+  secoes: { volume: true, por_marca: true, satisfacao_marca: true, ranking: true, top_lojas: true, avaliacoes: true },
   ordem: SECOES.map((s) => s.key),
   periodo: 14,
+  ranking_dias: 30,
+  ranking_linhas: 10,
+  ranking_ordem: "media",
 };
 
 function mergeCfg(saved: DashboardConfig | null): Cfg {
@@ -51,11 +74,19 @@ function mergeCfg(saved: DashboardConfig | null): Cfg {
   const savedOrdem = (saved?.ordem ?? []).filter((k) => known.includes(k));
   const ordem = [...savedOrdem, ...known.filter((k) => !savedOrdem.includes(k))];
   const periodo = saved?.periodo && PERIODOS.includes(saved.periodo) ? saved.periodo : DEFAULT_CFG.periodo;
+  const ranking_dias = saved?.ranking_dias && RANKING_PERIODOS.includes(saved.ranking_dias)
+    ? saved.ranking_dias : DEFAULT_CFG.ranking_dias;
+  const ranking_linhas = typeof saved?.ranking_linhas === "number" && saved.ranking_linhas >= 0 && saved.ranking_linhas <= 500
+    ? saved.ranking_linhas : DEFAULT_CFG.ranking_linhas;
+  const ranking_ordem = saved?.ranking_ordem === "qtd" ? "qtd" : "media";
   return {
     cards: { ...DEFAULT_CFG.cards, ...(saved?.cards ?? {}) },
     secoes: { ...DEFAULT_CFG.secoes, ...(saved?.secoes ?? {}) },
     ordem,
     periodo,
+    ranking_dias,
+    ranking_linhas,
+    ranking_ordem,
   };
 }
 
@@ -150,6 +181,22 @@ function renderKpi(key: string, d: DashboardResumo) {
           tom="text-amber-500"
         />
       );
+    case "tempo_resposta":
+      return (
+        <Kpi
+          rotulo="Tempo médio 1ª resposta"
+          valor={fmtDur(d.tempo_primeira_resposta_min)}
+          sub={`últimos ${d.periodo_dias} dias`}
+        />
+      );
+    case "tempo_resolucao":
+      return (
+        <Kpi
+          rotulo="Tempo médio de resolução"
+          valor={fmtDur(d.tempo_resolucao_min)}
+          sub={`últimos ${d.periodo_dias} dias`}
+        />
+      );
     case "clientes":
       return <Kpi rotulo="Clientes na base" valor={nf(d.total_clientes)} />;
     default:
@@ -209,25 +256,23 @@ function renderSecao(key: string, d: DashboardResumo) {
           )}
         </Secao>
       );
-    case "recentes":
+    case "ranking":
       return (
-        <Secao titulo="Últimos atendimentos abertos">
-          {d.recentes_abertos.length === 0 ? (
-            <div className="text-sm text-slate-400">Nenhum atendimento aberto.</div>
+        <Secao titulo={`Ranking de lojas — avaliações (${d.aval_periodo_dias} dias)`}>
+          {d.ranking_avaliacoes.length === 0 ? (
+            <div className="text-sm text-slate-400">Sem avaliações no período.</div>
           ) : (
-            <div className="divide-y divide-slate-100 -mx-1">
-              {d.recentes_abertos.map((a) => (
-                <Link key={a.id} href={`/atendimentos/${a.id}`} className="flex items-center gap-3 px-1 py-2 hover:bg-slate-50 rounded transition">
-                  <span className="badge-blue shrink-0">#{a.numero}</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm text-slate-700 truncate">{a.assunto || "(sem assunto)"}</span>
-                    <span className="block text-xs text-slate-400 truncate">
-                      {a.cliente || "—"}
-                      {a.marca ? ` · ${a.marca}` : ""}
-                    </span>
-                  </span>
-                  <span className="text-xs text-slate-400 shrink-0">{fmtDataHora(a.criado_em)}</span>
-                </Link>
+            <div className="-mx-1">
+              {d.ranking_avaliacoes.map((r, i) => (
+                <div
+                  key={`${r.loja}-${i}`}
+                  className="flex items-center gap-3 px-1 py-1.5 text-sm border-b border-slate-100 last:border-0"
+                >
+                  <span className="w-5 text-slate-400 tabular-nums shrink-0">{i + 1}</span>
+                  <span className="flex-1 min-w-0 truncate text-slate-700">{r.loja}</span>
+                  <span className="text-amber-500 font-semibold tabular-nums shrink-0">{fmt1(r.media)} ★</span>
+                  <span className="text-slate-400 tabular-nums shrink-0 w-20 text-right">{nf(r.n)} aval.</span>
+                </div>
               ))}
             </div>
           )}
@@ -338,9 +383,9 @@ function Editor({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-4 pt-3 border-t border-[var(--line)]">
-        <div className="flex items-center gap-2">
-          <span className="label mb-0">Gráfico de volume:</span>
+      <div className="mt-4 pt-3 border-t border-[var(--line)] flex flex-wrap items-end gap-x-5 gap-y-3">
+        <div>
+          <span className="label">Gráfico de volume</span>
           <select
             className="input w-auto py-1"
             value={rascunho.periodo}
@@ -351,6 +396,45 @@ function Editor({
                 últimos {p} dias
               </option>
             ))}
+          </select>
+        </div>
+        <div>
+          <span className="label">Ranking — período</span>
+          <select
+            className="input w-auto py-1"
+            value={rascunho.ranking_dias}
+            onChange={(e) => setRascunho({ ...rascunho, ranking_dias: Number(e.target.value) })}
+          >
+            {RANKING_PERIODOS.map((p) => (
+              <option key={p} value={p}>
+                {p} dias
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <span className="label">Ranking — linhas</span>
+          <select
+            className="input w-auto py-1"
+            value={rascunho.ranking_linhas}
+            onChange={(e) => setRascunho({ ...rascunho, ranking_linhas: Number(e.target.value) })}
+          >
+            {RANKING_LINHAS.map((n) => (
+              <option key={n} value={n}>
+                {n === 0 ? "todas" : n}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <span className="label">Ranking — ordenar por</span>
+          <select
+            className="input w-auto py-1"
+            value={rascunho.ranking_ordem}
+            onChange={(e) => setRascunho({ ...rascunho, ranking_ordem: e.target.value === "qtd" ? "qtd" : "media" })}
+          >
+            <option value="media">nota média</option>
+            <option value="qtd">quantidade</option>
           </select>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -388,7 +472,12 @@ export default function PainelPage() {
       if (!vivo) return;
       setCfg(merged);
       try {
-        const r = await dashboardResumo(merged.periodo);
+        const r = await dashboardResumo({
+          dias: merged.periodo,
+          avalDias: merged.ranking_dias,
+          avalLimite: merged.ranking_linhas,
+          avalOrdem: merged.ranking_ordem,
+        });
         if (vivo) setD(r);
       } catch (e) {
         if (vivo) setErro(e instanceof Error ? e.message : "Falha ao carregar o painel.");
@@ -405,15 +494,18 @@ export default function PainelPage() {
     if (!rascunho) return;
     setSalvando(true);
     setErro("");
-    const periodoMudou = rascunho.periodo !== cfg.periodo;
+    const cfgNovo = rascunho;
     try {
-      await salvarPreferencia("dashboard", rascunho);
-      setCfg(rascunho);
+      await salvarPreferencia("dashboard", cfgNovo);
+      setCfg(cfgNovo);
       setRascunho(null);
-      if (periodoMudou) {
-        const r = await dashboardResumo(rascunho.periodo);
-        setD(r);
-      }
+      const r = await dashboardResumo({
+        dias: cfgNovo.periodo,
+        avalDias: cfgNovo.ranking_dias,
+        avalLimite: cfgNovo.ranking_linhas,
+        avalOrdem: cfgNovo.ranking_ordem,
+      });
+      setD(r);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao salvar.");
     } finally {

@@ -766,6 +766,12 @@ export type DashboardResumo = {
   total_clientes: number;
   nps_geral: number | null;
   periodo_dias: number;
+  tempo_resolucao_min: number | null;
+  tempo_primeira_resposta_min: number | null;
+  aval_periodo_dias: number;
+  aval_limite: number;
+  aval_ordem: string;
+  ranking_avaliacoes: { loja: string; n: number; media: number }[];
   volume: { dia: string; qtd: number }[];
   por_marca: { marca: string; abertos: number; total: number }[];
   top_lojas: { loja: string; abertos: number }[];
@@ -787,8 +793,15 @@ export type DashboardResumo = {
   }[];
 };
 
-export async function dashboardResumo(dias = 14): Promise<DashboardResumo> {
-  return req<DashboardResumo>(`dashboard/resumo?dias=${dias}`);
+export async function dashboardResumo(
+  p: { dias?: number; avalDias?: number; avalLimite?: number; avalOrdem?: string } = {},
+): Promise<DashboardResumo> {
+  const q = new URLSearchParams();
+  q.set("dias", String(p.dias ?? 14));
+  if (p.avalDias != null) q.set("aval_dias", String(p.avalDias));
+  if (p.avalLimite != null) q.set("aval_limite", String(p.avalLimite));
+  if (p.avalOrdem) q.set("aval_ordem", p.avalOrdem);
+  return req<DashboardResumo>(`dashboard/resumo?${q.toString()}`);
 }
 
 // Layout salvo do Painel (por usuário). Tudo opcional — a página aplica defaults.
@@ -797,6 +810,9 @@ export type DashboardConfig = {
   secoes?: Record<string, boolean>;
   ordem?: string[];
   periodo?: number;
+  ranking_dias?: number;
+  ranking_linhas?: number;
+  ranking_ordem?: "media" | "qtd";
 };
 
 // Preferências por usuário (key-value JSON), salvas na conta (segue em qualquer

@@ -197,6 +197,57 @@ export function listarLojas(opts: { marcaId?: number; q?: string; limit?: number
   return req<LojaItem[]>(`lojas?${qs.toString()}`);
 }
 
+// ── Cadastro da loja (campos fixos + campos extensíveis/placeholders) ──
+export type LojaCampoDef = {
+  id: number; chave: string; rotulo: string; placeholder: string;
+  tipo: string; categoria: string | null; ordem: number; ativo: boolean;
+};
+export type LojaCadastro = {
+  id: number; marca_id: number | null; nome: string;
+  cidade: string | null; uf: string | null; email: string | null;
+  atributos: Record<string, string>; ativo: boolean;
+};
+
+// Catálogo de campos da loja (padrão + criados pela operação).
+export function lojaCampos(): Promise<LojaCampoDef[]> {
+  return req<LojaCampoDef[]>("lojas-cadastro/campos");
+}
+// Dados de uma loja (campos fixos + gaveta de atributos).
+export function lojaDetalhe(id: number): Promise<LojaCadastro> {
+  return req<LojaCadastro>(`lojas-cadastro/${id}`);
+}
+// Salva campos FIXOS (nome/cidade/uf/email — e-mail das notificações).
+export function lojaSalvarDados(
+  id: number, dados: { nome?: string; cidade?: string; uf?: string; email?: string },
+): Promise<LojaCadastro> {
+  return req<LojaCadastro>(`lojas-cadastro/${id}/dados`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+}
+// Salva valores dos campos extensíveis (merge na gaveta Loja.atributos).
+export function lojaSalvarAtributos(
+  id: number, valores: Record<string, string>,
+): Promise<{ id: number; atributos: Record<string, string> }> {
+  return req(`lojas-cadastro/${id}/atributos`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(valores),
+  });
+}
+// Cria um campo novo de loja (vira placeholder {loja.<chave>}).
+export function lojaCriarCampo(body: {
+  chave: string; rotulo: string; placeholder?: string; tipo?: string;
+  categoria?: string; ordem?: number;
+}): Promise<LojaCampoDef> {
+  return req<LojaCampoDef>("lojas-cadastro/campos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 // Cria atendimento INTERNO (telefone/balcão/WhatsApp). Cliente existente OU novo
 // (a identidade resolve: se telefone/e-mail já existem, usa o cliente existente).
 export type AtendimentoCriado = {

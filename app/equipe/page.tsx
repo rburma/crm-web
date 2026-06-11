@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import LojaCadastro from "@/components/LojaCadastro";
 import {
   entrarComo,
   equipeAlterarAdmin,
@@ -39,6 +40,9 @@ export default function EquipePage() {
   // modal "lojas do usuário"
   const [userView, setUserView] = useState<{ id: number; nome: string | null } | null>(null);
   const [lojasUser, setLojasUser] = useState<LojaDoUsuario[]>([]);
+
+  // modal "cadastro da loja" (e-mail + campos/placeholders)
+  const [cadLoja, setCadLoja] = useState<LojaEquipe | null>(null);
 
   const carregarResumo = useCallback(async () => {
     try {
@@ -208,8 +212,19 @@ export default function EquipePage() {
 
         {/* coluna 3 — equipe da loja */}
         <div className="card p-3">
-          <div className="label">
-            {lojaSel ? `Equipe — ${lojaSel.nome}` : "Equipe (escolha uma loja)"}
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="label mb-0">
+              {lojaSel ? `Equipe — ${lojaSel.nome}` : "Equipe (escolha uma loja)"}
+            </div>
+            {lojaSel && (
+              <button
+                onClick={() => setCadLoja(lojaSel)}
+                className="text-xs text-brand-700 hover:underline shrink-0"
+                title="E-mail da loja + campos (endereço, WhatsApp, redes, links de avaliação…)"
+              >
+                ⚙ Cadastro da loja
+              </button>
+            )}
           </div>
           {lojaSel && (
             <>
@@ -265,6 +280,15 @@ export default function EquipePage() {
           )}
         </div>
       </div>
+
+      {/* modal: cadastro da loja */}
+      {cadLoja && (
+        <LojaCadastro
+          lojaId={cadLoja.id}
+          lojaNome={cadLoja.nome}
+          onClose={() => setCadLoja(null)}
+        />
+      )}
 
       {/* modal: lojas do usuário */}
       {userView && (

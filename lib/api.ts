@@ -825,6 +825,8 @@ export type AvaliacaoLinha = {
   com_compra: boolean;
   verificada: boolean;
   tratada: boolean;
+  resposta: string | null;
+  respondida_em: string | null;
   criado_em: string | null;
 };
 export function listarAvaliacoes(
@@ -842,6 +844,16 @@ export function tratarAvaliacao(id: number): Promise<{ ok: boolean; tratada: boo
 }
 export function reabrirAvaliacao(id: number): Promise<{ ok: boolean; tratada: boolean }> {
   return req(`avaliacoes/${id}/reabrir`, { method: "POST" });
+}
+export function responderAvaliacao(
+  id: number,
+  texto: string,
+): Promise<{ ok: boolean; respondida: boolean; email_enviado: boolean }> {
+  return req(`avaliacoes/${id}/responder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texto }),
+  });
 }
 
 // ── Util ───────────────────────────────────────────────────────────

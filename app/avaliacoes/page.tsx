@@ -8,6 +8,7 @@ import {
   listarAvaliacoes,
   listarMarcas,
   reabrirAvaliacao,
+  responderAvaliacao,
   tratarAvaliacao,
   type AvaliacaoLinha,
   type MarcaItem,
@@ -41,6 +42,7 @@ export default function AvaliacoesPage() {
   const [status, setStatus] = useState("pendente");
   const [aberto, setAberto] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState<number | null>(null);
+  const [resp, setResp] = useState<Record<number, string>>({});
 
   async function carregar(p = 0, ps = pageSize) {
     setLoading(true);
@@ -80,6 +82,26 @@ export default function AvaliacoesPage() {
     try {
       if (tratar) await tratarAvaliacao(id);
       else await reabrirAvaliacao(id);
+      await carregar(page, pageSize);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function responder(id: number) {
+    const txt = (resp[id] || "").trim();
+    if (!txt) return;
+    setBusy(id);
+    setErro("");
+    try {
+      await responderAvaliacao(id, txt);
+      setResp((r) => {
+        const n = { ...r };
+        delete n[id];
+        return n;
+      });
       await carregar(page, pageSize);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro");
@@ -165,6 +187,30 @@ export default function AvaliacoesPage() {
                         .filter(Boolean)
                         .join(" · ") || "—"}
                     </div>
+                    {a.resposta ? (
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2.5 text-sm text-slate-700 mb-3">
+                        <div className="text-[11px] text-emerald-700 font-medium mb-0.5">
+                          Resposta da loja{a.respondida_em ? ` · ${fmtData(a.respondida_em)}` : ""}
+                        </div>
+                        {a.resposta}
+                      </div>
+                    ) : (
+                      <div className="mb-3">
+                        <textarea
+                          className="input min-h-[60px] text-sm"
+                          placeholder="Agradeça o cliente… (envia por e-mail se o SMTP estiver ligado)"
+                          value={resp[a.id] ?? ""}
+                          onChange={(e) => setResp((r) => ({ ...r, [a.id]: e.target.value }))}
+                        />
+                        <button
+                          className="btn-primary text-xs mt-1.5"
+                          disabled={busy === a.id || !(resp[a.id] || "").trim()}
+                          onClick={() => responder(a.id)}
+                        >
+                          Responder e agradecer
+                        </button>
+                      </div>
+                    )}
                     {a.tratada ? (
                       <button
                         className="btn-ghost text-xs"

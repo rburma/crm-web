@@ -26,6 +26,11 @@ export function middleware(req: NextRequest) {
   if (!USER || !PASS) return NextResponse.next();
 
   const path = req.nextUrl.pathname;
+  // Download do instalador do app de balcão: SEMPRE público (arquivo sem segredo;
+  // usar o app exige um código de ativação). Não fica atrás do portão do piloto.
+  if (path === "/baixar-app" || path.startsWith("/baixar-app/")) {
+    return NextResponse.next();
+  }
   if (PUBLICO_ABERTO && PUBLICAS.some((p) => path === p || path.startsWith(p))) {
     return NextResponse.next();
   }

@@ -13,9 +13,9 @@ import {
   type DispositivoCriado,
 } from "@/lib/api";
 
-// URL pública do instalador (Vercel Blob). Definir em
-// NEXT_PUBLIC_APP_DOWNLOAD_URL nas variáveis do projeto na Vercel.
-const APP_DOWNLOAD_URL = process.env.NEXT_PUBLIC_APP_DOWNLOAD_URL || "";
+// Download servido pelo próprio site (rota /baixar-app), que busca o instalador
+// na Release privada usando o token do servidor. Link estável no nosso domínio.
+const APP_DOWNLOAD_URL = "/baixar-app";
 
 function statusBadge(d: Dispositivo): { txt: string; cls: string } {
   if (d.status === "revogado") return { txt: "Revogado", cls: "badge-gray" };

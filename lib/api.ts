@@ -760,6 +760,9 @@ export function configEditarMarca(
     slug?: string;
     tema?: Record<string, string>;
     envio?: Record<string, string>;
+    // Config geral (tipada): autoclose_dias (number), flood (bool),
+    // banidos_emails/banidos_ips (string[]).
+    config?: Record<string, unknown>;
   },
 ): Promise<MarcaConfig> {
   return req(`config/marcas/${id}`, {

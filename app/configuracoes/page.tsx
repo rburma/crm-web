@@ -29,7 +29,7 @@ import {
   type PlaceholderInfo,
 } from "@/lib/api";
 
-type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas";
+type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral";
 
 const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "aparencia", rotulo: "1. Marca & Aparência" },
@@ -38,6 +38,7 @@ const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "formulario", rotulo: "4. Formulário de atendimento" },
   { id: "avaliacao", rotulo: "5. Avaliação (NPS)" },
   { id: "paginas", rotulo: "6. Páginas" },
+  { id: "geral", rotulo: "7. Configurações gerais" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -110,6 +111,9 @@ export default function ConfiguracoesPage() {
             <SecaoAvaliacao marca={marca} onErro={setErro} onOk={() => flash("Salvo!")} />
           )}
           {marca && secao === "paginas" && <SecaoPaginas marca={marca} />}
+          {marca && secao === "geral" && (
+            <SecaoGeral marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} />
+          )}
           {!marca && <p className="text-sm text-slate-400">Carregando…</p>}
         </div>
       </div>
@@ -801,6 +805,141 @@ function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
         ⚠️ No piloto, as páginas ainda pedem a senha do portão. Quando você decidir publicar
         de verdade, liberamos só essas rotas para acesso aberto.
       </p>
+    </div>
+  );
+}
+
+// ════════ 7. Configurações gerais (espelha o General Settings do legado) ════════
+function SecaoGeral({ marca, onSalvo, onErro }: {
+  marca: MarcaConfig; onSalvo: (m: MarcaConfig) => void; onErro: (e: string) => void;
+}) {
+  const env0 = (marca.envio || {}) as Record<string, unknown>;
+  const txt0 = (k: string) => (typeof env0[k] === "string" ? (env0[k] as string) : "");
+  const lst0 = (k: string) =>
+    Array.isArray(env0[k]) ? (env0[k] as string[]).join("\n")
+      : typeof env0[k] === "string" ? (env0[k] as string) : "";
+
+  // dados da marca (placeholders {marca.x})
+  const [site, setSite] = useState(txt0("site"));
+  const [tituloSac, setTituloSac] = useState(txt0("titulo_sac"));
+  const [telefoneSac, setTelefoneSac] = useState(txt0("telefone_sac"));
+  const [delivery, setDelivery] = useState(txt0("delivery"));
+  const [header, setHeader] = useState(txt0("header"));
+  const [footer, setFooter] = useState(txt0("footer"));
+  // regras (config tipada)
+  const [autoclose, setAutoclose] = useState(String(Number(env0.autoclose_dias ?? 0) || 0));
+  const [flood, setFlood] = useState(Boolean(env0.flood));
+  const [banEmails, setBanEmails] = useState(lst0("banidos_emails"));
+  const [banIps, setBanIps] = useState(lst0("banidos_ips"));
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    const e = (marca.envio || {}) as Record<string, unknown>;
+    const t = (k: string) => (typeof e[k] === "string" ? (e[k] as string) : "");
+    const l = (k: string) =>
+      Array.isArray(e[k]) ? (e[k] as string[]).join("\n")
+        : typeof e[k] === "string" ? (e[k] as string) : "";
+    setSite(t("site")); setTituloSac(t("titulo_sac")); setTelefoneSac(t("telefone_sac"));
+    setDelivery(t("delivery")); setHeader(t("header")); setFooter(t("footer"));
+    setAutoclose(String(Number(e.autoclose_dias ?? 0) || 0));
+    setFlood(Boolean(e.flood));
+    setBanEmails(l("banidos_emails")); setBanIps(l("banidos_ips"));
+  }, [marca]);
+
+  function parseLista(s: string): string[] {
+    return s.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+  }
+
+  async function salvar() {
+    setSalvando(true); onErro("");
+    try {
+      const m = await configEditarMarca(marca.id, {
+        envio: {
+          site, titulo_sac: tituloSac, telefone_sac: telefoneSac,
+          delivery, header, footer,
+        },
+        config: {
+          autoclose_dias: Number(autoclose) || 0,
+          flood,
+          banidos_emails: parseLista(banEmails),
+          banidos_ips: parseLista(banIps),
+        },
+      });
+      onSalvo(m);
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5 max-w-xl">
+      <h2 className="font-bold">Configurações gerais</h2>
+      <p className="text-sm text-slate-500">
+        Dados da marca usados nos e-mails (placeholders <code>{"{marca.site}"}</code>,{" "}
+        <code>{"{marca.delivery}"}</code>…) e regras de operação.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="label">Site da marca <span className="text-slate-300">{"{marca.site}"}</span></label>
+          <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="https://suamarca.com.br" />
+        </div>
+        <div>
+          <label className="label">Título do SAC <span className="text-slate-300">{"{marca.titulo_sac}"}</span></label>
+          <input className="input" value={tituloSac} onChange={(e) => setTituloSac(e.target.value)} placeholder="SAC WT" />
+        </div>
+        <div>
+          <label className="label">Telefone do SAC <span className="text-slate-300">{"{marca.telefone_sac}"}</span></label>
+          <input className="input" value={telefoneSac} onChange={(e) => setTelefoneSac(e.target.value)} placeholder="0800 000 0000" />
+        </div>
+        <div>
+          <label className="label">URL de delivery <span className="text-slate-300">{"{marca.delivery}"}</span></label>
+          <input className="input" value={delivery} onChange={(e) => setDelivery(e.target.value)} placeholder="https://pedido.suamarca.com.br" />
+        </div>
+      </div>
+      <div>
+        <label className="label">Cabeçalho dos e-mails <span className="text-slate-300">{"{marca.header}"}</span></label>
+        <textarea className="input min-h-[60px]" value={header} onChange={(e) => setHeader(e.target.value)} />
+      </div>
+      <div>
+        <label className="label">Rodapé dos e-mails <span className="text-slate-300">{"{marca.footer}"}</span></label>
+        <textarea className="input min-h-[60px]" value={footer} onChange={(e) => setFooter(e.target.value)} />
+      </div>
+
+      <hr className="border-slate-200" />
+      <h3 className="font-semibold text-sm">Gestão automática de atendimentos</h3>
+      <div className="flex items-center gap-2 flex-wrap">
+        <label className="label mb-0">Encerrar atendimentos inativos após</label>
+        <input type="number" min={0} className="input w-24" value={autoclose} onChange={(e) => setAutoclose(e.target.value)} />
+        <span className="text-sm text-slate-500">dias (0 = nunca)</span>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={flood} onChange={(e) => setFlood(e.target.checked)} />
+        Ativar controle de flood (evita aberturas duplicadas em sequência)
+      </label>
+
+      <hr className="border-slate-200" />
+      <h3 className="font-semibold text-sm">Banimentos (formulário público)</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="label">E-mails banidos (1 por linha)</label>
+          <textarea className="input min-h-[90px]" value={banEmails} onChange={(e) => setBanEmails(e.target.value)} placeholder={"spam@x.com\nabuso@y.com"} />
+        </div>
+        <div>
+          <label className="label">IPs banidos (1 por linha)</label>
+          <textarea className="input min-h-[90px]" value={banIps} onChange={(e) => setBanIps(e.target.value)} placeholder={"203.0.113.5"} />
+        </div>
+      </div>
+
+      <div className="text-xs text-slate-400">
+        O encerramento automático e o convite de avaliação por prazo dependem do
+        agendador (cron) ligado no servidor.
+      </div>
+      <button className="btn-primary" onClick={salvar} disabled={salvando}>
+        {salvando ? "Salvando…" : "Salvar configurações"}
+      </button>
     </div>
   );
 }

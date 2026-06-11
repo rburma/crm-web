@@ -30,9 +30,18 @@ function gh(path: string, accept: string, redirect: RequestRedirect = "follow") 
 
 export async function GET() {
   if (!TOKEN) {
+    // Diagnóstico (sem expor VALORES — só NOMES de variáveis parecidas) para
+    // achar typo de nome / ambiente errado / deploy sem a variável.
+    const nomes = Object.keys(process.env)
+      .filter((k) => /GITHUB|RELEASE/i.test(k))
+      .sort();
     return new NextResponse(
-      "Download ainda não configurado: defina GITHUB_RELEASE_TOKEN nas variáveis do site.",
-      { status: 503 },
+      "Download ainda não configurado: o servidor não recebeu GITHUB_RELEASE_TOKEN.\n\n" +
+        "Variáveis com 'GITHUB'/'RELEASE' que o servidor enxerga agora: " +
+        (nomes.length ? nomes.join(", ") : "(NENHUMA)") +
+        "\n\nConfira: nome EXATO = GITHUB_RELEASE_TOKEN; ambiente = Production; " +
+        "e faça Redeploy DEPOIS de salvar a variável.",
+      { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } },
     );
   }
 

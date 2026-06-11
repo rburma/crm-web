@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
   configCampos,
@@ -13,23 +13,31 @@ import {
   configExcluirPergunta,
   configImportarPerguntasPadrao,
   configMarcas,
+  configModelos,
+  configModelosCatalogo,
   configPerguntas,
   configRemoverLogo,
+  configResetarModelo,
+  configSalvarModelo,
   configSubirLogo,
   listarLojas,
   type CampoConfig,
   type MarcaConfig,
+  type ModeloEmailItem,
+  type ModeloTipo,
   type PerguntaConfig,
+  type PlaceholderInfo,
 } from "@/lib/api";
 
-type Secao = "aparencia" | "email" | "formulario" | "avaliacao" | "paginas";
+type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas";
 
 const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "aparencia", rotulo: "1. Marca & Aparência" },
   { id: "email", rotulo: "2. E-mail da marca" },
-  { id: "formulario", rotulo: "3. Formulário de atendimento" },
-  { id: "avaliacao", rotulo: "4. Avaliação (NPS)" },
-  { id: "paginas", rotulo: "5. Páginas" },
+  { id: "modelos", rotulo: "3. Modelos de e-mail" },
+  { id: "formulario", rotulo: "4. Formulário de atendimento" },
+  { id: "avaliacao", rotulo: "5. Avaliação (NPS)" },
+  { id: "paginas", rotulo: "6. Páginas" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -91,6 +99,9 @@ export default function ConfiguracoesPage() {
           )}
           {marca && secao === "email" && (
             <SecaoEmail marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} />
+          )}
+          {marca && secao === "modelos" && (
+            <SecaoModelos marca={marca} onErro={setErro} onOk={() => flash("Salvo!")} />
           )}
           {marca && secao === "formulario" && (
             <SecaoFormulario marca={marca} onErro={setErro} onOk={() => flash("Salvo!")} />
@@ -280,6 +291,187 @@ function SecaoEmail({ marca, onSalvo, onErro }: {
       <button className="btn-primary" onClick={salvar} disabled={salvando}>
         {salvando ? "Salvando…" : "Salvar e-mail"}
       </button>
+    </div>
+  );
+}
+
+// ════════ 3. Modelos de e-mail ════════
+function SecaoModelos({ marca, onErro, onOk }: {
+  marca: MarcaConfig; onErro: (e: string) => void; onOk: () => void;
+}) {
+  const [tipos, setTipos] = useState<ModeloTipo[]>([]);
+  const [placeholders, setPlaceholders] = useState<PlaceholderInfo[]>([]);
+  const [itens, setItens] = useState<ModeloEmailItem[]>([]);
+  const [sel, setSel] = useState<string>("");
+  const [assunto, setAssunto] = useState("");
+  const [corpo, setCorpo] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const corpoRef = useRef<HTMLTextAreaElement>(null);
+
+  async function recarregar(tipoSel?: string) {
+    setLoading(true);
+    try {
+      const [cat, lst] = await Promise.all([configModelosCatalogo(), configModelos(marca.id)]);
+      setTipos(cat.tipos);
+      setPlaceholders(cat.placeholders);
+      setItens(lst);
+      const alvo = tipoSel ?? lst[0]?.tipo ?? "";
+      const it = lst.find((x) => x.tipo === alvo);
+      if (it) {
+        setSel(it.tipo);
+        setAssunto(it.assunto);
+        setCorpo(it.corpo);
+      }
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    recarregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marca.id]);
+
+  function selecionar(tipo: string) {
+    const it = itens.find((x) => x.tipo === tipo);
+    if (!it) return;
+    setSel(tipo);
+    setAssunto(it.assunto);
+    setCorpo(it.corpo);
+  }
+
+  function inserir(ph: string) {
+    const ta = corpoRef.current;
+    if (!ta) {
+      setCorpo((c) => c + ph);
+      return;
+    }
+    const s = ta.selectionStart ?? corpo.length;
+    const e = ta.selectionEnd ?? corpo.length;
+    const novo = corpo.slice(0, s) + ph + corpo.slice(e);
+    setCorpo(novo);
+    setTimeout(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = s + ph.length;
+    }, 0);
+  }
+
+  async function salvar() {
+    if (!sel) return;
+    setSalvando(true);
+    onErro("");
+    try {
+      await configSalvarModelo(marca.id, sel, { assunto, corpo });
+      await recarregar(sel);
+      onOk();
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function usarPadrao() {
+    if (!sel) return;
+    if (!confirm("Voltar este modelo ao padrão? A personalização desta marca será removida.")) return;
+    setSalvando(true);
+    onErro("");
+    try {
+      await configResetarModelo(marca.id, sel);
+      await recarregar(sel);
+      onOk();
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  const atual = itens.find((x) => x.tipo === sel);
+
+  return (
+    <div className="space-y-4">
+      <h2 className="font-bold">Modelos de e-mail</h2>
+      <p className="text-sm text-slate-500">
+        Personalize os e-mails desta marca. Sem personalizar, usa o padrão do sistema.
+      </p>
+      {loading ? (
+        <div className="text-sm text-slate-400">Carregando…</div>
+      ) : (
+        <div className="grid md:grid-cols-[230px_1fr] gap-5 items-start">
+          <div className="space-y-1">
+            {tipos.map((t) => {
+              const it = itens.find((x) => x.tipo === t.tipo);
+              const active = sel === t.tipo;
+              return (
+                <button
+                  key={t.tipo}
+                  onClick={() => selecionar(t.tipo)}
+                  className={`block w-full text-left px-3 py-2 rounded-lg text-sm ${
+                    active ? "bg-brand-50 text-brand-700 font-semibold" : "hover:bg-slate-50 text-slate-600"
+                  }`}
+                >
+                  <span className="block">{t.rotulo}</span>
+                  <span className="text-[11px] text-slate-400">
+                    {t.destinatario === "loja" ? "→ loja" : "→ cliente"}
+                    {it?.personalizado ? " · personalizado" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {atual ? (
+            <div className="space-y-3 max-w-2xl">
+              <div className="text-xs text-slate-500">{atual.descricao}</div>
+              <div>
+                <label className="label">Assunto</label>
+                <input className="input" value={assunto} onChange={(e) => setAssunto(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Corpo</label>
+                <textarea
+                  ref={corpoRef}
+                  className="input min-h-[260px] font-mono text-xs"
+                  value={corpo}
+                  onChange={(e) => setCorpo(e.target.value)}
+                />
+              </div>
+              <div>
+                <div className="label">Placeholders (clique para inserir)</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {placeholders.map((p) => (
+                    <button
+                      key={p.ph}
+                      type="button"
+                      onClick={() => inserir(p.ph)}
+                      title={p.desc}
+                      className="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-600 rounded px-1.5 py-0.5 font-mono"
+                    >
+                      {p.ph}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="btn-primary" onClick={salvar} disabled={salvando}>
+                  {salvando ? "Salvando…" : "Salvar"}
+                </button>
+                {atual.personalizado && (
+                  <button className="btn-ghost" onClick={usarPadrao} disabled={salvando}>
+                    Usar padrão
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-slate-400">Selecione um tipo de e-mail.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

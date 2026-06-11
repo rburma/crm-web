@@ -770,6 +770,47 @@ export function configExcluirPergunta(id: number): Promise<{ ok: boolean }> {
   return req(`config/perguntas/${id}`, { method: "DELETE" });
 }
 
+// ── Modelos de e-mail (por marca; padrão herdado do legado) ─────────
+export type ModeloTipo = {
+  tipo: string;
+  rotulo: string;
+  destinatario: string;
+  descricao: string;
+};
+export type PlaceholderInfo = { ph: string; desc: string };
+export type ModeloEmailItem = ModeloTipo & {
+  assunto: string;
+  corpo: string;
+  personalizado: boolean;
+};
+
+export function configModelosCatalogo(): Promise<{
+  tipos: ModeloTipo[];
+  placeholders: PlaceholderInfo[];
+}> {
+  return req("config/modelos/catalogo");
+}
+export function configModelos(marcaId: number): Promise<ModeloEmailItem[]> {
+  return req(`config/marcas/${marcaId}/modelos`);
+}
+export function configSalvarModelo(
+  marcaId: number,
+  tipo: string,
+  body: { assunto: string; corpo: string },
+): Promise<{ ok: boolean; tipo: string; personalizado: boolean }> {
+  return req(`config/marcas/${marcaId}/modelos/${tipo}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function configResetarModelo(
+  marcaId: number,
+  tipo: string,
+): Promise<{ ok: boolean; tipo: string; personalizado: boolean }> {
+  return req(`config/marcas/${marcaId}/modelos/${tipo}`, { method: "DELETE" });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

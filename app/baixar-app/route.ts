@@ -25,24 +25,25 @@ function gh(path: string, accept: string, redirect: RequestRedirect = "follow") 
     },
     redirect,
     cache: "no-store",
+    signal: AbortSignal.timeout(15000), // não pendurar a função se o GitHub travar
   });
 }
 
 export async function GET() {
   if (!TOKEN) {
-    // Diagnóstico (sem expor VALORES — só NOMES de variáveis parecidas) para
-    // achar typo de nome / ambiente errado / deploy sem a variável.
+    // Diagnóstico só no LOG do servidor (rota é pública — nunca listar nomes de
+    // variáveis de ambiente no corpo da resposta).
     const nomes = Object.keys(process.env)
       .filter((k) => /GITHUB|RELEASE/i.test(k))
       .sort();
-    return new NextResponse(
-      "Download ainda não configurado: o servidor não recebeu GITHUB_RELEASE_TOKEN.\n\n" +
-        "Variáveis com 'GITHUB'/'RELEASE' que o servidor enxerga agora: " +
-        (nomes.length ? nomes.join(", ") : "(NENHUMA)") +
-        "\n\nConfira: nome EXATO = GITHUB_RELEASE_TOKEN; ambiente = Production; " +
-        "e faça Redeploy DEPOIS de salvar a variável.",
-      { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+    console.warn(
+      "[baixar-app] GITHUB_RELEASE_TOKEN ausente. Env com GITHUB/RELEASE:",
+      nomes.length ? nomes.join(", ") : "(nenhuma)",
     );
+    return new NextResponse("Download indisponível no momento.", {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   // 1) acha a release pela tag fixa "app-latest".

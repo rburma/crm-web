@@ -20,16 +20,20 @@ import {
   configResetarModelo,
   configSalvarModelo,
   configSubirLogo,
+  criarResposta,
+  excluirResposta,
   listarLojas,
+  listarRespostas,
   type CampoConfig,
   type MarcaConfig,
   type ModeloEmailItem,
   type ModeloTipo,
   type PerguntaConfig,
   type PlaceholderInfo,
+  type RespostaPronta,
 } from "@/lib/api";
 
-type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral";
+type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral" | "autoresposta";
 
 const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "aparencia", rotulo: "1. Marca & Aparência" },
@@ -39,6 +43,7 @@ const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "avaliacao", rotulo: "5. Avaliação (NPS)" },
   { id: "paginas", rotulo: "6. Páginas" },
   { id: "geral", rotulo: "7. Configurações gerais" },
+  { id: "autoresposta", rotulo: "8. Auto-resposta" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -113,6 +118,9 @@ export default function ConfiguracoesPage() {
           {marca && secao === "paginas" && <SecaoPaginas marca={marca} />}
           {marca && secao === "geral" && (
             <SecaoGeral marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} />
+          )}
+          {marca && secao === "autoresposta" && (
+            <SecaoAutoresposta marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} onOk={() => flash("Salvo!")} />
           )}
           {!marca && <p className="text-sm text-slate-400">Carregando…</p>}
         </div>
@@ -940,6 +948,163 @@ function SecaoGeral({ marca, onSalvo, onErro }: {
       <button className="btn-primary" onClick={salvar} disabled={salvando}>
         {salvando ? "Salvando…" : "Salvar configurações"}
       </button>
+    </div>
+  );
+}
+
+// ════════ 8. Auto-resposta (palavra-chave + IA) ════════
+function SecaoAutoresposta({ marca, onSalvo, onErro, onOk }: {
+  marca: MarcaConfig; onSalvo: (m: MarcaConfig) => void; onErro: (e: string) => void; onOk: () => void;
+}) {
+  const env = (marca.envio || {}) as Record<string, unknown>;
+  const [iaAtiva, setIaAtiva] = useState(Boolean(env.autoresposta_ia));
+  const [instrucoes, setInstrucoes] = useState(
+    typeof env.autoresposta_ia_instrucoes === "string" ? (env.autoresposta_ia_instrucoes as string) : ""
+  );
+  const [salvandoIa, setSalvandoIa] = useState(false);
+
+  const [lista, setLista] = useState<RespostaPronta[]>([]);
+  const [frase, setFrase] = useState("");
+  const [gatilhos, setGatilhos] = useState("");
+  const [texto, setTexto] = useState("");
+  const [criando, setCriando] = useState(false);
+
+  const carregar = useCallback(async () => {
+    try {
+      setLista(await listarRespostas(marca.id));
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    }
+  }, [marca.id, onErro]);
+
+  useEffect(() => {
+    setIaAtiva(Boolean(env.autoresposta_ia));
+    setInstrucoes(typeof env.autoresposta_ia_instrucoes === "string" ? (env.autoresposta_ia_instrucoes as string) : "");
+    carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marca.id]);
+
+  async function salvarIa() {
+    setSalvandoIa(true); onErro("");
+    try {
+      const m = await configEditarMarca(marca.id, {
+        config: { autoresposta_ia: iaAtiva },
+        envio: { autoresposta_ia_instrucoes: instrucoes },
+      });
+      onSalvo(m);
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setSalvandoIa(false);
+    }
+  }
+
+  async function adicionar() {
+    if (!frase.trim() || !texto.trim()) return;
+    setCriando(true); onErro("");
+    try {
+      await criarResposta({
+        marca_id: marca.id, frase: frase.trim(),
+        texto: texto.trim(), gatilhos: gatilhos.trim() || undefined,
+      });
+      setFrase(""); setGatilhos(""); setTexto("");
+      await carregar();
+      onOk();
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    } finally {
+      setCriando(false);
+    }
+  }
+
+  async function remover(id: number) {
+    if (!confirm("Excluir esta resposta?")) return;
+    try {
+      await excluirResposta(id);
+      await carregar();
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h2 className="font-bold">Auto-resposta</h2>
+        <p className="text-sm text-slate-500">
+          Quando o cliente abre um atendimento, o sistema pode responder na hora:
+          primeiro por <b>palavra-chave</b> (resposta pronta); se nada casar e a IA
+          estiver ligada, a <b>IA</b> responde direto — sempre avisando que é
+          automática e que um atendente humano vai dar sequência.
+        </p>
+      </div>
+
+      {/* IA */}
+      <div className="card p-4 space-y-3 border-slate-200">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input type="checkbox" checked={iaAtiva} onChange={(e) => setIaAtiva(e.target.checked)} />
+          Ativar resposta automática por IA (com aviso ao cliente)
+        </label>
+        <div>
+          <label className="label">Orientação para a IA (opcional)</label>
+          <textarea className="input min-h-[70px]" value={instrucoes}
+            onChange={(e) => setInstrucoes(e.target.value)}
+            placeholder="Ex.: seja cordial, mencione que o prazo de resposta é em horário comercial, não ofereça descontos." />
+        </div>
+        <div className="text-xs text-slate-400">
+          A IA nunca promete prazos/preços específicos e sempre avisa que é automática.
+          Requer a chave da IA configurada no servidor (ANTHROPIC_API_KEY).
+        </div>
+        <button className="btn-primary" onClick={salvarIa} disabled={salvandoIa}>
+          {salvandoIa ? "Salvando…" : "Salvar IA"}
+        </button>
+      </div>
+
+      {/* Palavra-chave → resposta pronta */}
+      <div className="space-y-3">
+        <h3 className="font-semibold text-sm">Respostas por palavra-chave</h3>
+        <div className="space-y-2">
+          {lista.length === 0 && <p className="text-sm text-slate-400">Nenhuma resposta cadastrada.</p>}
+          {lista.map((r) => (
+            <div key={r.id} className="card p-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">{r.frase}</div>
+                {r.gatilhos
+                  ? <div className="text-xs text-brand-700 mt-0.5">Gatilhos: {r.gatilhos}</div>
+                  : <div className="text-xs text-slate-400 mt-0.5">Sem gatilho (só atalho manual)</div>}
+                <div className="text-xs text-slate-500 mt-1 line-clamp-2 whitespace-pre-wrap">{r.texto}</div>
+              </div>
+              <button onClick={() => remover(r.id)} className="text-xs text-red-500 hover:underline shrink-0">excluir</button>
+            </div>
+          ))}
+        </div>
+
+        {/* criar */}
+        <div className="card p-4 space-y-3 border-slate-200">
+          <div className="text-sm font-medium">Nova resposta</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Título (referência interna)</label>
+              <input className="input" value={frase} onChange={(e) => setFrase(e.target.value)} placeholder="Ex.: Política de trocas" />
+            </div>
+            <div>
+              <label className="label">Gatilhos (palavras-chave, separadas por vírgula)</label>
+              <input className="input" value={gatilhos} onChange={(e) => setGatilhos(e.target.value)} placeholder="troca, devolução, trocar" />
+            </div>
+          </div>
+          <div>
+            <label className="label">Resposta (aceita placeholders, ex.: {"{cliente.primeiro_nome}"})</label>
+            <textarea className="input min-h-[90px]" value={texto} onChange={(e) => setTexto(e.target.value)}
+              placeholder={"Olá {cliente.primeiro_nome}! Sobre trocas: …"} />
+          </div>
+          <button className="btn-primary" onClick={adicionar} disabled={criando || !frase.trim() || !texto.trim()}>
+            {criando ? "Salvando…" : "+ Adicionar resposta"}
+          </button>
+          <div className="text-xs text-slate-400">
+            Sem gatilhos, a resposta fica só como atalho manual (não dispara sozinha).
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

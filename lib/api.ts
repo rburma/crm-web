@@ -248,6 +248,30 @@ export function lojaCriarCampo(body: {
   });
 }
 
+// ── Respostas prontas / auto-resposta por palavra-chave ──────────
+export type RespostaPronta = {
+  id: number; marca_id: number; loja_id: number | null;
+  frase: string; texto: string; gatilhos: string | null;
+};
+export function listarRespostas(marcaId?: number, lojaId?: number): Promise<RespostaPronta[]> {
+  const qs = new URLSearchParams();
+  if (marcaId != null) qs.set("marca_id", String(marcaId));
+  if (lojaId != null) qs.set("loja_id", String(lojaId));
+  return req<RespostaPronta[]>(`catalogo/respostas?${qs.toString()}`);
+}
+export function criarResposta(body: {
+  marca_id: number; loja_id?: number | null; frase: string; texto: string; gatilhos?: string;
+}): Promise<RespostaPronta> {
+  return req<RespostaPronta>("catalogo/respostas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function excluirResposta(id: number): Promise<{ ok: boolean }> {
+  return req(`catalogo/respostas/${id}`, { method: "DELETE" });
+}
+
 // Cria atendimento INTERNO (telefone/balcão/WhatsApp). Cliente existente OU novo
 // (a identidade resolve: se telefone/e-mail já existem, usa o cliente existente).
 export type AtendimentoCriado = {

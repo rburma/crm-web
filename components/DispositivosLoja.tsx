@@ -13,6 +13,10 @@ import {
   type DispositivoCriado,
 } from "@/lib/api";
 
+// URL pública do instalador (Vercel Blob). Definir em
+// NEXT_PUBLIC_APP_DOWNLOAD_URL nas variáveis do projeto na Vercel.
+const APP_DOWNLOAD_URL = process.env.NEXT_PUBLIC_APP_DOWNLOAD_URL || "";
+
 function statusBadge(d: Dispositivo): { txt: string; cls: string } {
   if (d.status === "revogado") return { txt: "Revogado", cls: "badge-gray" };
   if (d.status === "pendente") return { txt: "Aguardando ativação", cls: "badge-amber" };
@@ -113,6 +117,23 @@ export default function DispositivosLoja({
         <div className="p-5 space-y-5">
           {erro && <div className="card p-3 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
 
+          {/* baixar o instalador do app (mesmo .exe para todas as lojas) */}
+          <div className="card p-4 border-slate-200 flex items-center justify-between gap-3">
+            <div className="text-sm">
+              <div className="font-medium">1. Instale o app no PC da loja</div>
+              <div className="text-xs text-slate-500">
+                Baixe e instale; depois ative com o código abaixo.
+              </div>
+            </div>
+            {APP_DOWNLOAD_URL ? (
+              <a className="btn-primary" href={APP_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
+                ⬇ Baixar instalador
+              </a>
+            ) : (
+              <span className="text-xs text-slate-400">instalador ainda não publicado</span>
+            )}
+          </div>
+
           {/* código recém-gerado (aparece 1 vez) */}
           {novo && (
             <div className="card p-4 border-emerald-200 bg-emerald-50">
@@ -133,7 +154,7 @@ export default function DispositivosLoja({
 
           {/* criar novo */}
           <div className="card p-4 space-y-3 border-slate-200">
-            <div className="text-sm font-medium">Adicionar dispositivo</div>
+            <div className="text-sm font-medium">2. Gere o código de ativação</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="label">Nome do dispositivo</label>

@@ -811,6 +811,39 @@ export function configResetarModelo(
   return req(`config/marcas/${marcaId}/modelos/${tipo}`, { method: "DELETE" });
 }
 
+// ── Avaliações (ver / tratar) ───────────────────────────────────────
+export type AvaliacaoLinha = {
+  id: number;
+  loja_id: number | null;
+  loja: string | null;
+  marca: string | null;
+  cliente: string | null;
+  media: number | null;
+  notas: Record<string, number>;
+  comentario: string | null;
+  origem: string | null;
+  com_compra: boolean;
+  verificada: boolean;
+  tratada: boolean;
+  criado_em: string | null;
+};
+export function listarAvaliacoes(
+  p: { marcaId?: number | null; status?: string; limit?: number; offset?: number } = {},
+): Promise<{ items: AvaliacaoLinha[]; total: number }> {
+  const q = new URLSearchParams();
+  if (p.marcaId != null) q.set("marca_id", String(p.marcaId));
+  if (p.status) q.set("status", p.status);
+  q.set("limit", String(p.limit ?? 50));
+  q.set("offset", String(p.offset ?? 0));
+  return reqLista<AvaliacaoLinha>(`avaliacoes?${q.toString()}`);
+}
+export function tratarAvaliacao(id: number): Promise<{ ok: boolean; tratada: boolean }> {
+  return req(`avaliacoes/${id}/tratar`, { method: "POST" });
+}
+export function reabrirAvaliacao(id: number): Promise<{ ok: boolean; tratada: boolean }> {
+  return req(`avaliacoes/${id}/reabrir`, { method: "POST" });
+}
+
 // ── Util ───────────────────────────────────────────────────────────
 // Exibe sempre no fuso de Brasilia (o instante e guardado em UTC). O Intl trata
 // o horario de verao historico do Brasil — corrige o "dia a menos".

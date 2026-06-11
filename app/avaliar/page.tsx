@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   publicoAvaliacaoForm,
   publicoAvaliar,
+  type AvaliarResp,
   type PublicoAvaliacaoForm,
 } from "@/lib/api";
 
@@ -37,6 +38,7 @@ function AvaliarInner() {
   const [comentario, setComentario] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [resp, setResp] = useState<AvaliarResp | null>(null);
 
   const cor = form?.marca_tema?.cor || "#0f6bd7";
 
@@ -67,10 +69,11 @@ function AvaliarInner() {
     if (Object.keys(dadas).length === 0) { setErro("Dê ao menos uma nota."); return; }
     setEnviando(true); setErro("");
     try {
-      await publicoAvaliar(
+      const r = await publicoAvaliar(
         numero.trim().replace(/^#/, ""), email.trim(), dadas,
         comentario.trim() || undefined,
       );
+      setResp(r);
       setEnviado(true);
     } catch (e) {
       setErro(String((e as Error).message || e));
@@ -131,12 +134,41 @@ function AvaliarInner() {
 
           {form && (enviado || form.ja_avaliada) && (
             <div className="text-center py-8">
-              <div className="text-5xl mb-3">🙏</div>
-              <h2 className="text-xl font-bold mb-1">Obrigado!</h2>
-              <p className="text-sm text-slate-500">
-                {enviado ? "Sua avaliação foi registrada com sucesso."
-                  : "Este atendimento já foi avaliado."}
+              <div className="text-5xl mb-3">
+                {resp?.nivel === "alta" ? "🌟" : resp?.nivel === "baixa" ? "🤝" : "🙏"}
+              </div>
+              <h2 className="text-xl font-bold mb-1">
+                {resp?.nivel === "baixa" ? "Vamos resolver isso" : "Obrigado!"}
+              </h2>
+              <p className="text-sm text-slate-500 max-w-md mx-auto">
+                {resp?.obrigado
+                  ?? (enviado ? "Sua avaliação foi registrada com sucesso."
+                    : "Este atendimento já foi avaliado.")}
               </p>
+
+              {/* Nota alta: convida a avaliar publicamente (Google / sites) */}
+              {resp?.nivel === "alta" && resp.links_externos.length > 0 && (
+                <div className="mt-6">
+                  {resp.cta && <p className="text-sm font-medium mb-3">{resp.cta}</p>}
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {resp.links_externos.map((l) => (
+                      <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer"
+                        className="text-white font-semibold rounded-lg px-5 py-2.5 inline-flex items-center gap-2"
+                        style={{ background: cor }}>
+                        ★ {l.rotulo}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Nota baixa: já reabrimos — reforço visual */}
+              {resp?.nivel === "baixa" && resp.reaberto && (
+                <div className="mt-5 inline-block rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+                  Seu atendimento <b>#{form.numero}</b> foi reaberto. Em breve a loja
+                  retoma o contato por aqui.
+                </div>
+              )}
             </div>
           )}
 

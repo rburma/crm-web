@@ -677,9 +677,19 @@ export type PublicoAvaliacaoForm = {
 export function publicoAvaliacaoForm(numero: string, email: string): Promise<PublicoAvaliacaoForm> {
   return req(`publico/avaliacao/${encodeURIComponent(numero)}?email=${encodeURIComponent(email)}`);
 }
+export type LinkExterno = { url: string; rotulo: string };
+export type AvaliarResp = {
+  ok: boolean;
+  media: number;
+  nivel: "alta" | "media" | "baixa";
+  reaberto: boolean;
+  obrigado: string;
+  cta?: string;
+  links_externos: LinkExterno[];
+};
 export function publicoAvaliar(
   numero: string, email: string, notas: Record<string, number>, comentario?: string,
-): Promise<{ ok: boolean }> {
+): Promise<AvaliarResp> {
   return req(`publico/avaliacao/${encodeURIComponent(numero)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

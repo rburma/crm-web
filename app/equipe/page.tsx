@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import LojaCadastro from "@/components/LojaCadastro";
+import DispositivosLoja from "@/components/DispositivosLoja";
 import {
   entrarComo,
   equipeAlterarAdmin,
@@ -43,6 +44,8 @@ export default function EquipePage() {
 
   // modal "cadastro da loja" (e-mail + campos/placeholders)
   const [cadLoja, setCadLoja] = useState<LojaEquipe | null>(null);
+  // modal "dispositivos da loja" (app de balcão: online/offline + revogar)
+  const [dispLoja, setDispLoja] = useState<LojaEquipe | null>(null);
 
   const carregarResumo = useCallback(async () => {
     try {
@@ -217,13 +220,22 @@ export default function EquipePage() {
               {lojaSel ? `Equipe — ${lojaSel.nome}` : "Equipe (escolha uma loja)"}
             </div>
             {lojaSel && (
-              <button
-                onClick={() => setCadLoja(lojaSel)}
-                className="text-xs text-brand-700 hover:underline shrink-0"
-                title="E-mail da loja + campos (endereço, WhatsApp, redes, links de avaliação…)"
-              >
-                ⚙ Cadastro da loja
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => setDispLoja(lojaSel)}
+                  className="text-xs text-brand-700 hover:underline"
+                  title="App de balcão: dispositivos online/offline, ativação e revogação"
+                >
+                  📟 Dispositivos
+                </button>
+                <button
+                  onClick={() => setCadLoja(lojaSel)}
+                  className="text-xs text-brand-700 hover:underline"
+                  title="E-mail da loja + campos (endereço, WhatsApp, redes, links de avaliação…)"
+                >
+                  ⚙ Cadastro da loja
+                </button>
+              </div>
             )}
           </div>
           {lojaSel && (
@@ -287,6 +299,15 @@ export default function EquipePage() {
           lojaId={cadLoja.id}
           lojaNome={cadLoja.nome}
           onClose={() => setCadLoja(null)}
+        />
+      )}
+
+      {/* modal: dispositivos da loja */}
+      {dispLoja && (
+        <DispositivosLoja
+          lojaId={dispLoja.id}
+          lojaNome={dispLoja.nome}
+          onClose={() => setDispLoja(null)}
         />
       )}
 

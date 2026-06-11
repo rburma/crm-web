@@ -272,6 +272,36 @@ export function excluirResposta(id: number): Promise<{ ok: boolean }> {
   return req(`catalogo/respostas/${id}`, { method: "DELETE" });
 }
 
+// ── Dispositivos das lojas (app de balcão) ───────────────────────
+export type Dispositivo = {
+  id: number; loja_id: number; marca_id: number | null;
+  nome: string; pessoa: string | null;
+  status: "pendente" | "ativo" | "revogado";
+  online: boolean; ultimo_visto_em: string | null;
+  ativado_em: string | null; criado_em: string | null;
+};
+export type DispositivoCriado = Dispositivo & { codigo: string; codigo_expira_em: string };
+
+export function listarDispositivos(lojaId?: number): Promise<Dispositivo[]> {
+  const qs = lojaId != null ? `?loja_id=${lojaId}` : "";
+  return req<Dispositivo[]>(`dispositivos${qs}`);
+}
+export function criarDispositivo(body: {
+  loja_id: number; nome: string; pessoa?: string;
+}): Promise<DispositivoCriado> {
+  return req<DispositivoCriado>("dispositivos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function revogarDispositivo(id: number): Promise<{ id: number; status: string }> {
+  return req(`dispositivos/${id}/revogar`, { method: "POST" });
+}
+export function excluirDispositivo(id: number): Promise<{ ok: boolean }> {
+  return req(`dispositivos/${id}`, { method: "DELETE" });
+}
+
 // Cria atendimento INTERNO (telefone/balcão/WhatsApp). Cliente existente OU novo
 // (a identidade resolve: se telefone/e-mail já existem, usa o cliente existente).
 export type AtendimentoCriado = {

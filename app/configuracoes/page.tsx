@@ -828,12 +828,22 @@ function LinkComQr({ rotulo, url, arquivo }: { rotulo: string; url: string; arqu
 }
 
 function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
-  const [base, setBase] = useState("");
+  // Domínio CANÔNICO dos links/QR públicos — sempre o site público (não o domínio
+  // em que o admin abriu o painel). Assim um QR impresso nunca "congela" uma URL
+  // da Vercel. Configurável por NEXT_PUBLIC_SITE_URL; default contactcenter.com.br.
+  const [base, setBase] = useState(
+    (process.env.NEXT_PUBLIC_SITE_URL ?? "https://contactcenter.com.br").replace(/\/$/, ""),
+  );
   const [qLoja, setQLoja] = useState("");
   const [lojas, setLojas] = useState<{ id: number; nome: string }[]>([]);
   const [loja, setLoja] = useState<{ id: number; nome: string } | null>(null);
 
-  useEffect(() => { setBase(window.location.origin); }, []);
+  useEffect(() => {
+    // Só cai no domínio atual em dev local (localhost) — em produção mantém o canônico.
+    if (!process.env.NEXT_PUBLIC_SITE_URL && window.location.hostname === "localhost") {
+      setBase(window.location.origin);
+    }
+  }, []);
   useEffect(() => {
     if (!qLoja.trim() || loja) { setLojas([]); return; }
     const t = setTimeout(() => {

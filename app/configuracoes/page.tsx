@@ -246,51 +246,55 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
       {/* Logo quadrado + Favicon — convertidos p/ PNG quadrado no navegador */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="label">Logo quadrado (avatar, app, redes)</label>
-          <div className="flex items-center gap-3">
-            {marca.logo_quadrado_path ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={`/api/render/${marca.logo_quadrado_path}?v=${Date.now()}`} alt="logo quadrado"
-                className="w-12 h-12 rounded-lg object-contain bg-white border border-slate-200" />
-            ) : (
-              <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold"
-                style={{ background: cor }}>
-                {(nome || slug).slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            <input type="file" accept="image/png,image/jpeg,image/webp" className="text-sm"
-              onChange={(e) => subirLogoQuadrado(e.target.files?.[0] ?? null)} />
+          <div className="flex items-center justify-between gap-2">
+            <label className="label mb-0">Logo quadrado (avatar, app, redes)</label>
             {marca.tem_logo_quadrado && (
-              <button className="text-xs text-red-500 hover:underline"
+              <button className="text-xs text-red-500 hover:underline shrink-0"
                 onClick={async () => { onErro(""); try { onSalvo(await configRemoverLogoQuadrado(marca.id)); } catch (e) { onErro(String((e as Error).message || e)); } }}>
                 remover
               </button>
             )}
+          </div>
+          <div className="flex items-center gap-3 mt-1">
+            {marca.logo_quadrado_path ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={`/api/render/${marca.logo_quadrado_path}?v=${Date.now()}`} alt="logo quadrado"
+                className="w-12 h-12 rounded-lg object-contain bg-white border border-slate-200 shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
+                style={{ background: cor }}>
+                {(nome || slug).slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="text-sm min-w-0 flex-1"
+              onChange={(e) => subirLogoQuadrado(e.target.files?.[0] ?? null)} />
           </div>
           <p className="text-xs text-slate-400 mt-1">
             Vira um PNG quadrado automaticamente. Pré-configurado p/ conexões futuras.
           </p>
         </div>
         <div>
-          <label className="label">Favicon (ícone da aba do site)</label>
-          <div className="flex items-center gap-3">
-            {marca.favicon_path ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={`/api/render/${marca.favicon_path}?v=${Date.now()}`} alt="favicon"
-                className="w-8 h-8 rounded object-contain bg-white border border-slate-200" />
-            ) : (
-              <div className="w-8 h-8 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-xs">
-                —
-              </div>
-            )}
-            <input type="file" accept="image/png,image/jpeg,image/webp" className="text-sm"
-              onChange={(e) => subirFavicon(e.target.files?.[0] ?? null)} />
+          <div className="flex items-center justify-between gap-2">
+            <label className="label mb-0">Favicon (ícone da aba do site)</label>
             {marca.tem_favicon && (
-              <button className="text-xs text-red-500 hover:underline"
+              <button className="text-xs text-red-500 hover:underline shrink-0"
                 onClick={async () => { onErro(""); try { onSalvo(await configRemoverFavicon(marca.id)); } catch (e) { onErro(String((e as Error).message || e)); } }}>
                 remover
               </button>
             )}
+          </div>
+          <div className="flex items-center gap-3 mt-1">
+            {marca.favicon_path ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={`/api/render/${marca.favicon_path}?v=${Date.now()}`} alt="favicon"
+                className="w-8 h-8 rounded object-contain bg-white border border-slate-200 shrink-0" />
+            ) : (
+              <div className="w-8 h-8 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-xs shrink-0">
+                —
+              </div>
+            )}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="text-sm min-w-0 flex-1"
+              onChange={(e) => subirFavicon(e.target.files?.[0] ?? null)} />
           </div>
           <p className="text-xs text-slate-400 mt-1">
             JPG/PNG → vira o ícone da aba nas páginas públicas desta marca.

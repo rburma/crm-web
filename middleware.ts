@@ -20,7 +20,7 @@ const PUBLICO_ABERTO = process.env.PUBLICO_ABERTO === "1";
 
 // Prefixos das paginas do cliente final. startsWith cobre /avaliar, /avaliar-loja,
 // /avaliar-site, /f/<slug>, /acompanhar e o proxy das rotas publicas do motor.
-const PUBLICAS = ["/f/", "/acompanhar", "/avaliar", "/api/render/publico/"];
+const PUBLICAS = ["/f/", "/acompanhar", "/avaliar", "/vitrine", "/embed", "/api/render/publico/"];
 
 export function middleware(req: NextRequest) {
   if (!USER || !PASS) return NextResponse.next();

@@ -857,6 +857,23 @@ export function publicoAvaliarSite(
   });
 }
 
+// ── ⭐ Vitrine de avaliações (curadoria admin) ──────────────────────
+export type VitrineCandidata = {
+  id: number; nota: number | null; comentario: string;
+  cliente: string | null; loja: string | null; data: string | null; vitrine: boolean;
+};
+export function vitrineCandidatas(marcaId: number, min = 4): Promise<VitrineCandidata[]> {
+  const q = new URLSearchParams({ marca_id: String(marcaId), min: String(min) });
+  return req(`avaliacoes/vitrine/candidatas?${q.toString()}`);
+}
+export function definirVitrine(id: number, publicar: boolean): Promise<{ id: number; vitrine: boolean }> {
+  return req(`avaliacoes/${id}/vitrine`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ publicar }),
+  });
+}
+
 // ── ⚙️ Configurações (admin) ─────────────────────────────────────────
 export type MarcaConfig = {
   id: number; slug: string; nome: string | null; tema: TemaMarca;

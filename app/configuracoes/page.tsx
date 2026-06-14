@@ -35,10 +35,13 @@ import {
   type PerguntaConfig,
   type PlaceholderInfo,
   type RespostaPronta,
+  vitrineCandidatas,
+  definirVitrine,
+  type VitrineCandidata,
 } from "@/lib/api";
 import { paraPngQuadrado } from "@/lib/imagemQuadrada";
 
-type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral" | "autoresposta";
+type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral" | "autoresposta" | "vitrine";
 
 const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "aparencia", rotulo: "1. Marca & Aparência" },
@@ -49,6 +52,7 @@ const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "paginas", rotulo: "6. Páginas" },
   { id: "geral", rotulo: "7. Configurações gerais" },
   { id: "autoresposta", rotulo: "8. Auto-resposta" },
+  { id: "vitrine", rotulo: "9. Vitrine de avaliações" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -127,10 +131,133 @@ export default function ConfiguracoesPage() {
           {marca && secao === "autoresposta" && (
             <SecaoAutoresposta marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} onOk={() => flash("Salvo!")} />
           )}
+          {marca && secao === "vitrine" && <SecaoVitrine marca={marca} />}
           {!marca && <p className="text-sm text-slate-400">Carregando…</p>}
         </div>
       </div>
     </Shell>
+  );
+}
+
+// ════════ 9. Vitrine de avaliações ════════
+function SecaoVitrine({ marca }: { marca: MarcaConfig }) {
+  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://contactcenter.com.br").replace(/\/$/, "");
+  const [itens, setItens] = useState<VitrineCandidata[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+  const [copiado, setCopiado] = useState("");
+
+  const urlPublica = `${base}/vitrine/${marca.slug}`;
+  const codigoEmbed = `<iframe src="${base}/embed/avaliacoes/${marca.slug}" width="100%" height="640" style="border:0" loading="lazy" title="Avaliações ${marca.nome ?? marca.slug}"></iframe>`;
+
+  const carregar = useCallback(async () => {
+    setCarregando(true); setErro("");
+    try {
+      setItens(await vitrineCandidatas(marca.id, 4));
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setCarregando(false);
+    }
+  }, [marca.id]);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  async function toggle(it: VitrineCandidata) {
+    setErro("");
+    try {
+      const r = await definirVitrine(it.id, !it.vitrine);
+      setItens((xs) => xs.map((x) => (x.id === it.id ? { ...x, vitrine: r.vitrine } : x)));
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    }
+  }
+
+  function copiar(texto: string, qual: string) {
+    navigator.clipboard?.writeText(texto)
+      .then(() => { setCopiado(qual); setTimeout(() => setCopiado(""), 1500); })
+      .catch(() => {});
+  }
+
+  const publicadas = itens.filter((i) => i.vitrine).length;
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div>
+        <h2 className="font-bold">Vitrine de avaliações de {marca.nome ?? marca.slug}</h2>
+        <p className="text-sm text-slate-500">
+          Escolha quais avaliações (notas altas + comentário) aparecem na página pública e no
+          embed do site da loja. Nada aparece sem você publicar. O nome do cliente sai curto
+          (ex.: “Maria S.”), por LGPD.
+        </p>
+      </div>
+
+      {erro && <div className="card p-3 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
+
+      {/* Links + embed */}
+      <div className="card p-4 space-y-3 bg-slate-50">
+        <div>
+          <div className="label">Página pública da vitrine</div>
+          <div className="flex items-center gap-2">
+            <input className="input font-mono text-xs" readOnly value={urlPublica} />
+            <button className="btn-ghost text-xs shrink-0" onClick={() => copiar(urlPublica, "url")}>
+              {copiado === "url" ? "copiado!" : "copiar"}
+            </button>
+            <a className="btn-ghost text-xs shrink-0" href={urlPublica} target="_blank" rel="noreferrer">abrir</a>
+          </div>
+        </div>
+        <div>
+          <div className="label">Código para embutir no site (iframe)</div>
+          <textarea className="input font-mono text-xs" rows={2} readOnly value={codigoEmbed} />
+          <button className="btn-ghost text-xs mt-1" onClick={() => copiar(codigoEmbed, "embed")}>
+            {copiado === "embed" ? "copiado!" : "copiar código"}
+          </button>
+        </div>
+        <p className="text-xs text-slate-400">
+          A página/embed ficam públicos quando o site for liberado. ⚠️ estrelas na busca do Google
+          não são garantidas para avaliações no próprio site — garantia mesmo é via Google Meu Negócio.
+        </p>
+      </div>
+
+      {/* Curadoria */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-semibold text-slate-700">
+            Candidatas (≥ 4★ com comentário) — {publicadas} publicada(s)
+          </div>
+          <button className="btn-ghost text-xs" onClick={carregar}>atualizar</button>
+        </div>
+        {carregando ? (
+          <p className="text-sm text-slate-400 py-4 text-center">Carregando…</p>
+        ) : itens.length === 0 ? (
+          <p className="text-sm text-slate-400 py-4 text-center">
+            Nenhuma avaliação com comentário e nota alta ainda.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {itens.map((it) => (
+              <div key={it.id} className={`card p-3 ${it.vitrine ? "border-emerald-300 bg-emerald-50/40" : ""}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm">
+                      <span style={{ color: "#f5a623" }}>{"★".repeat(Math.round(it.nota ?? 0))}</span>
+                      <span className="text-xs text-slate-400 ml-1">{it.nota?.toFixed(1)}</span>
+                    </div>
+                    <p className="text-sm text-slate-700 mt-1">“{it.comentario}”</p>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {it.cliente ?? "—"}{it.loja ? ` · ${it.loja}` : ""}
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-1 text-xs shrink-0 cursor-pointer">
+                    <input type="checkbox" checked={it.vitrine} onChange={() => toggle(it)} />
+                    publicar
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

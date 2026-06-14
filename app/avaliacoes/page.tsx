@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
 import {
+  atribuirLojaAvaliacao,
   fmtData,
   listarAvaliacoes,
+  listarLojas,
   listarMarcas,
   reabrirAvaliacao,
   responderAvaliacao,
   tratarAvaliacao,
   type AvaliacaoLinha,
+  type LojaItem,
   type MarcaItem,
 } from "@/lib/api";
 
@@ -43,6 +46,10 @@ export default function AvaliacoesPage() {
   const [aberto, setAberto] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState<number | null>(null);
   const [resp, setResp] = useState<Record<number, string>>({});
+  // Atribuir avaliação do site (sem loja) a uma loja.
+  const [atrId, setAtrId] = useState<number | null>(null);
+  const [atrQ, setAtrQ] = useState("");
+  const [atrSug, setAtrSug] = useState<LojaItem[]>([]);
 
   async function carregar(p = 0, ps = pageSize) {
     setLoading(true);
@@ -82,6 +89,30 @@ export default function AvaliacoesPage() {
     try {
       if (tratar) await tratarAvaliacao(id);
       else await reabrirAvaliacao(id);
+      await carregar(page, pageSize);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    if (atrId == null || !atrQ.trim()) { setAtrSug([]); return; }
+    const t = setTimeout(() => {
+      listarLojas({ q: atrQ.trim(), limit: 8 }).then(setAtrSug).catch(() => setAtrSug([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [atrId, atrQ]);
+
+  async function atribuir(avalId: number, loja: LojaItem) {
+    setBusy(avalId);
+    setErro("");
+    try {
+      await atribuirLojaAvaliacao(avalId, loja.id);
+      setAtrId(null);
+      setAtrQ("");
+      setAtrSug([]);
       await carregar(page, pageSize);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro");
@@ -187,6 +218,54 @@ export default function AvaliacoesPage() {
                         .filter(Boolean)
                         .join(" · ") || "—"}
                     </div>
+                    {a.loja_id == null ? (
+                      <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+                        <div className="text-xs font-medium text-amber-800 mb-1.5">
+                          Avaliação sem loja (veio do site). Atribua a uma loja para virar
+                          atendimento dela:
+                        </div>
+                        {atrId === a.id ? (
+                          <div className="relative">
+                            <input
+                              className="input text-sm"
+                              autoFocus
+                              value={atrQ}
+                              onChange={(e) => setAtrQ(e.target.value)}
+                              placeholder="Buscar loja por nome…"
+                            />
+                            {atrSug.length > 0 ? (
+                              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-56 overflow-y-auto">
+                                {atrSug.map((l) => (
+                                  <button
+                                    key={l.id}
+                                    type="button"
+                                    disabled={busy === a.id}
+                                    className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+                                    onClick={() => atribuir(a.id, l)}
+                                  >
+                                    {l.nome}
+                                    {l.cidade ? <span className="text-slate-400"> · {l.cidade}</span> : null}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : null}
+                            <button
+                              className="btn-ghost text-xs mt-1.5"
+                              onClick={() => { setAtrId(null); setAtrQ(""); setAtrSug([]); }}
+                            >
+                              cancelar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            className="btn-primary text-xs"
+                            onClick={() => { setAtrId(a.id); setAtrQ(""); setAtrSug([]); }}
+                          >
+                            📍 Atribuir à loja
+                          </button>
+                        )}
+                      </div>
+                    ) : null}
                     {a.resposta ? (
                       <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2.5 text-sm text-slate-700 mb-3">
                         <div className="text-[11px] text-emerald-700 font-medium mb-0.5">

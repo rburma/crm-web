@@ -761,6 +761,9 @@ export type AvaliacaoAbertaForm = {
 export type AvaliacaoAbertaBody = {
   nome: string; email?: string; telefone?: string; cpf?: string;
   venda_ref?: string; notas: Record<string, number>; comentario?: string;
+  // No site, o cliente pode escolher a loja (autocomplete) — aí a avaliação já
+  // cai na loja certa e vira atendimento dela.
+  loja_id?: number;
 };
 export type AvaliacaoAbertaResp = { ok: boolean; repetida: boolean; obrigado: string };
 
@@ -971,6 +974,17 @@ export function responderAvaliacao(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ texto }),
+  });
+}
+// Atribui uma avaliação (do site, sem loja) a uma loja: cria o atendimento dela.
+export function atribuirLojaAvaliacao(
+  id: number,
+  lojaId: number,
+): Promise<{ ok: boolean; loja_id: number; oportunidade_id: number | null; atendimento_criado: boolean }> {
+  return req(`avaliacoes/${id}/atribuir-loja`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ loja_id: lojaId }),
   });
 }
 

@@ -6,6 +6,7 @@ import {
   publicoAvaliacaoSiteForm,
   publicoAvaliarLoja,
   publicoAvaliarSite,
+  publicoLojas,
   type AvaliacaoAbertaForm,
 } from "@/lib/api";
 
@@ -39,6 +40,10 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
   const [comentario, setComentario] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [obrigado, setObrigado] = useState("");
+  // Picker de loja (só no modo site): o cliente escolhe a loja que visitou.
+  const [lojaQ, setLojaQ] = useState("");
+  const [lojaSugestoes, setLojaSugestoes] = useState<{ id: number; nome: string }[]>([]);
+  const [lojaSel, setLojaSel] = useState<{ id: number; nome: string } | null>(null);
 
   const cor = form?.marca_tema?.cor || "#0f6bd7";
 
@@ -48,6 +53,15 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
       : publicoAvaliacaoSiteForm(ref_);
     carregar.then(setForm).catch(() => setErro("Página não encontrada. Confira o endereço."));
   }, [modo, ref_]);
+
+  // Busca de lojas (autocomplete) — debounce simples; só modo site, sem loja escolhida.
+  useEffect(() => {
+    if (modo !== "site" || lojaSel || !lojaQ.trim()) { setLojaSugestoes([]); return; }
+    const t = setTimeout(() => {
+      publicoLojas(ref_, lojaQ.trim()).then(setLojaSugestoes).catch(() => setLojaSugestoes([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [modo, ref_, lojaQ, lojaSel]);
 
   async function enviar() {
     if (!form) return;
@@ -67,6 +81,8 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
         venda_ref: pedido.trim() || undefined,
         notas: dadas,
         comentario: comentario.trim() || undefined,
+        // Site: se o cliente escolheu a loja, já direciona a avaliação a ela.
+        loja_id: modo === "site" ? lojaSel?.id : undefined,
       };
       const r = modo === "loja"
         ? await publicoAvaliarLoja(ref_, body)
@@ -137,6 +153,36 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
                 <input className="input" value={pedido} onChange={(e) => setPedido(e.target.value)}
                   placeholder="Deixe em branco se não comprou" />
               </div>
+
+              {modo === "site" && (
+                <div className="mb-4 relative">
+                  <label className="label">Qual loja você visitou? (opcional)</label>
+                  {lojaSel ? (
+                    <div className="flex items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                      <span>📍 {lojaSel.nome}</span>
+                      <button type="button" className="text-xs text-slate-400 hover:underline"
+                        onClick={() => { setLojaSel(null); setLojaQ(""); }}>trocar</button>
+                    </div>
+                  ) : (
+                    <input className="input" value={lojaQ} onChange={(e) => setLojaQ(e.target.value)}
+                      placeholder="Digite o nome, a cidade ou o shopping da loja…" />
+                  )}
+                  {!lojaSel && lojaSugestoes.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-56 overflow-y-auto">
+                      {lojaSugestoes.map((l) => (
+                        <button key={l.id} type="button"
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                          onClick={() => { setLojaSel(l); setLojaSugestoes([]); }}>
+                          {l.nome}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1">
+                    Direciona sua avaliação à loja certa. Se não souber, pode deixar em branco.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-3">
                 {form.perguntas.map((p, i) => (

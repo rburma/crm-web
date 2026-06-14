@@ -36,6 +36,7 @@ export default function LojaCadastro({
 }) {
   const [campos, setCampos] = useState<LojaCampoDef[]>([]);
   const [email, setEmail] = useState("");
+  const [sigla, setSigla] = useState("");
   const [valores, setValores] = useState<Record<string, string>>({});
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -53,6 +54,7 @@ export default function LojaCadastro({
       const [cs, det] = await Promise.all([lojaCampos(), lojaDetalhe(lojaId)]);
       setCampos(cs);
       setEmail(det.email ?? "");
+      setSigla(det.sigla ?? "");
       setValores({ ...(det.atributos ?? {}) });
     } catch (e) {
       setErro(String((e as Error).message || e));
@@ -74,7 +76,7 @@ export default function LojaCadastro({
     setErro("");
     setOkMsg("");
     try {
-      await lojaSalvarDados(lojaId, { email });
+      await lojaSalvarDados(lojaId, { email, sigla: sigla.trim().toUpperCase() });
       await lojaSalvarAtributos(lojaId, valores);
       setOkMsg("Cadastro salvo.");
       onSalvo?.();
@@ -169,6 +171,22 @@ export default function LojaCadastro({
                 <p className="text-xs text-slate-400 mt-1">
                   Além deste e-mail, também recebem os usuários vinculados à loja com a
                   opção de notificação ligada (na aba Equipe).
+                </p>
+              </div>
+
+              {/* SIGLA — chave que liga a loja ao sistema de cobrança */}
+              <div>
+                <label className="label">Sigla da loja (liga com o cobrança)</label>
+                <input
+                  className="input font-mono"
+                  placeholder="Ex.: WTRIBE, RPSORO…"
+                  value={sigla}
+                  onChange={(e) => setSigla(e.target.value.toUpperCase())}
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  É a sigla (rede + loja) que identifica esta loja no sistema de cobrança.
+                  As obrigações e boletos puxados pra cá vêm desta sigla — edite se a loja
+                  for uma dark kitchen ou mudar de operação/sigla.
                 </p>
               </div>
 

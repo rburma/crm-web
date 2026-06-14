@@ -262,6 +262,7 @@ export type LojaCampoDef = {
 };
 export type LojaCadastro = {
   id: number; marca_id: number | null; nome: string;
+  sigla: string | null; // rede+loja (WTRIBE…) — liga com o cobrança
   cidade: string | null; uf: string | null; email: string | null;
   atributos: Record<string, string>; ativo: boolean;
 };
@@ -276,7 +277,8 @@ export function lojaDetalhe(id: number): Promise<LojaCadastro> {
 }
 // Salva campos FIXOS (nome/cidade/uf/email — e-mail das notificações).
 export function lojaSalvarDados(
-  id: number, dados: { nome?: string; cidade?: string; uf?: string; email?: string },
+  id: number,
+  dados: { nome?: string; cidade?: string; uf?: string; email?: string; sigla?: string },
 ): Promise<LojaCadastro> {
   return req<LojaCadastro>(`lojas-cadastro/${id}/dados`, {
     method: "PATCH",

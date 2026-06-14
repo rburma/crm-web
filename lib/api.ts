@@ -37,6 +37,30 @@ async function reqLista<T>(path: string): Promise<{ items: T[]; total: number }>
   return { items, total: Number.isFinite(tc) && tc > 0 ? tc : items.length };
 }
 
+// ── Obrigações da loja (lidas do cobranca-wt, só-leitura) ───────────
+export type ObrigacaoLojaItem = {
+  loja_id: number | null;
+  loja_nome: string | null;
+  sigla: string | null;
+  titulo: string | null;
+  tipo: string | null;
+  status: string;
+  vencimento: string | null;
+  instrucoes_link: string | null;
+};
+
+export type ObrigacoesLojaResp = { disponivel: boolean; itens: ObrigacaoLojaItem[] };
+
+/** Obrigações abertas de TODAS as lojas do escopo do usuário (visão franqueado/admin). */
+export function minhasObrigacoes(): Promise<ObrigacoesLojaResp> {
+  return req<ObrigacoesLojaResp>("obrigacoes-loja/minhas");
+}
+
+/** Obrigações abertas de uma loja específica. */
+export function obrigacoesDaLoja(lojaId: number): Promise<ObrigacoesLojaResp> {
+  return req<ObrigacoesLojaResp>(`obrigacoes-loja/loja/${lojaId}`);
+}
+
 // ── Tipos ──────────────────────────────────────────────────────────
 export type ClienteResumo = {
   id: number;

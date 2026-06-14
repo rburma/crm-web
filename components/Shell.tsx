@@ -16,6 +16,7 @@ const NAV = [
   { href: "/", label: "Painel", icon: "📊" },
   { href: "/clientes", label: "Clientes", icon: "👥" },
   { href: "/atendimentos", label: "Atendimentos", icon: "💬" },
+  { href: "/obrigacoes", label: "Obrigações", icon: "📋" },
   { href: "/avaliacoes", label: "Avaliações", icon: "⭐" },
   { href: "/importar", label: "Importar", icon: "📥" },
   { href: "/equipe", label: "Equipe", icon: "🏪" },

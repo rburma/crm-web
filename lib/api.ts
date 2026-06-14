@@ -725,6 +725,8 @@ export type TemaMarca = {
 export type PublicoMarca = {
   id: number; slug: string; nome: string | null; tema: TemaMarca;
   logo_path?: string | null;
+  logo_quadrado_path?: string | null;
+  favicon_path?: string | null;
 };
 export type CampoForm = {
   id: number; nome: string; obrigatorio: boolean;
@@ -755,6 +757,7 @@ export type PublicoConversa = {
   numero: string; status: string; assunto: string | null;
   loja: string | null; marca: string | null; marca_tema: TemaMarca;
   marca_logo_path?: string | null;
+  marca_favicon_path?: string | null;
   cliente_nome: string | null; criado_em: string | null;
   pode_avaliar?: boolean; ja_avaliada?: boolean;
   mensagens: { autor: "voce" | "equipe"; texto: string; criado_em: string | null }[];
@@ -786,6 +789,7 @@ export function publicoEncerrar(
 export type PublicoAvaliacaoForm = {
   numero: string; assunto: string | null; loja: string | null;
   marca: string | null; marca_tema: TemaMarca; marca_logo_path?: string | null;
+  marca_favicon_path?: string | null;
   ja_avaliada: boolean; perguntas: string[];
 };
 export function publicoAvaliacaoForm(numero: string, email: string): Promise<PublicoAvaliacaoForm> {
@@ -815,6 +819,7 @@ export function publicoAvaliar(
 export type AvaliacaoAbertaForm = {
   marca: string | null; marca_slug: string; marca_tema: TemaMarca;
   marca_logo_path: string | null;
+  marca_favicon_path?: string | null;
   loja_id: number | null; loja: string | null;
   perguntas: string[];
 };
@@ -857,6 +862,8 @@ export type MarcaConfig = {
   id: number; slug: string; nome: string | null; tema: TemaMarca;
   envio: Record<string, string>;
   ativo: boolean; tem_logo: boolean; logo_path: string | null;
+  tem_logo_quadrado: boolean; logo_quadrado_path: string | null;
+  tem_favicon: boolean; favicon_path: string | null;
 };
 export type CampoConfig = {
   id: number; marca_id: number | null; loja_id: number | null;
@@ -895,6 +902,24 @@ export function configSubirLogo(id: number, arquivo: File): Promise<MarcaConfig>
 }
 export function configRemoverLogo(id: number): Promise<MarcaConfig> {
   return req(`config/marcas/${id}/logo`, { method: "DELETE" });
+}
+// Favicon (ícone da aba) e logo quadrado — uploads independentes do logo. O
+// arquivo já chega convertido p/ PNG quadrado pelo navegador (lib/imagemQuadrada).
+export function configSubirFavicon(id: number, arquivo: File): Promise<MarcaConfig> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  return req(`config/marcas/${id}/favicon`, { method: "POST", body: fd });
+}
+export function configRemoverFavicon(id: number): Promise<MarcaConfig> {
+  return req(`config/marcas/${id}/favicon`, { method: "DELETE" });
+}
+export function configSubirLogoQuadrado(id: number, arquivo: File): Promise<MarcaConfig> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  return req(`config/marcas/${id}/logo-quadrado`, { method: "POST", body: fd });
+}
+export function configRemoverLogoQuadrado(id: number): Promise<MarcaConfig> {
+  return req(`config/marcas/${id}/logo-quadrado`, { method: "DELETE" });
 }
 export function configCampos(marcaId: number): Promise<CampoConfig[]> {
   return req(`config/marcas/${marcaId}/campos`);

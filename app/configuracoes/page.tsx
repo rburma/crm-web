@@ -16,10 +16,14 @@ import {
   configModelos,
   configModelosCatalogo,
   configPerguntas,
+  configRemoverFavicon,
   configRemoverLogo,
+  configRemoverLogoQuadrado,
   configResetarModelo,
   configSalvarModelo,
+  configSubirFavicon,
   configSubirLogo,
+  configSubirLogoQuadrado,
   criarResposta,
   excluirResposta,
   listarLojas,
@@ -32,6 +36,7 @@ import {
   type PlaceholderInfo,
   type RespostaPronta,
 } from "@/lib/api";
+import { paraPngQuadrado } from "@/lib/imagemQuadrada";
 
 type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral" | "autoresposta";
 
@@ -176,6 +181,28 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
     }
   }
 
+  // Favicon e logo quadrado: convertidos p/ PNG quadrado NO NAVEGADOR antes de subir.
+  async function subirFavicon(f: File | null) {
+    if (!f) return;
+    onErro("");
+    try {
+      const png = await paraPngQuadrado(f, 180);
+      onSalvo(await configSubirFavicon(marca.id, png));
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    }
+  }
+  async function subirLogoQuadrado(f: File | null) {
+    if (!f) return;
+    onErro("");
+    try {
+      const png = await paraPngQuadrado(f, 512);
+      onSalvo(await configSubirLogoQuadrado(marca.id, png));
+    } catch (e) {
+      onErro(String((e as Error).message || e));
+    }
+  }
+
   return (
     <div className="space-y-4 max-w-xl">
       <h2 className="font-bold">Marca & Aparência</h2>
@@ -213,6 +240,61 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Logo quadrado + Favicon — convertidos p/ PNG quadrado no navegador */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Logo quadrado (avatar, app, redes)</label>
+          <div className="flex items-center gap-3">
+            {marca.logo_quadrado_path ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={`/api/render/${marca.logo_quadrado_path}?v=${Date.now()}`} alt="logo quadrado"
+                className="w-12 h-12 rounded-lg object-contain bg-white border border-slate-200" />
+            ) : (
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold"
+                style={{ background: cor }}>
+                {(nome || slug).slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="text-sm"
+              onChange={(e) => subirLogoQuadrado(e.target.files?.[0] ?? null)} />
+            {marca.tem_logo_quadrado && (
+              <button className="text-xs text-red-500 hover:underline"
+                onClick={async () => { onErro(""); try { onSalvo(await configRemoverLogoQuadrado(marca.id)); } catch (e) { onErro(String((e as Error).message || e)); } }}>
+                remover
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Vira um PNG quadrado automaticamente. Pré-configurado p/ conexões futuras.
+          </p>
+        </div>
+        <div>
+          <label className="label">Favicon (ícone da aba do site)</label>
+          <div className="flex items-center gap-3">
+            {marca.favicon_path ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={`/api/render/${marca.favicon_path}?v=${Date.now()}`} alt="favicon"
+                className="w-8 h-8 rounded object-contain bg-white border border-slate-200" />
+            ) : (
+              <div className="w-8 h-8 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-xs">
+                —
+              </div>
+            )}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="text-sm"
+              onChange={(e) => subirFavicon(e.target.files?.[0] ?? null)} />
+            {marca.tem_favicon && (
+              <button className="text-xs text-red-500 hover:underline"
+                onClick={async () => { onErro(""); try { onSalvo(await configRemoverFavicon(marca.id)); } catch (e) { onErro(String((e as Error).message || e)); } }}>
+                remover
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            JPG/PNG → vira o ícone da aba nas páginas públicas desta marca.
+          </p>
         </div>
       </div>
       <div><label className="label">Título da página pública</label>

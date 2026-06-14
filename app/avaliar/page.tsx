@@ -8,6 +8,7 @@ import {
   type AvaliarResp,
   type PublicoAvaliacaoForm,
 } from "@/lib/api";
+import { useFaviconMarca } from "@/lib/useFaviconMarca";
 
 function Estrelas({ valor, onChange }: {
   valor: number; onChange: (n: number) => void;
@@ -32,6 +33,7 @@ function AvaliarInner() {
   const [email, setEmail] = useState(sp?.get("e") ?? "");
 
   const [form, setForm] = useState<PublicoAvaliacaoForm | null>(null);
+  useFaviconMarca(form?.marca_favicon_path);
   const [erro, setErro] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [notas, setNotas] = useState<Record<string, number>>({});

@@ -9,6 +9,7 @@ import {
   publicoLojas,
   type AvaliacaoAbertaForm,
 } from "@/lib/api";
+import { useFaviconMarca } from "@/lib/useFaviconMarca";
 
 function Estrelas({ valor, onChange }: { valor: number; onChange: (n: number) => void }) {
   return (
@@ -31,6 +32,7 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
   modo: "loja" | "site"; ref_: string;
 }) {
   const [form, setForm] = useState<AvaliacaoAbertaForm | null>(null);
+  useFaviconMarca(form?.marca_favicon_path);
   const [erro, setErro] = useState("");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");

@@ -9,6 +9,7 @@ import {
   publicoResponder,
   type PublicoConversa,
 } from "@/lib/api";
+import { useFaviconMarca } from "@/lib/useFaviconMarca";
 
 function fmtDH(iso: string | null): string {
   if (!iso) return "";
@@ -24,6 +25,7 @@ function AcompanharInner() {
   const [numero, setNumero] = useState(sp?.get("n") ?? "");
   const [email, setEmail] = useState(sp?.get("e") ?? "");
   const [conv, setConv] = useState<PublicoConversa | null>(null);
+  useFaviconMarca(conv?.marca_favicon_path);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [resposta, setResposta] = useState("");

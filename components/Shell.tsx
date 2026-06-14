@@ -22,6 +22,7 @@ const NAV = [
   { href: "/equipe", label: "Equipe", icon: "🏪" },
   { href: "/usuarios", label: "Usuários", icon: "🔑" },
   { href: "/configuracoes", label: "Configurações", icon: "⚙️" },
+  { href: "/backup", label: "Backup", icon: "💾" },
   { href: "/lgpd", label: "LGPD", icon: "🛡️" },
 ];
 

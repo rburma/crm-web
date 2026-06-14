@@ -61,6 +61,40 @@ export function obrigacoesDaLoja(lojaId: number): Promise<ObrigacoesLojaResp> {
   return req<ObrigacoesLojaResp>(`obrigacoes-loja/loja/${lojaId}`);
 }
 
+// ── Backup completo do CRM (admin) ──────────────────────────────────
+export type BackupResumo = {
+  total_tabelas: number;
+  total_registros: number;
+  contagens: Record<string, number>;
+  tabelas_sem_model: string[];
+};
+
+export type BackupJob = {
+  status: "rodando" | "pronto" | "erro";
+  fase?: string | null;
+  progresso?: number | null;
+  atual?: number | null;
+  total?: number | null;
+  arquivo?: string | null;
+  total_registros?: number | null;
+  total_tabelas?: number | null;
+  erro?: string | null;
+  download_url?: string;
+  size_bytes?: number | null;
+};
+
+export function backupResumo(): Promise<BackupResumo> {
+  return req<BackupResumo>("backup/resumo");
+}
+
+export function backupIniciar(): Promise<{ job_id: string }> {
+  return req<{ job_id: string }>("backup/iniciar", { method: "POST" });
+}
+
+export function backupJob(jobId: string): Promise<BackupJob> {
+  return req<BackupJob>(`backup/jobs/${jobId}`);
+}
+
 // ── Tipos ──────────────────────────────────────────────────────────
 export type ClienteResumo = {
   id: number;

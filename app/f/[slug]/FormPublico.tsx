@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   publicoAbrir,
+  publicoAnexarFoto,
   publicoCampos,
   publicoForm,
   publicoLojas,
   type CampoForm,
   type PublicoMarca,
 } from "@/lib/api";
+import { paraJpegReduzido } from "@/lib/reduzirImagem";
 
 /** Página PÚBLICA "Fale com a gente" — abre atendimento sem login.
  *  Tema (cor/logo) vem do cadastro da marca; campos extras por marca/loja.
@@ -35,6 +37,8 @@ export default function FormPublico() {
 
   // dados fixos
   const [nome, setNome] = useState("");
+  const [sobrenome, setSobrenome] = useState("");
+  const [fotos, setFotos] = useState<File[]>([]);
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [cpf, setCpf] = useState("");
@@ -64,6 +68,14 @@ export default function FormPublico() {
     publicoCampos(slug, loja.id).then(setCampos).catch(() => setCampos([]));
   }, [slug, loja]);
 
+  async function addFoto(f: File | null) {
+    if (!f || fotos.length >= 3) return;
+    try {
+      const leve = await paraJpegReduzido(f);
+      setFotos((xs) => [...xs, leve].slice(0, 3));
+    } catch { /* imagem inválida — ignora */ }
+  }
+
   async function enviar() {
     setErro("");
     if (!loja) { setErro("Escolha a loja."); return; }
@@ -78,11 +90,16 @@ export default function FormPublico() {
     try {
       const r = await publicoAbrir({
         marca_slug: slug, loja_id: loja.id,
-        nome: nome.trim(), email: email.trim(), telefone: telefone.trim() || undefined,
+        nome: `${nome.trim()} ${sobrenome.trim()}`.trim(),
+        email: email.trim(), telefone: telefone.trim() || undefined,
         cpf: cpf.trim() || undefined,
         assunto: assunto.trim(), mensagem: mensagem.trim(),
         campos: valores, aceita_contato: aceite,
       });
+      // anexa as fotos ao atendimento criado (best-effort; não bloqueia a abertura)
+      for (const f of fotos) {
+        try { await publicoAnexarFoto(r.numero, email.trim(), f); } catch { /* ignora falha de foto */ }
+      }
       setResultado({ numero: r.numero, repetido: r.repetido });
     } catch (e) {
       setErro(String((e as Error).message || e));
@@ -163,17 +180,21 @@ export default function FormPublico() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><label className="label">Seu nome *</label>
+        <div><label className="label">Nome *</label>
           <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></div>
-        <div><label className="label">E-mail *</label>
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+        <div><label className="label">Sobrenome</label>
+          <input className="input" value={sobrenome} onChange={(e) => setSobrenome(e.target.value)} /></div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+        <div><label className="label">E-mail *</label>
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div><label className="label">Telefone / WhatsApp</label>
           <input className="input" value={telefone} onChange={(e) => setTelefone(e.target.value)} /></div>
-        <div><label className="label">CPF (ajuda a localizar seu cadastro)</label>
-          <input className="input" value={cpf} onChange={(e) => setCpf(e.target.value)}
-            placeholder="000.000.000-00" /></div>
+      </div>
+      <div className="mt-3">
+        <label className="label">CPF (ajuda a localizar seu cadastro)</label>
+        <input className="input" value={cpf} onChange={(e) => setCpf(e.target.value)}
+          placeholder="000.000.000-00" />
       </div>
       <div className="mt-3">
         <label className="label">Assunto *</label>
@@ -200,6 +221,24 @@ export default function FormPublico() {
           </div>
         </div>
       )}
+
+      <div className="mt-4">
+        <label className="label">Fotos (opcional, até 3)</label>
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="text-sm cursor-pointer border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50">
+            📎 Adicionar foto
+            <input type="file" accept="image/*" className="hidden"
+              onChange={(e) => { addFoto(e.target.files?.[0] ?? null); e.currentTarget.value = ""; }} />
+          </label>
+          {fotos.map((f, i) => (
+            <span key={i} className="text-xs text-slate-600 bg-slate-100 rounded px-2 py-1 inline-flex items-center gap-1">
+              {f.name}
+              <button type="button" className="text-slate-400 hover:text-red-500"
+                onClick={() => setFotos((xs) => xs.filter((_, j) => j !== i))}>✕</button>
+            </span>
+          ))}
+        </div>
+      </div>
 
       <label className="flex items-start gap-2 text-sm text-slate-600 mt-4">
         <input type="checkbox" className="mt-0.5" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />

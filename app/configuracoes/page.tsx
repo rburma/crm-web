@@ -5,6 +5,7 @@ import Shell from "@/components/Shell";
 import {
   configCampos,
   configCriarCampo,
+  configDesativarTodosCampos,
   configCriarPergunta,
   configEditarCampo,
   configEditarMarca,
@@ -774,6 +775,16 @@ function SecaoFormulario({ marca, onErro, onOk }: {
     catch (e) { onErro(String((e as Error).message || e)); }
   }
 
+  async function desativarTodos() {
+    if (!confirm(`Desativar TODOS os campos extras de ${marca.nome ?? marca.slug} (globais + de TODAS as lojas)? Isso resolve o caso de campos legados que insistem em aparecer.`)) return;
+    onErro("");
+    try {
+      await configDesativarTodosCampos(marca.id);
+      carregar();
+      onOk();
+    } catch (e) { onErro(String((e as Error).message || e)); }
+  }
+
   const globais = campos.filter((c) => c.loja_id === null);
   const porLoja = campos.filter((c) => c.loja_id !== null);
 
@@ -784,6 +795,12 @@ function SecaoFormulario({ marca, onErro, onOk }: {
         Aparecem na página pública de abertura. <b>Toda a marca</b> = em todas as lojas;
         <b> loja específica</b> = só naquela loja (como no helpcenter antigo).
       </p>
+      <button
+        className="text-sm mb-4 rounded-lg border border-red-200 text-red-600 px-3 py-1.5 hover:bg-red-50"
+        onClick={desativarTodos}
+      >
+        ✖ Desativar TODOS os campos extras desta marca (inclusive os por loja)
+      </button>
 
       {/* novo campo */}
       <div className="border border-slate-200 rounded-lg p-3 mb-5">

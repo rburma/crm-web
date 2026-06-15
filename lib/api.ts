@@ -991,6 +991,10 @@ export function configRemoverLogoQuadrado(id: number): Promise<MarcaConfig> {
 export function configCampos(marcaId: number): Promise<CampoConfig[]> {
   return req(`config/marcas/${marcaId}/campos`);
 }
+// Desativa TODOS os campos extras da marca (globais + de todas as lojas).
+export function configDesativarTodosCampos(marcaId: number): Promise<{ ok: boolean; desativados: number }> {
+  return req(`config/marcas/${marcaId}/campos/desativar-todos`, { method: "POST" });
+}
 export function configCriarCampo(body: {
   marca_id: number; loja_id?: number | null; nome: string;
   obrigatorio?: boolean; ordem?: number;

@@ -798,7 +798,7 @@ export type PublicoConversa = {
   marca_favicon_path?: string | null;
   cliente_nome: string | null; criado_em: string | null;
   pode_avaliar?: boolean; ja_avaliada?: boolean;
-  mensagens: { autor: "voce" | "equipe"; texto: string; criado_em: string | null }[];
+  mensagens: { autor: "voce" | "equipe"; texto: string; anexo_url?: string | null; criado_em: string | null }[];
 };
 export function publicoAcompanhar(numero: string, email: string): Promise<PublicoConversa> {
   return req(`publico/atendimentos/${encodeURIComponent(numero)}?email=${encodeURIComponent(email)}`);
@@ -811,6 +811,16 @@ export function publicoResponder(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, texto }),
   });
+}
+
+// O cliente anexa uma foto ao atendimento (sobe pro Box; máx 3 por atendimento).
+export function publicoAnexarFoto(
+  numero: string, email: string, arquivo: File,
+): Promise<{ ok: boolean; anexo_url: string }> {
+  const fd = new FormData();
+  fd.append("email", email);
+  fd.append("arquivo", arquivo);
+  return req(`publico/atendimentos/${encodeURIComponent(numero)}/foto`, { method: "POST", body: fd });
 }
 
 // O cliente marca como resolvido (encerra; pode avaliar em seguida).

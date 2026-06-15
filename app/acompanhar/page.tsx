@@ -6,10 +6,12 @@ import { useSearchParams } from "next/navigation";
 import {
   publicoAcompanhar,
   publicoEncerrar,
+  publicoAnexarFoto,
   publicoResponder,
   type PublicoConversa,
 } from "@/lib/api";
 import { useFaviconMarca } from "@/lib/useFaviconMarca";
+import { paraJpegReduzido } from "@/lib/reduzirImagem";
 
 function fmtDH(iso: string | null): string {
   if (!iso) return "";
@@ -30,6 +32,7 @@ function AcompanharInner() {
   const [carregando, setCarregando] = useState(false);
   const [resposta, setResposta] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [anexando, setAnexando] = useState(false);
 
   const cor = conv?.marca_tema?.cor || "#0f6bd7";
 
@@ -66,6 +69,20 @@ function AcompanharInner() {
       setErro(String((e as Error).message || e));
     } finally {
       setEnviando(false);
+    }
+  }
+
+  async function anexarFotoCliente(file: File | null) {
+    if (!conv || !file) return;
+    setAnexando(true); setErro("");
+    try {
+      const leve = await paraJpegReduzido(file);
+      await publicoAnexarFoto(conv.numero, email.trim(), leve);
+      await buscar(conv.numero, email.trim());
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setAnexando(false);
     }
   }
 
@@ -161,6 +178,12 @@ function AcompanharInner() {
                       m.autor === "voce" ? "bg-brand-50" : "bg-emerald-50"
                     }`}>
                       {m.texto}
+                      {m.anexo_url ? (
+                        <a href={m.anexo_url} target="_blank" rel="noreferrer"
+                          className="block mt-1 font-medium underline" style={{ color: cor }}>
+                          📎 Ver foto
+                        </a>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -178,11 +201,18 @@ function AcompanharInner() {
                   <p className="text-[11px] text-slate-400">
                     {conv.status === "encerrada" ? "Responder reabre o atendimento." : ""}
                   </p>
-                  <button onClick={responder} disabled={enviando || !resposta.trim()}
-                    className="text-white font-semibold rounded-lg px-5 py-2 disabled:opacity-50"
-                    style={{ background: cor }}>
-                    {enviando ? "Enviando…" : "Enviar resposta"}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <label className={`text-sm cursor-pointer underline ${anexando ? "opacity-50 pointer-events-none" : ""}`} style={{ color: cor }}>
+                      {anexando ? "Anexando…" : "📎 Anexar foto"}
+                      <input type="file" accept="image/*" className="hidden" disabled={anexando}
+                        onChange={(e) => { anexarFotoCliente(e.target.files?.[0] ?? null); e.currentTarget.value = ""; }} />
+                    </label>
+                    <button onClick={responder} disabled={enviando || !resposta.trim()}
+                      className="text-white font-semibold rounded-lg px-5 py-2 disabled:opacity-50"
+                      style={{ background: cor }}>
+                      {enviando ? "Enviando…" : "Enviar resposta"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

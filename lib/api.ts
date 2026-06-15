@@ -772,7 +772,12 @@ export type TemaMarca = {
   cor?: string; titulo?: string; boas_vindas?: string; rodape?: string;
   // Textos editáveis da página pública de atendimento (todos com fallback no código).
   subtitulo?: string; consent?: string; ph_assunto?: string; ph_loja?: string;
+  // Texto do checkbox de consentimento na AVALIAÇÃO (publicar na vitrine/redes).
+  consent_avaliacao?: string;
 };
+
+// Campo da avaliação ABERTA: nota (estrelas), texto (resposta livre) ou checkbox.
+export type PerguntaDef = { texto: string; tipo: "nota" | "texto" | "checkbox"; sugestao: string | null };
 export type PublicoMarca = {
   id: number; slug: string; nome: string | null; tema: TemaMarca;
   logo_path?: string | null;
@@ -882,11 +887,14 @@ export type AvaliacaoAbertaForm = {
   marca_logo_path: string | null;
   marca_favicon_path?: string | null;
   loja_id: number | null; loja: string | null;
-  perguntas: string[];
+  perguntas: PerguntaDef[];
+  consent_texto?: string;
 };
 export type AvaliacaoAbertaBody = {
-  nome: string; email?: string; telefone?: string; cpf?: string;
-  venda_ref?: string; notas: Record<string, number>; comentario?: string;
+  nome: string; email?: string; telefone?: string; telefone2?: string; cpf?: string;
+  venda_ref?: string; notas: Record<string, number>;
+  respostas?: Record<string, string>; comentario?: string;
+  canal?: string; autoriza_publicacao?: boolean;
   // No site, o cliente pode escolher a loja (autocomplete) — aí a avaliação já
   // cai na loja certa e vira atendimento dela.
   loja_id?: number;
@@ -949,7 +957,9 @@ export type CampoConfig = {
   tipo: string; ordem: number; ativo: boolean;
 };
 export type PerguntaConfig = {
-  id: number; marca_id: number; texto: string; ordem: number; ativo: boolean;
+  id: number; marca_id: number; texto: string;
+  tipo: "nota" | "texto" | "checkbox"; sugestao: string | null;
+  ordem: number; ativo: boolean;
 };
 
 export function configMarcas(): Promise<MarcaConfig[]> {
@@ -1037,7 +1047,7 @@ export function configImportarPerguntasPadrao(marcaId: number): Promise<{ ok: bo
   return req(`config/marcas/${marcaId}/perguntas/importar-padrao`, { method: "POST" });
 }
 export function configCriarPergunta(body: {
-  marca_id: number; texto: string; ordem?: number;
+  marca_id: number; texto: string; tipo?: string; sugestao?: string | null; ordem?: number;
 }): Promise<PerguntaConfig> {
   return req("config/perguntas", {
     method: "POST",
@@ -1046,7 +1056,8 @@ export function configCriarPergunta(body: {
   });
 }
 export function configEditarPergunta(
-  id: number, body: { texto?: string; ordem?: number; ativo?: boolean },
+  id: number,
+  body: { texto?: string; tipo?: string; sugestao?: string | null; ordem?: number; ativo?: boolean },
 ): Promise<PerguntaConfig> {
   return req(`config/perguntas/${id}`, {
     method: "PATCH",
@@ -1056,6 +1067,13 @@ export function configEditarPergunta(
 }
 export function configExcluirPergunta(id: number): Promise<{ ok: boolean }> {
   return req(`config/perguntas/${id}`, { method: "DELETE" });
+}
+export function configReordenarPerguntas(marcaId: number, ids: number[]): Promise<{ ok: boolean }> {
+  return req(`config/marcas/${marcaId}/perguntas/reordenar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
 }
 
 // ── Modelos de e-mail (por marca; padrão herdado do legado) ─────────

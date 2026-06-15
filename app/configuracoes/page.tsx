@@ -16,6 +16,7 @@ import {
   configExcluirCampo,
   configExcluirPergunta,
   configImportarPerguntasPadrao,
+  configReordenarPerguntas,
   configMarcas,
   configModelos,
   configModelosCatalogo,
@@ -944,6 +945,13 @@ function SecaoFormulario({ marca, onErro, onOk }: {
 }
 
 // ════════ 3. Avaliação (perguntas NPS) ════════
+const TIPOS_PERGUNTA: { v: "nota" | "texto" | "checkbox"; r: string; ico: string }[] = [
+  { v: "nota", r: "Nota (estrelas 1–5)", ico: "⭐" },
+  { v: "texto", r: "Resposta escrita", ico: "✍️" },
+  { v: "checkbox", r: "Caixa (sim/não)", ico: "☑️" },
+];
+const TIPO_ICO: Record<string, string> = { nota: "⭐", texto: "✍️", checkbox: "☑️" };
+
 function SecaoAvaliacao({ marca, onErro, onOk }: {
   marca: MarcaConfig; onErro: (e: string) => void; onOk: () => void;
 }) {
@@ -951,6 +959,14 @@ function SecaoAvaliacao({ marca, onErro, onOk }: {
   const [usandoPadrao, setUsandoPadrao] = useState(false);
   const [padrao, setPadrao] = useState<string[]>([]);
   const [novoTexto, setNovoTexto] = useState("");
+  const [novoTipo, setNovoTipo] = useState<"nota" | "texto" | "checkbox">("nota");
+  const [novaSugestao, setNovaSugestao] = useState("");
+  const [editando, setEditando] = useState<number | null>(null);
+  const [editTexto, setEditTexto] = useState("");
+  const [editSugestao, setEditSugestao] = useState("");
+  // Texto do consentimento (checkbox de publicação na vitrine) — salvo no tema.
+  const [consent, setConsent] = useState(marca.tema?.consent_avaliacao ?? "");
+  const [salvandoConsent, setSalvandoConsent] = useState(false);
 
   const carregar = useCallback(() => {
     configPerguntas(marca.id)
@@ -958,6 +974,7 @@ function SecaoAvaliacao({ marca, onErro, onOk }: {
       .catch((e) => onErro(String((e as Error).message || e)));
   }, [marca.id, onErro]);
   useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { setConsent(marca.tema?.consent_avaliacao ?? ""); }, [marca]);
 
   async function importarPadrao() {
     onErro("");
@@ -968,13 +985,16 @@ function SecaoAvaliacao({ marca, onErro, onOk }: {
     if (novoTexto.trim().length < 3) { onErro("Escreva a pergunta."); return; }
     onErro("");
     try {
-      await configCriarPergunta({ marca_id: marca.id, texto: novoTexto.trim(), ordem: perguntas.length });
-      setNovoTexto(""); carregar(); onOk();
+      await configCriarPergunta({
+        marca_id: marca.id, texto: novoTexto.trim(), tipo: novoTipo,
+        sugestao: novaSugestao.trim() || null, ordem: perguntas.length,
+      });
+      setNovoTexto(""); setNovaSugestao(""); setNovoTipo("nota"); carregar(); onOk();
     } catch (e) { onErro(String((e as Error).message || e)); }
   }
-  async function alternar(p: PerguntaConfig, patch: Parameters<typeof configEditarPergunta>[1]) {
+  async function patch(p: PerguntaConfig, body: Parameters<typeof configEditarPergunta>[1]) {
     onErro("");
-    try { await configEditarPergunta(p.id, patch); carregar(); onOk(); }
+    try { await configEditarPergunta(p.id, body); carregar(); onOk(); }
     catch (e) { onErro(String((e as Error).message || e)); }
   }
   async function excluir(p: PerguntaConfig) {
@@ -983,13 +1003,44 @@ function SecaoAvaliacao({ marca, onErro, onOk }: {
     try { await configExcluirPergunta(p.id); carregar(); onOk(); }
     catch (e) { onErro(String((e as Error).message || e)); }
   }
+  async function mover(i: number, delta: number) {
+    const j = i + delta;
+    if (j < 0 || j >= perguntas.length) return;
+    const nova = [...perguntas];
+    [nova[i], nova[j]] = [nova[j], nova[i]];
+    setPerguntas(nova);  // otimista
+    onErro("");
+    try { await configReordenarPerguntas(marca.id, nova.map((p) => p.id)); onOk(); }
+    catch (e) { onErro(String((e as Error).message || e)); carregar(); }
+  }
+  function abrirEdicao(p: PerguntaConfig) {
+    setEditando(p.id); setEditTexto(p.texto); setEditSugestao(p.sugestao ?? "");
+  }
+  async function salvarEdicao(p: PerguntaConfig) {
+    onErro("");
+    try {
+      await configEditarPergunta(p.id, { texto: editTexto.trim(), sugestao: editSugestao.trim() || null });
+      setEditando(null); carregar(); onOk();
+    } catch (e) { onErro(String((e as Error).message || e)); }
+  }
+  async function salvarConsent() {
+    setSalvandoConsent(true); onErro("");
+    try {
+      const tema: Record<string, string> = {};
+      for (const [k, v] of Object.entries(marca.tema || {})) if (v != null) tema[k] = String(v);
+      tema.consent_avaliacao = consent;
+      await configEditarMarca(marca.id, { tema });
+      onOk();
+    } catch (e) { onErro(String((e as Error).message || e)); }
+    finally { setSalvandoConsent(false); }
+  }
 
   return (
     <div className="max-w-2xl">
-      <h2 className="font-bold mb-1">Perguntas da avaliação (escala 1–5 ⭐)</h2>
+      <h2 className="font-bold mb-1">Campos da avaliação</h2>
       <p className="text-sm text-slate-500 mb-4">
-        O cliente avalia quando o atendimento é encerrado (link na página de acompanhamento).
-        Personalize por marca — ex.: perguntas de <b>delivery</b>.
+        Monte o formulário de avaliação da marca: <b>notas</b> (estrelas), <b>respostas escritas</b> e
+        <b> caixas de seleção</b>. Arraste a ordem com as setas. Personalize por marca — ex.: campos de <b>delivery</b>.
       </p>
 
       {usandoPadrao && (
@@ -1004,25 +1055,76 @@ function SecaoAvaliacao({ marca, onErro, onOk }: {
         </div>
       )}
 
-      <div className="flex gap-2 mb-4">
-        <input className="input" placeholder="Nova pergunta — ex.: O pedido chegou no prazo? (delivery)"
-          value={novoTexto} onChange={(e) => setNovoTexto(e.target.value)} />
-        <button className="btn-primary shrink-0" onClick={criar}>＋</button>
+      <div className="rounded-lg border border-slate-200 p-3 mb-4 space-y-2">
+        <div className="flex gap-2">
+          <input className="input" placeholder="Novo campo — ex.: O pedido chegou no prazo?"
+            value={novoTexto} onChange={(e) => setNovoTexto(e.target.value)} />
+          <select className="input w-44 shrink-0" value={novoTipo}
+            onChange={(e) => setNovoTipo(e.target.value as "nota" | "texto" | "checkbox")}>
+            {TIPOS_PERGUNTA.map((t) => <option key={t.v} value={t.v}>{t.ico} {t.r}</option>)}
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <input className="input" placeholder="Sugestão/dica ao cliente (opcional) — ex.: Conte o que achou"
+            value={novaSugestao} onChange={(e) => setNovaSugestao(e.target.value)} />
+          <button className="btn-primary shrink-0" onClick={criar}>＋ Adicionar</button>
+        </div>
       </div>
 
       <div className="space-y-1">
         {perguntas.map((p, i) => (
-          <div key={p.id} className={`flex items-center justify-between rounded-lg px-3 py-1.5 text-sm ${p.ativo ? "hover:bg-slate-50" : "opacity-50 bg-slate-50"}`}>
-            <span className="truncate">{i + 1}. {p.texto}</span>
-            <span className="shrink-0 flex items-center gap-2 ml-2">
-              <button onClick={() => alternar(p, { ativo: !p.ativo })} className="text-xs text-slate-500 hover:underline">
-                {p.ativo ? "desativar" : "ativar"}
-              </button>
-              <button onClick={() => excluir(p)} className="text-xs text-red-500 hover:underline">excluir</button>
-            </span>
+          <div key={p.id} className={`rounded-lg px-3 py-1.5 text-sm ${p.ativo ? "hover:bg-slate-50" : "opacity-50 bg-slate-50"}`}>
+            {editando === p.id ? (
+              <div className="space-y-2 py-1">
+                <input className="input" value={editTexto} onChange={(e) => setEditTexto(e.target.value)} />
+                <input className="input" placeholder="Sugestão/dica (opcional)"
+                  value={editSugestao} onChange={(e) => setEditSugestao(e.target.value)} />
+                <div className="flex gap-2">
+                  <button className="btn-primary text-xs px-3 py-1" onClick={() => salvarEdicao(p)}>salvar</button>
+                  <button className="btn-ghost text-xs px-3 py-1" onClick={() => setEditando(null)}>cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="flex flex-col leading-none">
+                    <button className="text-slate-400 hover:text-slate-700 text-xs disabled:opacity-30"
+                      disabled={i === 0} onClick={() => mover(i, -1)}>▲</button>
+                    <button className="text-slate-400 hover:text-slate-700 text-xs disabled:opacity-30"
+                      disabled={i === perguntas.length - 1} onClick={() => mover(i, 1)}>▼</button>
+                  </span>
+                  <span title={p.tipo} className="shrink-0">{TIPO_ICO[p.tipo] ?? "⭐"}</span>
+                  <span className="truncate">
+                    {i + 1}. {p.texto}
+                    {p.sugestao && <span className="block text-xs text-slate-400 truncate">{p.sugestao}</span>}
+                  </span>
+                </span>
+                <span className="shrink-0 flex items-center gap-2 ml-2">
+                  <button onClick={() => abrirEdicao(p)} className="text-xs text-slate-500 hover:underline">editar</button>
+                  <button onClick={() => patch(p, { ativo: !p.ativo })} className="text-xs text-slate-500 hover:underline">
+                    {p.ativo ? "desativar" : "ativar"}
+                  </button>
+                  <button onClick={() => excluir(p)} className="text-xs text-red-500 hover:underline">excluir</button>
+                </span>
+              </div>
+            )}
           </div>
         ))}
-        {perguntas.length === 0 && !usandoPadrao && <p className="text-xs text-slate-400">Nenhuma pergunta.</p>}
+        {perguntas.length === 0 && !usandoPadrao && <p className="text-xs text-slate-400">Nenhum campo.</p>}
+      </div>
+
+      <div className="mt-6 border-t border-slate-200 pt-4">
+        <h3 className="font-semibold text-sm mb-1">Texto do consentimento (publicação na vitrine)</h3>
+        <p className="text-xs text-slate-500 mb-2">
+          Aparece como caixa de marcação na avaliação. Marcando, o cliente autoriza publicar a avaliação
+          no site, redes sociais e telas das lojas. Em branco, usamos um texto padrão.
+        </p>
+        <textarea className="input" rows={2} value={consent}
+          placeholder="Ex.: Autorizo a publicação da minha avaliação (com meu primeiro nome) no site, nas redes sociais e nas telas das lojas."
+          onChange={(e) => setConsent(e.target.value)} />
+        <button className="btn-primary text-sm mt-2" onClick={salvarConsent} disabled={salvandoConsent}>
+          {salvandoConsent ? "Salvando…" : "Salvar texto"}
+        </button>
       </div>
     </div>
   );

@@ -28,6 +28,13 @@ function Estrelas({ valor, onChange }: { valor: number; onChange: (n: number) =>
   );
 }
 
+const CANAIS = [
+  { v: "", r: "Não informar" },
+  { v: "loja física", r: "Loja física" },
+  { v: "delivery", r: "Delivery" },
+  { v: "loja virtual", r: "Loja virtual (site/app)" },
+];
+
 /** Página pública de avaliação ABERTA (sem atendimento): da LOJA (QR no balcão)
  *  ou do SITE (marca). Com ou sem compra (nº do pedido opcional). */
 export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
@@ -37,12 +44,17 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
   useFaviconMarca(form?.marca_favicon_path);
   const [erro, setErro] = useState("");
   const [nome, setNome] = useState("");
+  const [sobrenome, setSobrenome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [telefone2, setTelefone2] = useState("");
   const [pedido, setPedido] = useState("");
+  const [canal, setCanal] = useState("");
   const [notas, setNotas] = useState<Record<string, number>>({});
+  const [respostas, setRespostas] = useState<Record<string, string>>({});
   const [comentario, setComentario] = useState("");
   const [fotos, setFotos] = useState<File[]>([]);
+  const [autoriza, setAutoriza] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [obrigado, setObrigado] = useState("");
   // Picker de loja (só no modo site): o cliente escolhe a loja que visitou.
@@ -51,6 +63,8 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
   const [lojaSel, setLojaSel] = useState<{ id: number; nome: string } | null>(null);
 
   const cor = form?.marca_tema?.cor || "#0f6bd7";
+  const consentTexto = (form?.consent_texto || "").trim()
+    || "Autorizo a WT a publicar minha avaliação (com meu primeiro nome) no site, nas redes sociais e nos materiais e telas das lojas da marca.";
 
   useEffect(() => {
     const carregar = modo === "loja"
@@ -87,16 +101,25 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
       setErro("Para anexar fotos, informe seu e-mail."); return;
     }
     const dadas = Object.fromEntries(Object.entries(notas).filter(([, v]) => v >= 1));
-    if (Object.keys(dadas).length === 0) { setErro("Dê ao menos uma nota."); return; }
+    const ditas: Record<string, string> = {};
+    for (const [k, v] of Object.entries(respostas)) { const t = v.trim(); if (t) ditas[k] = t; }
+    if (Object.keys(dadas).length === 0 && Object.keys(ditas).length === 0) {
+      setErro("Responda ao menos um campo da avaliação."); return;
+    }
     setEnviando(true);
     try {
+      const nomeCompleto = [nome.trim(), sobrenome.trim()].filter(Boolean).join(" ");
       const body = {
-        nome: nome.trim(),
+        nome: nomeCompleto,
         email: email.trim() || undefined,
         telefone: telefone.trim() || undefined,
+        telefone2: telefone2.trim() || undefined,
         venda_ref: pedido.trim() || undefined,
+        canal: canal || undefined,
         notas: dadas,
+        respostas: ditas,
         comentario: comentario.trim() || undefined,
+        autoriza_publicacao: autoriza,
         // Site: se o cliente escolheu a loja, já direciona a avaliação a ela.
         loja_id: modo === "site" ? lojaSel?.id : undefined,
       };
@@ -162,13 +185,21 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
               </p>
               {erro && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">{erro}</div>}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                <div><label className="label">Seu nome *</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div><label className="label">Nome *</label>
                   <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></div>
+                <div><label className="label">Sobrenome</label>
+                  <input className="input" value={sobrenome} onChange={(e) => setSobrenome(e.target.value)} /></div>
                 <div><label className="label">E-mail</label>
                   <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div><label className="label">Telefone / WhatsApp</label>
                   <input className="input" value={telefone} onChange={(e) => setTelefone(e.target.value)} /></div>
+                <div><label className="label">2º telefone (opcional)</label>
+                  <input className="input" value={telefone2} onChange={(e) => setTelefone2(e.target.value)} /></div>
+                <div><label className="label">Como foi seu contato?</label>
+                  <select className="input" value={canal} onChange={(e) => setCanal(e.target.value)}>
+                    {CANAIS.map((c) => <option key={c.v} value={c.v}>{c.r}</option>)}
+                  </select></div>
               </div>
               <div className="mb-4">
                 <label className="label">Nº do pedido / cupom (se comprou — opcional)</label>
@@ -207,13 +238,40 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
               )}
 
               <div className="space-y-3">
-                {form.perguntas.map((p, i) => (
-                  <div key={p} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-100 pb-2.5">
-                    <span className="text-sm">{i + 1}. {p}</span>
-                    <Estrelas valor={notas[p] ?? 0}
-                      onChange={(n) => setNotas({ ...notas, [p]: n })} />
-                  </div>
-                ))}
+                {form.perguntas.map((p, i) => {
+                  if (p.tipo === "texto") {
+                    return (
+                      <div key={p.texto} className="border-b border-slate-100 pb-2.5">
+                        <label className="label">{i + 1}. {p.texto}</label>
+                        <textarea className="input" rows={2}
+                          value={respostas[p.texto] ?? ""}
+                          placeholder={p.sugestao ?? ""}
+                          onChange={(e) => setRespostas({ ...respostas, [p.texto]: e.target.value })} />
+                      </div>
+                    );
+                  }
+                  if (p.tipo === "checkbox") {
+                    const marcado = (respostas[p.texto] ?? "") === "sim";
+                    return (
+                      <label key={p.texto} className="flex items-start gap-2 border-b border-slate-100 pb-2.5 cursor-pointer">
+                        <input type="checkbox" className="mt-1" checked={marcado}
+                          onChange={(e) => setRespostas({ ...respostas, [p.texto]: e.target.checked ? "sim" : "" })} />
+                        <span className="text-sm">
+                          {i + 1}. {p.texto}
+                          {p.sugestao && <span className="block text-xs text-slate-400">{p.sugestao}</span>}
+                        </span>
+                      </label>
+                    );
+                  }
+                  // tipo "nota" (estrelas)
+                  return (
+                    <div key={p.texto} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-100 pb-2.5">
+                      <span className="text-sm">{i + 1}. {p.texto}</span>
+                      <Estrelas valor={notas[p.texto] ?? 0}
+                        onChange={(n) => setNotas({ ...notas, [p.texto]: n })} />
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-4">
                 <label className="label">Comentários (opcional)</label>
@@ -241,6 +299,13 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
                   <p className="text-xs text-amber-600 mt-1">Para anexar fotos, informe seu e-mail acima.</p>
                 )}
               </div>
+
+              <label className="mt-4 flex items-start gap-2 cursor-pointer rounded-lg bg-slate-50 border border-slate-200 p-3">
+                <input type="checkbox" className="mt-0.5" checked={autoriza}
+                  onChange={(e) => setAutoriza(e.target.checked)} />
+                <span className="text-xs text-slate-600">{consentTexto}</span>
+              </label>
+
               <div className="mt-5">
                 <button onClick={enviar} disabled={enviando}
                   className="text-white font-semibold rounded-lg px-6 py-2.5 disabled:opacity-50"

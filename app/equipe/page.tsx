@@ -5,6 +5,7 @@ import Shell from "@/components/Shell";
 import LojaCadastro from "@/components/LojaCadastro";
 import DispositivosLoja from "@/components/DispositivosLoja";
 import {
+  criarLoja,
   entrarComo,
   equipeAlterarAdmin,
   equipeBuscarUsuarios,
@@ -44,6 +45,14 @@ export default function EquipePage() {
 
   // modal "cadastro da loja" (e-mail + campos/placeholders)
   const [cadLoja, setCadLoja] = useState<LojaEquipe | null>(null);
+  // modal "novo departamento" (criar loja na marca selecionada)
+  const [novoDept, setNovoDept] = useState(false);
+  const [ndNome, setNdNome] = useState("");
+  const [ndSigla, setNdSigla] = useState("");
+  const [ndCidade, setNdCidade] = useState("");
+  const [ndUf, setNdUf] = useState("");
+  const [ndEmail, setNdEmail] = useState("");
+  const [ndSalvando, setNdSalvando] = useState(false);
   // modal "dispositivos da loja" (app de balcão: online/offline + revogar)
   const [dispLoja, setDispLoja] = useState<LojaEquipe | null>(null);
 
@@ -135,6 +144,34 @@ export default function EquipePage() {
     try { setLojasUser(await equipeLojasDoUsuario(id)); } catch { setLojasUser([]); }
   }
 
+  function abrirNovoDept() {
+    setNdNome(""); setNdSigla(""); setNdCidade(""); setNdUf(""); setNdEmail("");
+    setNovoDept(true);
+  }
+
+  async function criarDepartamento() {
+    if (marcaSel === null) { setErro("Escolha uma marca antes de criar o departamento."); return; }
+    if (ndNome.trim().length < 1) { setErro("Dê um nome ao departamento."); return; }
+    setNdSalvando(true); setErro("");
+    try {
+      await criarLoja({
+        marca_id: marcaSel,
+        nome: ndNome.trim(),
+        sigla: ndSigla.trim().toUpperCase() || undefined,
+        cidade: ndCidade.trim() || undefined,
+        uf: ndUf.trim().toUpperCase() || undefined,
+        email: ndEmail.trim() || undefined,
+      });
+      setNovoDept(false);
+      await carregarLojas();
+      carregarResumo();
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setNdSalvando(false);
+    }
+  }
+
   async function comoUsuario(id: number, nome: string | null) {
     if (!confirm(
       `Entrar como "${nome ?? `#${id}`}"?\n\nUma nova janela vai abrir mostrando o sistema ` +
@@ -194,7 +231,14 @@ export default function EquipePage() {
 
         {/* coluna 2 — lojas da marca */}
         <div className="card p-3">
-          <div className="label">Lojas / Departamentos {totalLojas ? `(${totalLojas})` : ""}</div>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="label mb-0">Lojas / Departamentos {totalLojas ? `(${totalLojas})` : ""}</div>
+            <button onClick={abrirNovoDept} disabled={marcaSel === null}
+              className="text-xs text-brand-700 hover:underline disabled:opacity-40 shrink-0"
+              title="Criar um novo departamento/loja nesta marca">
+              ＋ Novo
+            </button>
+          </div>
           <input className="input mb-2" placeholder="🔎 Buscar loja…" value={qLoja}
             onChange={(e) => setQLoja(e.target.value)} />
           <div className="space-y-1 max-h-[520px] overflow-y-auto">
@@ -293,12 +337,66 @@ export default function EquipePage() {
         </div>
       </div>
 
+      {/* modal: novo departamento */}
+      {novoDept && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+          onClick={() => setNovoDept(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-5"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold">Novo departamento / loja</h2>
+              <button onClick={() => setNovoDept(false)} className="text-slate-400 hover:text-slate-700">✕</button>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Cria nesta marca:{" "}
+              <b>{resumo?.marcas.find((m) => m.id === marcaSel)?.nome ?? "—"}</b>.
+              Depois vincule a equipe pela coluna ao lado.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="label">Nome *</label>
+                <input className="input" placeholder="Ex.: WT Iguatemi, Delivery SP…"
+                  value={ndNome} onChange={(e) => setNdNome(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-[1fr_auto] gap-3">
+                <div>
+                  <label className="label">Sigla (liga com o cobrança)</label>
+                  <input className="input font-mono" placeholder="Ex.: WTIGUA"
+                    value={ndSigla} onChange={(e) => setNdSigla(e.target.value.toUpperCase())} />
+                </div>
+                <div>
+                  <label className="label">UF</label>
+                  <input className="input w-16 uppercase" maxLength={2} placeholder="SP"
+                    value={ndUf} onChange={(e) => setNdUf(e.target.value.toUpperCase())} />
+                </div>
+              </div>
+              <div>
+                <label className="label">Cidade</label>
+                <input className="input" value={ndCidade} onChange={(e) => setNdCidade(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">E-mail da loja (notificações)</label>
+                <input className="input" type="email" placeholder="loja@marca.com.br"
+                  value={ndEmail} onChange={(e) => setNdEmail(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button className="btn-ghost" onClick={() => setNovoDept(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={criarDepartamento} disabled={ndSalvando || !ndNome.trim()}>
+                {ndSalvando ? "Criando…" : "Criar departamento"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* modal: cadastro da loja */}
       {cadLoja && (
         <LojaCadastro
           lojaId={cadLoja.id}
           lojaNome={cadLoja.nome}
           onClose={() => setCadLoja(null)}
+          onSalvo={() => { carregarLojas(); carregarResumo(); }}
         />
       )}
 

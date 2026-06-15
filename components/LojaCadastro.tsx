@@ -35,6 +35,8 @@ export default function LojaCadastro({
   onSalvo?: () => void;
 }) {
   const [campos, setCampos] = useState<LojaCampoDef[]>([]);
+  const [nome, setNome] = useState(lojaNome);
+  const [ativo, setAtivo] = useState(true);
   const [email, setEmail] = useState("");
   const [sigla, setSigla] = useState("");
   const [valores, setValores] = useState<Record<string, string>>({});
@@ -53,6 +55,8 @@ export default function LojaCadastro({
     try {
       const [cs, det] = await Promise.all([lojaCampos(), lojaDetalhe(lojaId)]);
       setCampos(cs);
+      setNome(det.nome ?? lojaNome);
+      setAtivo(det.ativo);
       setEmail(det.email ?? "");
       setSigla(det.sigla ?? "");
       setValores({ ...(det.atributos ?? {}) });
@@ -61,7 +65,7 @@ export default function LojaCadastro({
     } finally {
       setCarregando(false);
     }
-  }, [lojaId]);
+  }, [lojaId, lojaNome]);
 
   useEffect(() => {
     carregar();
@@ -75,8 +79,11 @@ export default function LojaCadastro({
     setSalvando(true);
     setErro("");
     setOkMsg("");
+    if (nome.trim().length < 1) { setErro("O nome do departamento não pode ficar vazio."); setSalvando(false); return; }
     try {
-      await lojaSalvarDados(lojaId, { email, sigla: sigla.trim().toUpperCase() });
+      await lojaSalvarDados(lojaId, {
+        nome: nome.trim(), email, sigla: sigla.trim().toUpperCase(), ativo,
+      });
       await lojaSalvarAtributos(lojaId, valores);
       setOkMsg("Cadastro salvo.");
       onSalvo?.();
@@ -156,6 +163,23 @@ export default function LojaCadastro({
             <p className="text-sm text-slate-400 py-6 text-center">Carregando…</p>
           ) : (
             <>
+              {/* Nome do departamento + ativo/inativo */}
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+                <div>
+                  <label className="label">Nome do departamento / loja</label>
+                  <input
+                    className="input"
+                    placeholder="Ex.: WT Iguatemi, Delivery SP…"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm pb-2 cursor-pointer whitespace-nowrap">
+                  <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
+                  Ativo
+                </label>
+              </div>
+
               {/* E-mail oficial da loja (notificações) */}
               <div>
                 <label className="label">

@@ -279,10 +279,20 @@ export function lojaDetalhe(id: number): Promise<LojaCadastro> {
 // Salva campos FIXOS (nome/cidade/uf/email — e-mail das notificações).
 export function lojaSalvarDados(
   id: number,
-  dados: { nome?: string; cidade?: string; uf?: string; email?: string; sigla?: string },
+  dados: { nome?: string; cidade?: string; uf?: string; email?: string; sigla?: string; ativo?: boolean },
 ): Promise<LojaCadastro> {
   return req<LojaCadastro>(`lojas-cadastro/${id}/dados`, {
     method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+}
+// Cria um departamento/loja novo numa marca (papel global). Retorna a loja criada.
+export function criarLoja(
+  dados: { marca_id: number; nome: string; cidade?: string; uf?: string; email?: string; sigla?: string },
+): Promise<LojaCadastro> {
+  return req<LojaCadastro>("lojas-cadastro", {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(dados),
   });

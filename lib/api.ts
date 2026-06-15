@@ -178,6 +178,7 @@ export type Mensagem = {
   autor_id: number | null;
   texto: string;
   privado: boolean;
+  anexo_url?: string | null;
   criado_em: string | null;
 };
 
@@ -392,6 +393,16 @@ export function criarAtendimento(body: {
 
 export function detalheAtendimento(id: number | string, msgLimit = 300): Promise<AtendimentoDetalhe> {
   return req<AtendimentoDetalhe>(`atendimentos/${id}?msg_limit=${msgLimit}`);
+}
+// Anexa uma FOTO ao atendimento: sobe pro Box (servidor) e devolve o link. O
+// arquivo já vem reduzido do navegador (lib/reduzirImagem). privado=true = nota interna.
+export function anexarFoto(
+  atendimentoId: number | string, arquivo: File, privado = true,
+): Promise<{ id: number; anexo_url: string; texto: string; privado: boolean; autor_tipo: string; criado_em: string | null }> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  fd.append("privado", privado ? "true" : "false");
+  return req(`atendimentos/${atendimentoId}/foto`, { method: "POST", body: fd });
 }
 
 // Muda o status do atendimento (aberta | em_espera | encerrada). Auditado.

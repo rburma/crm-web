@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import {
+  anexarFoto,
   detalheAtendimento,
   fmtDataHora,
   fmtTelefone,
@@ -18,6 +19,7 @@ import {
   type LojaItem,
   type Mensagem,
 } from "@/lib/api";
+import { paraJpegReduzido } from "@/lib/reduzirImagem";
 
 function iniciais(nome?: string | null): string {
   const partes = (nome || "").trim().split(/\s+/).filter(Boolean);
@@ -81,6 +83,16 @@ function Evento({ m, clienteNome }: { m: Mensagem; clienteNome?: string | null }
           }`}
         >
           {m.texto || "—"}
+          {m.anexo_url ? (
+            <a
+              href={m.anexo_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1 font-medium text-brand-700 hover:underline"
+            >
+              📎 Ver foto
+            </a>
+          ) : null}
         </div>
       </div>
     </div>
@@ -104,6 +116,7 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
   const [enviarEmail, setEnviarEmail] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [respMsg, setRespMsg] = useState("");
+  const [anexando, setAnexando] = useState(false);
 
   async function carregar() {
     try {
@@ -141,6 +154,22 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
       setRespMsg("✓ Atendimento transferido.");
     } catch (err) {
       setRespMsg(err instanceof Error ? err.message : "Erro ao transferir");
+    }
+  }
+
+  async function anexar(file: File | null) {
+    if (!file) return;
+    setAnexando(true);
+    setRespMsg("");
+    try {
+      const leve = await paraJpegReduzido(file);
+      await anexarFoto(params.id, leve, privado);
+      setRespMsg("Foto anexada.");
+      await carregar();
+    } catch (e) {
+      setRespMsg(String((e as Error).message || e));
+    } finally {
+      setAnexando(false);
     }
   }
 
@@ -378,6 +407,18 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                     onChange={(e) => setEnviarEmail(e.target.checked)}
                   />
                   Enviar por e-mail ao cliente
+                </label>
+                <label
+                  className={`text-sm cursor-pointer flex items-center gap-1 text-brand-700 hover:underline ${anexando ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  {anexando ? "Anexando…" : "📎 Anexar foto"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={anexando}
+                    onChange={(e) => { anexar(e.target.files?.[0] ?? null); e.currentTarget.value = ""; }}
+                  />
                 </label>
                 <button
                   className="btn-primary ml-auto"

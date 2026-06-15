@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
+  boxDesconectar,
+  boxIniciar,
+  boxStatus,
   configCampos,
   configCriarCampo,
   configDesativarTodosCampos,
@@ -42,7 +45,7 @@ import {
 } from "@/lib/api";
 import { paraPngQuadrado } from "@/lib/imagemQuadrada";
 
-type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral" | "autoresposta" | "vitrine";
+type Secao = "aparencia" | "email" | "modelos" | "formulario" | "avaliacao" | "paginas" | "geral" | "autoresposta" | "vitrine" | "box";
 
 const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "aparencia", rotulo: "1. Marca & Aparência" },
@@ -54,6 +57,7 @@ const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "geral", rotulo: "7. Configurações gerais" },
   { id: "autoresposta", rotulo: "8. Auto-resposta" },
   { id: "vitrine", rotulo: "9. Vitrine de avaliações" },
+  { id: "box", rotulo: "10. Box (anexos)" },
 ];
 
 export default function ConfiguracoesPage() {
@@ -133,10 +137,77 @@ export default function ConfiguracoesPage() {
             <SecaoAutoresposta marca={marca} onSalvo={(m) => { recarregarMarcas(m.id); flash("Salvo!"); }} onErro={setErro} onOk={() => flash("Salvo!")} />
           )}
           {marca && secao === "vitrine" && <SecaoVitrine marca={marca} />}
+          {secao === "box" && <SecaoBox />}
           {!marca && <p className="text-sm text-slate-400">Carregando…</p>}
         </div>
       </div>
     </Shell>
+  );
+}
+
+// ════════ 10. Box (anexos de atendimento) ════════
+function SecaoBox() {
+  const [st, setSt] = useState<{ configurado: boolean; conectado: boolean } | null>(null);
+  const [erro, setErro] = useState("");
+  const [ok, setOk] = useState("");
+  const [carregando, setCarregando] = useState(true);
+
+  const carregar = useCallback(async () => {
+    setCarregando(true); setErro("");
+    try { setSt(await boxStatus()); }
+    catch (e) { setErro(String((e as Error).message || e)); }
+    finally { setCarregando(false); }
+  }, []);
+  useEffect(() => { carregar(); }, [carregar]);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("box");
+    if (p === "conectado") { setOk("✅ Box conectado!"); carregar(); }
+    else if (p === "erro") setErro("Não foi possível conectar ao Box. Tente de novo.");
+  }, [carregar]);
+
+  async function conectar() {
+    setErro("");
+    try {
+      const r = await boxIniciar();
+      window.location.href = r.url;
+    } catch (e) { setErro(String((e as Error).message || e)); }
+  }
+  async function desconectar() {
+    if (!confirm("Desconectar o Box? As fotos param de subir até reconectar.")) return;
+    setErro(""); setOk("");
+    try { await boxDesconectar(); carregar(); }
+    catch (e) { setErro(String((e as Error).message || e)); }
+  }
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <h2 className="font-bold">Box — anexos de atendimento</h2>
+      <p className="text-sm text-slate-500">
+        Conecte UMA vez o app do Box do CRM. As fotos dos atendimentos sobem para a pasta
+        “Contact Center” e o acesso renova sozinho.
+      </p>
+      {ok && <div className="card p-3 border-emerald-200 bg-emerald-50 text-sm text-emerald-700">{ok}</div>}
+      {erro && <div className="card p-3 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
+      {carregando ? (
+        <p className="text-sm text-slate-400">Carregando…</p>
+      ) : !st?.configurado ? (
+        <div className="card p-3 border-amber-200 bg-amber-50 text-sm text-amber-700">
+          Faltam as credenciais no servidor (BOX_CLIENT_ID / BOX_CLIENT_SECRET + a pasta).
+        </div>
+      ) : st.conectado ? (
+        <div className="space-y-3">
+          <div className="card p-3 border-emerald-200 bg-emerald-50 text-sm text-emerald-700">
+            ✅ Box conectado — as fotos já sobem.
+          </div>
+          <button className="text-sm text-red-600 hover:underline" onClick={desconectar}>
+            Desconectar
+          </button>
+        </div>
+      ) : (
+        <button className="btn-primary" onClick={conectar}>Conectar Box</button>
+      )}
+    </div>
   );
 }
 

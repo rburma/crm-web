@@ -456,6 +456,17 @@ export function me(): Promise<UsuarioLogado> {
   return req("auth/me");
 }
 
+// ── 📦 Box (anexos de atendimento) — conexão OAuth global (admin) ──
+export function boxStatus(): Promise<{ configurado: boolean; conectado: boolean }> {
+  return req("box/status");
+}
+export function boxIniciar(): Promise<{ url: string }> {
+  return req("box/oauth/iniciar");
+}
+export function boxDesconectar(): Promise<{ ok: boolean }> {
+  return req("box/desconectar", { method: "POST" });
+}
+
 // ── 🚀 Planilha de Go-live (importa lojas + usuários Google + CNPJ) ──
 export type GoLiveDetalhe = {
   linha: number; sigla: string; loja?: string; acoes: string[]; erro: string | null;

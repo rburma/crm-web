@@ -1,8 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { login, salvarSessao } from "@/lib/api";
+
+const MAPA_ERRO: Record<string, string> = {
+  "sem-acesso": "Sua conta Google não tem acesso ao CRM. Peça ao administrador.",
+  "email-nao-verificado": "Esse e-mail do Google não está verificado.",
+  "google-nao-configurado": "Login pelo Google ainda não foi configurado.",
+  "google-falhou": "Não foi possível concluir o login com o Google.",
+  sessao: "Sua sessão expirou. Entre novamente.",
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +18,11 @@ export default function LoginPage() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
+
+  useEffect(() => {
+    const e = new URLSearchParams(window.location.search).get("erro");
+    if (e) setErro(MAPA_ERRO[e] ?? "Não foi possível entrar. Tente de novo.");
+  }, []);
 
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
@@ -59,6 +72,15 @@ export default function LoginPage() {
         <button className="btn-primary w-full" disabled={carregando}>
           {carregando ? "Entrando…" : "Entrar"}
         </button>
+
+        {process.env.NEXT_PUBLIC_GOOGLE_LOGIN === "1" && (
+          <a
+            href="/api/auth/google/start"
+            className="btn-ghost w-full mt-3 flex items-center justify-center gap-2"
+          >
+            Entrar com Google
+          </a>
+        )}
       </form>
     </div>
   );

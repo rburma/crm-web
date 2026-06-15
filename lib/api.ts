@@ -451,6 +451,11 @@ export function login(email: string, senha: string): Promise<{ token: string; us
   });
 }
 
+// Usuário do token/sessão atual (usado ao finalizar o login pelo Google).
+export function me(): Promise<UsuarioLogado> {
+  return req("auth/me");
+}
+
 export function salvarSessao(token: string, usuario: UsuarioLogado): void {
   document.cookie = `crm_token=${token}; path=/; max-age=${7 * 86400}; samesite=lax`;
   try { localStorage.setItem("crm_usuario", JSON.stringify(usuario)); } catch { /* ignore */ }

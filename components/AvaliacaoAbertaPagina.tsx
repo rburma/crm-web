@@ -6,10 +6,12 @@ import {
   publicoAvaliacaoSiteForm,
   publicoAvaliarLoja,
   publicoAvaliarSite,
+  publicoAnexarFoto,
   publicoLojas,
   type AvaliacaoAbertaForm,
 } from "@/lib/api";
 import { useFaviconMarca } from "@/lib/useFaviconMarca";
+import { paraJpegReduzido } from "@/lib/reduzirImagem";
 
 function Estrelas({ valor, onChange }: { valor: number; onChange: (n: number) => void }) {
   return (
@@ -40,6 +42,7 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
   const [pedido, setPedido] = useState("");
   const [notas, setNotas] = useState<Record<string, number>>({});
   const [comentario, setComentario] = useState("");
+  const [fotos, setFotos] = useState<File[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [obrigado, setObrigado] = useState("");
   // Picker de loja (só no modo site): o cliente escolhe a loja que visitou.
@@ -65,12 +68,23 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
     return () => clearTimeout(t);
   }, [modo, ref_, lojaQ, lojaSel]);
 
+  async function addFoto(f: File | null) {
+    if (!f || fotos.length >= 3) return;
+    try {
+      const leve = await paraJpegReduzido(f);
+      setFotos((xs) => [...xs, leve].slice(0, 3));
+    } catch { /* imagem inválida */ }
+  }
+
   async function enviar() {
     if (!form) return;
     setErro("");
     if (nome.trim().length < 2) { setErro("Preencha seu nome."); return; }
     if (!email.trim() && !telefone.trim()) {
       setErro("Informe e-mail ou telefone (a avaliação não é anônima)."); return;
+    }
+    if (fotos.length > 0 && !email.trim()) {
+      setErro("Para anexar fotos, informe seu e-mail."); return;
     }
     const dadas = Object.fromEntries(Object.entries(notas).filter(([, v]) => v >= 1));
     if (Object.keys(dadas).length === 0) { setErro("Dê ao menos uma nota."); return; }
@@ -89,6 +103,12 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
       const r = modo === "loja"
         ? await publicoAvaliarLoja(ref_, body)
         : await publicoAvaliarSite(ref_, body);
+      // anexa as fotos ao atendimento da avaliação (best-effort; não bloqueia)
+      if (r.numero && fotos.length > 0) {
+        for (const f of fotos) {
+          try { await publicoAnexarFoto(r.numero, email.trim(), f); } catch { /* ignora */ }
+        }
+      }
       setObrigado(r.obrigado);
     } catch (e) {
       setErro(String((e as Error).message || e));
@@ -200,6 +220,26 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
                 <textarea className="input" rows={3} value={comentario}
                   onChange={(e) => setComentario(e.target.value)}
                   placeholder="Deixe sua sugestão ou elogio…" />
+              </div>
+              <div className="mt-4">
+                <label className="label">Fotos (opcional, até 3)</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-sm cursor-pointer border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50">
+                    📎 Adicionar foto
+                    <input type="file" accept="image/*" className="hidden"
+                      onChange={(e) => { addFoto(e.target.files?.[0] ?? null); e.currentTarget.value = ""; }} />
+                  </label>
+                  {fotos.map((f, i) => (
+                    <span key={i} className="text-xs text-slate-600 bg-slate-100 rounded px-2 py-1 inline-flex items-center gap-1">
+                      {f.name}
+                      <button type="button" className="text-slate-400 hover:text-red-500"
+                        onClick={() => setFotos((xs) => xs.filter((_, j) => j !== i))}>✕</button>
+                    </span>
+                  ))}
+                </div>
+                {fotos.length > 0 && !email.trim() && (
+                  <p className="text-xs text-amber-600 mt-1">Para anexar fotos, informe seu e-mail acima.</p>
+                )}
               </div>
               <div className="mt-5">
                 <button onClick={enviar} disabled={enviando}

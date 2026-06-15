@@ -891,7 +891,7 @@ export type AvaliacaoAbertaBody = {
   // cai na loja certa e vira atendimento dela.
   loja_id?: number;
 };
-export type AvaliacaoAbertaResp = { ok: boolean; repetida: boolean; obrigado: string };
+export type AvaliacaoAbertaResp = { ok: boolean; repetida: boolean; obrigado: string; numero?: string | null };
 
 export function publicoAvaliacaoLojaForm(lojaId: number | string): Promise<AvaliacaoAbertaForm> {
   return req(`publico/avaliacao-loja/${lojaId}`);

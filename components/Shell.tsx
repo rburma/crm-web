@@ -21,6 +21,7 @@ const NAV = [
   { href: "/importar", label: "Importar", icon: "📥" },
   { href: "/equipe", label: "Equipe", icon: "🏪" },
   { href: "/usuarios", label: "Usuários", icon: "🔑" },
+  { href: "/go-live", label: "Go-live", icon: "🚀" },
   { href: "/configuracoes", label: "Configurações", icon: "⚙️" },
   { href: "/backup", label: "Backup", icon: "💾" },
   { href: "/lgpd", label: "LGPD", icon: "🛡️" },

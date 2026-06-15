@@ -456,6 +456,28 @@ export function me(): Promise<UsuarioLogado> {
   return req("auth/me");
 }
 
+// ── 🚀 Planilha de Go-live (importa lojas + usuários Google + CNPJ) ──
+export type GoLiveDetalhe = {
+  linha: number; sigla: string; loja?: string; acoes: string[]; erro: string | null;
+};
+export type GoLiveResultado = {
+  resumo: {
+    linhas: number; lojas_atualizadas: number; usuarios_criados: number;
+    vinculos_criados: number; erros: number;
+  };
+  detalhes: GoLiveDetalhe[];
+};
+export function golivePreview(arquivo: File): Promise<GoLiveResultado> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  return req("golive/importar/preview", { method: "POST", body: fd });
+}
+export function goliveAplicar(arquivo: File): Promise<GoLiveResultado> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  return req("golive/importar/aplicar", { method: "POST", body: fd });
+}
+
 export function salvarSessao(token: string, usuario: UsuarioLogado): void {
   document.cookie = `crm_token=${token}; path=/; max-age=${7 * 86400}; samesite=lax`;
   try { localStorage.setItem("crm_usuario", JSON.stringify(usuario)); } catch { /* ignore */ }

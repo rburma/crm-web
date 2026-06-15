@@ -856,7 +856,8 @@ export type PublicoAvaliacaoForm = {
   numero: string; assunto: string | null; loja: string | null;
   marca: string | null; marca_tema: TemaMarca; marca_logo_path?: string | null;
   marca_favicon_path?: string | null;
-  ja_avaliada: boolean; perguntas: string[];
+  ja_avaliada: boolean; perguntas: PerguntaDef[];
+  consent_texto?: string;
 };
 export function publicoAvaliacaoForm(numero: string, email: string): Promise<PublicoAvaliacaoForm> {
   return req(`publico/avaliacao/${encodeURIComponent(numero)}?email=${encodeURIComponent(email)}`);
@@ -864,7 +865,7 @@ export function publicoAvaliacaoForm(numero: string, email: string): Promise<Pub
 export type LinkExterno = { url: string; rotulo: string };
 export type AvaliarResp = {
   ok: boolean;
-  media: number;
+  media: number | null;
   nivel: "alta" | "media" | "baixa";
   reaberto: boolean;
   obrigado: string;
@@ -872,12 +873,14 @@ export type AvaliarResp = {
   links_externos: LinkExterno[];
 };
 export function publicoAvaliar(
-  numero: string, email: string, notas: Record<string, number>, comentario?: string,
+  numero: string, email: string, notas: Record<string, number>,
+  comentario?: string,
+  extra?: { respostas?: Record<string, string>; autoriza_publicacao?: boolean },
 ): Promise<AvaliarResp> {
   return req(`publico/avaliacao/${encodeURIComponent(numero)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, notas, comentario }),
+    body: JSON.stringify({ email, notas, comentario, ...extra }),
   });
 }
 

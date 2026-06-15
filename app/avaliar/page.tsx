@@ -37,12 +37,16 @@ function AvaliarInner() {
   const [erro, setErro] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [notas, setNotas] = useState<Record<string, number>>({});
+  const [respostas, setRespostas] = useState<Record<string, string>>({});
   const [comentario, setComentario] = useState("");
+  const [autoriza, setAutoriza] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [resp, setResp] = useState<AvaliarResp | null>(null);
 
   const cor = form?.marca_tema?.cor || "#0f6bd7";
+  const consentTexto = (form?.consent_texto || "").trim()
+    || "Autorizo a WT a publicar minha avaliação (com meu primeiro nome) no site, nas redes sociais e nos materiais e telas das lojas da marca.";
 
   async function buscar(n?: string, e?: string) {
     const num = (n ?? numero).trim().replace(/^#/, "");
@@ -68,12 +72,17 @@ function AvaliarInner() {
   async function enviar() {
     if (!form) return;
     const dadas = Object.fromEntries(Object.entries(notas).filter(([, v]) => v >= 1));
-    if (Object.keys(dadas).length === 0) { setErro("Dê ao menos uma nota."); return; }
+    const ditas: Record<string, string> = {};
+    for (const [k, v] of Object.entries(respostas)) { const t = v.trim(); if (t) ditas[k] = t; }
+    if (Object.keys(dadas).length === 0 && Object.keys(ditas).length === 0) {
+      setErro("Responda ao menos um campo da avaliação."); return;
+    }
     setEnviando(true); setErro("");
     try {
       const r = await publicoAvaliar(
         numero.trim().replace(/^#/, ""), email.trim(), dadas,
         comentario.trim() || undefined,
+        { respostas: ditas, autoriza_publicacao: autoriza },
       );
       setResp(r);
       setEnviado(true);
@@ -182,13 +191,39 @@ function AvaliarInner() {
               </p>
               {erro && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">{erro}</div>}
               <div className="space-y-3">
-                {form.perguntas.map((p, i) => (
-                  <div key={p} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-100 pb-2.5">
-                    <span className="text-sm">{i + 1}. {p}</span>
-                    <Estrelas valor={notas[p] ?? 0}
-                      onChange={(n) => setNotas({ ...notas, [p]: n })} />
-                  </div>
-                ))}
+                {form.perguntas.map((p, i) => {
+                  if (p.tipo === "texto") {
+                    return (
+                      <div key={p.texto} className="border-b border-slate-100 pb-2.5">
+                        <label className="label">{i + 1}. {p.texto}</label>
+                        <textarea className="input" rows={2}
+                          value={respostas[p.texto] ?? ""}
+                          placeholder={p.sugestao ?? ""}
+                          onChange={(e) => setRespostas({ ...respostas, [p.texto]: e.target.value })} />
+                      </div>
+                    );
+                  }
+                  if (p.tipo === "checkbox") {
+                    const marcado = (respostas[p.texto] ?? "") === "sim";
+                    return (
+                      <label key={p.texto} className="flex items-start gap-2 border-b border-slate-100 pb-2.5 cursor-pointer">
+                        <input type="checkbox" className="mt-1" checked={marcado}
+                          onChange={(e) => setRespostas({ ...respostas, [p.texto]: e.target.checked ? "sim" : "" })} />
+                        <span className="text-sm">
+                          {i + 1}. {p.texto}
+                          {p.sugestao && <span className="block text-xs text-slate-400">{p.sugestao}</span>}
+                        </span>
+                      </label>
+                    );
+                  }
+                  return (
+                    <div key={p.texto} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-100 pb-2.5">
+                      <span className="text-sm">{i + 1}. {p.texto}</span>
+                      <Estrelas valor={notas[p.texto] ?? 0}
+                        onChange={(n) => setNotas({ ...notas, [p.texto]: n })} />
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-4">
                 <label className="label">Comentários (opcional)</label>
@@ -196,6 +231,11 @@ function AvaliarInner() {
                   onChange={(e) => setComentario(e.target.value)}
                   placeholder="Deixe sua sugestão ou elogio…" />
               </div>
+              <label className="mt-4 flex items-start gap-2 cursor-pointer rounded-lg bg-slate-50 border border-slate-200 p-3">
+                <input type="checkbox" className="mt-0.5" checked={autoriza}
+                  onChange={(e) => setAutoriza(e.target.checked)} />
+                <span className="text-xs text-slate-600">{consentTexto}</span>
+              </label>
               <div className="mt-5">
                 <button onClick={enviar} disabled={enviando}
                   className="text-white font-semibold rounded-lg px-6 py-2.5 disabled:opacity-50"

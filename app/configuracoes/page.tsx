@@ -271,6 +271,10 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
   const [titulo, setTitulo] = useState(marca.tema?.titulo ?? "");
   const [boasVindas, setBoasVindas] = useState(marca.tema?.boas_vindas ?? "");
   const [rodape, setRodape] = useState(marca.tema?.rodape ?? "");
+  const [subtitulo, setSubtitulo] = useState(marca.tema?.subtitulo ?? "");
+  const [consent, setConsent] = useState(marca.tema?.consent ?? "");
+  const [phAssunto, setPhAssunto] = useState(marca.tema?.ph_assunto ?? "");
+  const [phLoja, setPhLoja] = useState(marca.tema?.ph_loja ?? "");
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
@@ -279,6 +283,10 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
     setTitulo(marca.tema?.titulo ?? "");
     setBoasVindas(marca.tema?.boas_vindas ?? "");
     setRodape(marca.tema?.rodape ?? "");
+    setSubtitulo(marca.tema?.subtitulo ?? "");
+    setConsent(marca.tema?.consent ?? "");
+    setPhAssunto(marca.tema?.ph_assunto ?? "");
+    setPhLoja(marca.tema?.ph_loja ?? "");
   }, [marca]);
 
   async function salvar() {
@@ -287,7 +295,10 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
       const m = await configEditarMarca(marca.id, {
         nome: nome.trim() || undefined,
         slug: slug.trim() || undefined,
-        tema: { cor, titulo, boas_vindas: boasVindas, rodape },
+        tema: {
+          cor, titulo, boas_vindas: boasVindas, rodape,
+          subtitulo, consent, ph_assunto: phAssunto, ph_loja: phLoja,
+        },
       });
       onSalvo(m);
     } catch (e) {
@@ -434,6 +445,16 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
         <input className="input" placeholder="Conte o que aconteceu e nossa equipe responde…" value={boasVindas} onChange={(e) => setBoasVindas(e.target.value)} /></div>
       <div><label className="label">Rodapé</label>
         <input className="input" placeholder="Seus dados são usados somente para este contato." value={rodape} onChange={(e) => setRodape(e.target.value)} /></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+        <div><label className="label">Subtítulo (sob o nome da marca)</label>
+          <input className="input" placeholder="Atendimento ao cliente" value={subtitulo} onChange={(e) => setSubtitulo(e.target.value)} /></div>
+        <div><label className="label">Texto do aceite (LGPD)</label>
+          <input className="input" placeholder="Aceito ser contatado sobre este atendimento (e-mail/WhatsApp) — LGPD." value={consent} onChange={(e) => setConsent(e.target.value)} /></div>
+        <div><label className="label">Dica do campo &quot;Assunto&quot;</label>
+          <input className="input" placeholder="Ex.: troca de produto, pedido nº…" value={phAssunto} onChange={(e) => setPhAssunto(e.target.value)} /></div>
+        <div><label className="label">Dica da busca de loja</label>
+          <input className="input" placeholder={'Digite para buscar… (ex.: "Iguatemi", "Loja Virtual")'} value={phLoja} onChange={(e) => setPhLoja(e.target.value)} /></div>
+      </div>
       <button className="btn-primary" onClick={salvar} disabled={salvando}>
         {salvando ? "Salvando…" : "Salvar aparência"}
       </button>

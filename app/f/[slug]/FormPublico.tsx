@@ -147,7 +147,7 @@ export default function FormPublico() {
         </div>
       ) : (
         <div className="relative mb-3">
-          <input className="input" placeholder='🔎 Digite para buscar… (ex.: "Iguatemi", "Loja Virtual")'
+          <input className="input" placeholder={marca.tema?.ph_loja || '🔎 Digite para buscar… (ex.: "Iguatemi", "Loja Virtual")'}
             value={qLoja} onChange={(e) => setQLoja(e.target.value)} />
           {lojas.length > 0 && qLoja.trim() !== "" && (
             <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-56 overflow-y-auto">
@@ -178,7 +178,7 @@ export default function FormPublico() {
       <div className="mt-3">
         <label className="label">Assunto *</label>
         <input className="input" value={assunto} onChange={(e) => setAssunto(e.target.value)}
-          placeholder="Ex.: troca de produto, pedido nº…" />
+          placeholder={marca.tema?.ph_assunto || "Ex.: troca de produto, pedido nº…"} />
       </div>
       <div className="mt-3">
         <label className="label">Mensagem *</label>
@@ -203,7 +203,7 @@ export default function FormPublico() {
 
       <label className="flex items-start gap-2 text-sm text-slate-600 mt-4">
         <input type="checkbox" className="mt-0.5" checked={aceite} onChange={(e) => setAceite(e.target.checked)} />
-        Aceito ser contatado sobre este atendimento (e-mail/WhatsApp) — LGPD.
+        {marca.tema?.consent || "Aceito ser contatado sobre este atendimento (e-mail/WhatsApp) — LGPD."}
       </label>
 
       <div className="mt-5">
@@ -241,7 +241,7 @@ function PubLayout({ marca, cor, children }: {
           )}
           <div>
             <div className="font-bold text-lg leading-tight">{marca.nome ?? marca.slug}</div>
-            <div className="text-xs text-slate-500">Atendimento ao cliente</div>
+            <div className="text-xs text-slate-500">{marca.tema?.subtitulo || "Atendimento ao cliente"}</div>
           </div>
         </div>
         <div className="card p-6">{children}</div>

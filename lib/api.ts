@@ -265,7 +265,19 @@ export type LojaCadastro = {
   id: number; marca_id: number | null; nome: string;
   sigla: string | null; // rede+loja (WTRIBE…) — liga com o cobrança
   cidade: string | null; uf: string | null; email: string | null;
+  // Endereço/identificação estruturado (cadastro canônico + busca de roteamento)
+  endereco: string | null; numero: string | null; complemento: string | null;
+  bairro: string | null; cep: string | null;
+  shopping: string | null; shopping_piso: string | null; shopping_loja: string | null;
+  apelidos: string | null; tipo: "fisica" | "virtual";
   atributos: Record<string, string>; ativo: boolean;
+};
+// Campos de endereço/identificação editáveis (admin e, depois, franqueado).
+export type LojaDados = {
+  nome?: string; cidade?: string; uf?: string; email?: string; sigla?: string; ativo?: boolean;
+  endereco?: string; numero?: string; complemento?: string; bairro?: string; cep?: string;
+  shopping?: string; shopping_piso?: string; shopping_loja?: string; apelidos?: string;
+  tipo?: "fisica" | "virtual";
 };
 
 // Catálogo de campos da loja (padrão + criados pela operação).
@@ -279,7 +291,7 @@ export function lojaDetalhe(id: number): Promise<LojaCadastro> {
 // Salva campos FIXOS (nome/cidade/uf/email — e-mail das notificações).
 export function lojaSalvarDados(
   id: number,
-  dados: { nome?: string; cidade?: string; uf?: string; email?: string; sigla?: string; ativo?: boolean },
+  dados: LojaDados,
 ): Promise<LojaCadastro> {
   return req<LojaCadastro>(`lojas-cadastro/${id}/dados`, {
     method: "PATCH",
@@ -802,7 +814,13 @@ export type CampoForm = {
 export function publicoForm(slug: string): Promise<{ marca: PublicoMarca }> {
   return req(`publico/form/${encodeURIComponent(slug)}`);
 }
-export function publicoLojas(slug: string, q = ""): Promise<{ id: number; nome: string }[]> {
+// Resultado da busca de loja (roteamento): nome + endereço por extenso.
+export type LojaPublica = {
+  id: number; nome: string; endereco: string;
+  cidade: string | null; uf: string | null; shopping: string | null;
+  tipo: "fisica" | "virtual";
+};
+export function publicoLojas(slug: string, q = ""): Promise<LojaPublica[]> {
   return req(`publico/form/${encodeURIComponent(slug)}/lojas?q=${encodeURIComponent(q)}`);
 }
 export function publicoCampos(slug: string, lojaId: number): Promise<CampoForm[]> {

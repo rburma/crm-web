@@ -9,6 +9,7 @@ import {
   publicoAnexarFoto,
   publicoLojas,
   type AvaliacaoAbertaForm,
+  type LojaPublica,
 } from "@/lib/api";
 import { useFaviconMarca } from "@/lib/useFaviconMarca";
 import { paraJpegReduzido } from "@/lib/reduzirImagem";
@@ -59,8 +60,8 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
   const [obrigado, setObrigado] = useState("");
   // Picker de loja (só no modo site): o cliente escolhe a loja que visitou.
   const [lojaQ, setLojaQ] = useState("");
-  const [lojaSugestoes, setLojaSugestoes] = useState<{ id: number; nome: string }[]>([]);
-  const [lojaSel, setLojaSel] = useState<{ id: number; nome: string } | null>(null);
+  const [lojaSugestoes, setLojaSugestoes] = useState<LojaPublica[]>([]);
+  const [lojaSel, setLojaSel] = useState<LojaPublica | null>(null);
 
   const cor = form?.marca_tema?.cor || "#0f6bd7";
   const consentTexto = (form?.consent_texto || "").trim()
@@ -211,22 +212,26 @@ export default function AvaliacaoAbertaPagina({ modo, ref_ }: {
                 <div className="mb-4 relative">
                   <label className="label">Qual loja você visitou? (opcional)</label>
                   {lojaSel ? (
-                    <div className="flex items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                      <span>📍 {lojaSel.nome}</span>
-                      <button type="button" className="text-xs text-slate-400 hover:underline"
+                    <div className="flex items-center justify-between rounded-lg border border-slate-300 px-3 py-2">
+                      <span className="min-w-0">
+                        <span className="block text-sm truncate">📍 {lojaSel.nome}</span>
+                        {lojaSel.endereco && <span className="block text-xs text-slate-500 truncate">{lojaSel.endereco}</span>}
+                      </span>
+                      <button type="button" className="text-xs text-slate-400 hover:underline ml-2 shrink-0"
                         onClick={() => { setLojaSel(null); setLojaQ(""); }}>trocar</button>
                     </div>
                   ) : (
                     <input className="input" value={lojaQ} onChange={(e) => setLojaQ(e.target.value)}
-                      placeholder="Digite o nome, a cidade ou o shopping da loja…" />
+                      placeholder="Cidade, rua, bairro, shopping ou CEP…" />
                   )}
                   {!lojaSel && lojaSugestoes.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-56 overflow-y-auto">
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-72 overflow-y-auto">
                       {lojaSugestoes.map((l) => (
                         <button key={l.id} type="button"
-                          className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                          className="block w-full text-left px-3 py-2 hover:bg-slate-50"
                           onClick={() => { setLojaSel(l); setLojaSugestoes([]); }}>
-                          {l.nome}
+                          <span className="block text-sm truncate">{l.nome}</span>
+                          {l.endereco && <span className="block text-xs text-slate-500 truncate">{l.endereco}</span>}
                         </button>
                       ))}
                     </div>

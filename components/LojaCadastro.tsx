@@ -13,6 +13,7 @@ import {
   lojaSalvarAtributos,
   lojaSalvarDados,
   type LojaCampoDef,
+  type LojaDados,
 } from "@/lib/api";
 
 const GRUPOS: { chave: string; titulo: string }[] = [
@@ -39,6 +40,8 @@ export default function LojaCadastro({
   const [ativo, setAtivo] = useState(true);
   const [email, setEmail] = useState("");
   const [sigla, setSigla] = useState("");
+  // Endereço/identificação estruturado (cadastro canônico + busca de roteamento)
+  const [end, setEnd] = useState<LojaDados>({});
   const [valores, setValores] = useState<Record<string, string>>({});
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -59,6 +62,14 @@ export default function LojaCadastro({
       setAtivo(det.ativo);
       setEmail(det.email ?? "");
       setSigla(det.sigla ?? "");
+      setEnd({
+        endereco: det.endereco ?? "", numero: det.numero ?? "",
+        complemento: det.complemento ?? "", bairro: det.bairro ?? "",
+        cidade: det.cidade ?? "", uf: det.uf ?? "", cep: det.cep ?? "",
+        shopping: det.shopping ?? "", shopping_piso: det.shopping_piso ?? "",
+        shopping_loja: det.shopping_loja ?? "", apelidos: det.apelidos ?? "",
+        tipo: det.tipo ?? "fisica",
+      });
       setValores({ ...(det.atributos ?? {}) });
     } catch (e) {
       setErro(String((e as Error).message || e));
@@ -74,6 +85,9 @@ export default function LojaCadastro({
   function setVal(chave: string, v: string) {
     setValores((m) => ({ ...m, [chave]: v }));
   }
+  function setE(campo: keyof LojaDados, v: string) {
+    setEnd((m) => ({ ...m, [campo]: v }) as LojaDados);
+  }
 
   async function salvar() {
     setSalvando(true);
@@ -82,7 +96,7 @@ export default function LojaCadastro({
     if (nome.trim().length < 1) { setErro("O nome do departamento não pode ficar vazio."); setSalvando(false); return; }
     try {
       await lojaSalvarDados(lojaId, {
-        nome: nome.trim(), email, sigla: sigla.trim().toUpperCase(), ativo,
+        nome: nome.trim(), email, sigla: sigla.trim().toUpperCase(), ativo, ...end,
       });
       await lojaSalvarAtributos(lojaId, valores);
       setOkMsg("Cadastro salvo.");
@@ -212,6 +226,69 @@ export default function LojaCadastro({
                   As obrigações e boletos puxados pra cá vêm desta sigla — edite se a loja
                   for uma dark kitchen ou mudar de operação/sigla.
                 </p>
+              </div>
+
+              {/* Endereço e identificação (cadastro canônico + busca de roteamento) */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="text-sm font-semibold text-slate-700 mb-1">Endereço e identificação</div>
+                <p className="text-xs text-slate-400 mb-2">
+                  É por aqui que o cliente acha a loja na abertura do atendimento (cidade, rua, bairro,
+                  CEP, shopping, apelido). Preencha bem — é o que roteia pra loja certa.
+                </p>
+
+                <label className="flex items-center gap-2 text-sm mb-3 cursor-pointer">
+                  <input type="checkbox" checked={end.tipo === "virtual"}
+                    onChange={(e) => setEnd((m) => ({ ...m, tipo: e.target.checked ? "virtual" : "fisica" }))} />
+                  É a <b>loja virtual</b> da marca (recebe os pedidos do site e dos marketplaces)
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                  <div className="sm:col-span-4">
+                    <label className="label">Rua / logradouro</label>
+                    <input className="input" value={end.endereco ?? ""} onChange={(e) => setE("endereco", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="label">Número</label>
+                    <input className="input" value={end.numero ?? ""} onChange={(e) => setE("numero", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Complemento</label>
+                    <input className="input" value={end.complemento ?? ""} onChange={(e) => setE("complemento", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Bairro</label>
+                    <input className="input" value={end.bairro ?? ""} onChange={(e) => setE("bairro", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Cidade</label>
+                    <input className="input" value={end.cidade ?? ""} onChange={(e) => setE("cidade", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <label className="label">UF</label>
+                    <input className="input uppercase" maxLength={2} value={end.uf ?? ""} onChange={(e) => setE("uf", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="label">CEP</label>
+                    <input className="input" placeholder="00000-000" value={end.cep ?? ""} onChange={(e) => setE("cep", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Shopping (se houver)</label>
+                    <input className="input" value={end.shopping ?? ""} onChange={(e) => setE("shopping", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <label className="label">Piso</label>
+                    <input className="input" value={end.shopping_piso ?? ""} onChange={(e) => setE("shopping_piso", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="label">Nº da loja no shopping</label>
+                    <input className="input" value={end.shopping_loja ?? ""} onChange={(e) => setE("shopping_loja", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-6">
+                    <label className="label">Apelidos / como também é conhecida (1 por linha ou separados por vírgula)</label>
+                    <textarea className="input" rows={2} placeholder="Ex.: Pedreira (shopping de Nova Iguaçu), Iguatemi SP"
+                      value={end.apelidos ?? ""} onChange={(e) => setE("apelidos", e.target.value)} />
+                  </div>
+                </div>
               </div>
 
               {/* Campos extensíveis por grupo */}

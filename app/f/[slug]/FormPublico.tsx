@@ -10,6 +10,7 @@ import {
   publicoForm,
   publicoLojas,
   type CampoForm,
+  type LojaPublica,
   type PublicoMarca,
 } from "@/lib/api";
 import { paraJpegReduzido } from "@/lib/reduzirImagem";
@@ -28,8 +29,8 @@ export default function FormPublico() {
 
   // loja
   const [qLoja, setQLoja] = useState("");
-  const [lojas, setLojas] = useState<{ id: number; nome: string }[]>([]);
-  const [loja, setLoja] = useState<{ id: number; nome: string } | null>(null);
+  const [lojas, setLojas] = useState<LojaPublica[]>([]);
+  const [loja, setLoja] = useState<LojaPublica | null>(null);
 
   // campos custom da loja escolhida
   const [campos, setCampos] = useState<CampoForm[]>([]);
@@ -156,22 +157,28 @@ export default function FormPublico() {
 
       <label className="label">Loja / Departamento *</label>
       {loja ? (
-        <div className="flex items-center justify-between input mb-3" style={{ borderColor: cor }}>
-          <span className="truncate text-sm">{loja.nome}</span>
-          <button className="text-xs text-slate-500 hover:underline ml-2" onClick={() => { setLoja(null); setQLoja(""); }}>
+        <div className="flex items-center justify-between input mb-3 h-auto py-2" style={{ borderColor: cor }}>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium">{loja.nome}</span>
+            {loja.endereco && <span className="block truncate text-xs text-slate-500">{loja.endereco}</span>}
+          </span>
+          <button className="text-xs text-slate-500 hover:underline ml-2 shrink-0" onClick={() => { setLoja(null); setQLoja(""); }}>
             trocar
           </button>
         </div>
       ) : (
         <div className="relative mb-3">
-          <input className="input" placeholder={marca.tema?.ph_loja || '🔎 Digite para buscar… (ex.: "Iguatemi", "Loja Virtual")'}
+          <input className="input" placeholder={marca.tema?.ph_loja || '🔎 Cidade, rua, bairro, shopping ou CEP… (ex.: "Iguatemi SP")'}
             value={qLoja} onChange={(e) => setQLoja(e.target.value)} />
           {lojas.length > 0 && qLoja.trim() !== "" && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-56 overflow-y-auto">
+            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-72 overflow-y-auto">
               {lojas.map((l) => (
-                <button key={l.id} className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                <button key={l.id} className="block w-full text-left px-3 py-2 hover:bg-slate-50"
                   onClick={() => setLoja(l)}>
-                  {l.nome}
+                  <span className="block text-sm font-medium truncate">
+                    {l.tipo === "virtual" && "🌐 "}{l.nome}
+                  </span>
+                  {l.endereco && <span className="block text-xs text-slate-500 truncate">{l.endereco}</span>}
                 </button>
               ))}
             </div>

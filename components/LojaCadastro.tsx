@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  franqueadoGerarLink,
   lojaCampos,
   lojaCriarCampo,
   lojaDetalhe,
@@ -51,6 +52,21 @@ export default function LojaCadastro({
   // criar campo novo (operação define como trabalhar)
   const [novoRotulo, setNovoRotulo] = useState("");
   const [novoGrupo, setNovoGrupo] = useState("contato");
+  // link do franqueado (preenche o cadastro da loja por link, com aprovação)
+  const [linkFranq, setLinkFranq] = useState("");
+  const [gerandoLink, setGerandoLink] = useState(false);
+
+  async function gerarLink() {
+    setGerandoLink(true); setErro("");
+    try {
+      const r = await franqueadoGerarLink(lojaId);
+      setLinkFranq(`${window.location.origin}/minha-loja/${r.token}`);
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setGerandoLink(false);
+    }
+  }
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -226,6 +242,27 @@ export default function LojaCadastro({
                   As obrigações e boletos puxados pra cá vêm desta sigla — edite se a loja
                   for uma dark kitchen ou mudar de operação/sigla.
                 </p>
+              </div>
+
+              {/* Link do franqueado: ele preenche o cadastro e você aprova */}
+              <div className="rounded-lg border border-slate-200 p-3">
+                <div className="text-sm font-semibold text-slate-700">Deixar o franqueado preencher</div>
+                <p className="text-xs text-slate-400 mb-2">
+                  Gere um link e mande pro franqueado. Ele revisa/preenche o cadastro da loja;
+                  as alterações chegam em <b>Aprovações</b> pra você aprovar (tudo ou parcial).
+                </p>
+                {linkFranq ? (
+                  <div className="flex items-center gap-2">
+                    <input className="input text-xs font-mono" readOnly value={linkFranq}
+                      onFocus={(e) => e.currentTarget.select()} />
+                    <button type="button" className="btn-ghost text-xs px-3 py-1.5 shrink-0"
+                      onClick={() => navigator.clipboard?.writeText(linkFranq)}>copiar</button>
+                  </div>
+                ) : (
+                  <button type="button" className="btn-ghost text-sm" onClick={gerarLink} disabled={gerandoLink}>
+                    {gerandoLink ? "Gerando…" : "🔗 Gerar link do franqueado"}
+                  </button>
+                )}
               </div>
 
               {/* Endereço e identificação (cadastro canônico + busca de roteamento) */}

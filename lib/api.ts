@@ -309,6 +309,46 @@ export function criarLoja(
     body: JSON.stringify(dados),
   });
 }
+
+// ── Portal do FRANQUEADO (preenche o cadastro da loja por link; admin aprova) ──
+export type FranqueadoLoja = {
+  loja_id: number; nome: string; sigla: string | null;
+  atual: Record<string, unknown>;
+  campos_extra: { chave: string; rotulo: string; categoria: string | null }[];
+  ja_tem_pendente: boolean;
+};
+export function franqueadoLoja(token: string): Promise<FranqueadoLoja> {
+  return req(`franqueado/loja/${encodeURIComponent(token)}`);
+}
+export function franqueadoEnviarProposta(token: string, body: {
+  autor_nome?: string; autor_email?: string;
+  valores: Record<string, string>; ativo?: boolean;
+}): Promise<{ ok: boolean; proposta_id: number; n_campos: number }> {
+  return req(`franqueado/loja/${encodeURIComponent(token)}/proposta`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function franqueadoGerarLink(lojaId: number): Promise<{ token: string; loja_id: number }> {
+  return req(`franqueado/admin/loja/${lojaId}/link`, { method: "POST" });
+}
+export type PropostaMudanca = { campo: string; antes: unknown; depois: unknown };
+export type Proposta = {
+  id: number; loja_id: number; loja_nome: string;
+  autor_nome: string | null; autor_email: string | null;
+  criado_em: string | null; mudancas: PropostaMudanca[];
+};
+export function franqueadoPropostas(status = "pendente"): Promise<Proposta[]> {
+  return req(`franqueado/admin/propostas?status=${encodeURIComponent(status)}`);
+}
+export function franqueadoAplicar(
+  propId: number, campos: string[], motivo?: string,
+): Promise<{ ok: boolean; aprovados: number; reprovados: number }> {
+  return req(`franqueado/admin/propostas/${propId}/aplicar`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ campos, motivo }),
+  });
+}
 // Salva valores dos campos extensíveis (merge na gaveta Loja.atributos).
 export function lojaSalvarAtributos(
   id: number, valores: Record<string, string>,

@@ -34,6 +34,12 @@ export function middleware(req: NextRequest) {
   if (path === "/baixar-app" || path.startsWith("/baixar-app/")) {
     return NextResponse.next();
   }
+  // Portal do franqueado: a página e o proxy de DADOS são protegidos pelo TOKEN do
+  // link (capability-URL), não pela senha do portão. (O lado admin —/aprovacoes e
+  // /api/render/franqueado/admin/— continua atrás do portão.)
+  if (path.startsWith("/minha-loja") || path.startsWith("/api/render/franqueado/loja/")) {
+    return NextResponse.next();
+  }
   if (AUTH_LIVRE.some((p) => path === p || path.startsWith(p))) {
     return NextResponse.next();
   }

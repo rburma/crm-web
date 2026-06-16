@@ -15,6 +15,12 @@ import {
 } from "@/lib/api";
 import { paraJpegReduzido } from "@/lib/reduzirImagem";
 
+// "Comprei pelo site / marketplace" — todos caem na LOJA VIRTUAL da marca.
+const MARKETPLACES = [
+  "Loja virtual (site da marca)", "Megaleilão", "Mercado Livre", "Netshoes",
+  "Magazine Luiza", "Shopee", "Amazon", "Outro site / marketplace",
+];
+
 /** Página PÚBLICA "Fale com a gente" — abre atendimento sem login.
  *  Tema (cor/logo) vem do cadastro da marca; campos extras por marca/loja.
  *  (Corpo client; a metadata por marca — título/OG/favicon — fica no page.tsx server.) */
@@ -31,6 +37,9 @@ export default function FormPublico() {
   const [qLoja, setQLoja] = useState("");
   const [lojas, setLojas] = useState<LojaPublica[]>([]);
   const [loja, setLoja] = useState<LojaPublica | null>(null);
+  // Destino sem loja física: virtual (site/marketplace) ou "não comprei em loja".
+  const [modoEspecial, setModoEspecial] = useState<{ tipo: "virtual" | "sem"; canal?: string } | null>(null);
+  const [mostrarMarket, setMostrarMarket] = useState(false);
 
   // campos custom da loja escolhida
   const [campos, setCampos] = useState<CampoForm[]>([]);
@@ -57,17 +66,20 @@ export default function FormPublico() {
   }, [slug]);
 
   useEffect(() => {
-    if (!slug || loja) return;
+    if (!slug || loja || modoEspecial) return;
     const t = setTimeout(() => {
       publicoLojas(slug, qLoja).then(setLojas).catch(() => {});
     }, 250);
     return () => clearTimeout(t);
-  }, [slug, qLoja, loja]);
+  }, [slug, qLoja, loja, modoEspecial]);
 
   useEffect(() => {
-    if (!slug || !loja) { setCampos([]); return; }
-    publicoCampos(slug, loja.id).then(setCampos).catch(() => setCampos([]));
-  }, [slug, loja]);
+    if (!slug) { setCampos([]); return; }
+    if (loja) { publicoCampos(slug, loja.id).then(setCampos).catch(() => setCampos([])); return; }
+    // Virtual / sem loja: só os campos GLOBAIS da marca (sem loja específica).
+    if (modoEspecial) { publicoCampos(slug).then(setCampos).catch(() => setCampos([])); return; }
+    setCampos([]);
+  }, [slug, loja, modoEspecial]);
 
   async function addFoto(f: File | null) {
     if (!f || fotos.length >= 3) return;
@@ -79,7 +91,7 @@ export default function FormPublico() {
 
   async function enviar() {
     setErro("");
-    if (!loja) { setErro("Escolha a loja."); return; }
+    if (!loja && !modoEspecial) { setErro("Escolha a loja ou diga onde comprou."); return; }
     if (nome.trim().length < 2) { setErro("Preencha seu nome."); return; }
     if (!email.includes("@")) { setErro("Preencha um e-mail válido."); return; }
     if (assunto.trim().length < 2) { setErro("Preencha o assunto."); return; }
@@ -90,7 +102,10 @@ export default function FormPublico() {
     setEnviando(true);
     try {
       const r = await publicoAbrir({
-        marca_slug: slug, loja_id: loja.id,
+        marca_slug: slug,
+        loja_id: loja?.id,
+        virtual: modoEspecial?.tipo === "virtual" || undefined,
+        canal_compra: modoEspecial?.canal,
         nome: `${nome.trim()} ${sobrenome.trim()}`.trim(),
         email: email.trim(), telefone: telefone.trim() || undefined,
         cpf: cpf.trim() || undefined,
@@ -155,7 +170,7 @@ export default function FormPublico() {
 
       {erro && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm text-red-700">{erro}</div>}
 
-      <label className="label">Loja / Departamento *</label>
+      <label className="label">Onde você comprou / qual loja? *</label>
       {loja ? (
         <div className="flex items-center justify-between input mb-3 h-auto py-2" style={{ borderColor: cor }}>
           <span className="min-w-0">
@@ -166,21 +181,53 @@ export default function FormPublico() {
             trocar
           </button>
         </div>
+      ) : modoEspecial ? (
+        <div className="flex items-center justify-between input mb-3 py-2" style={{ borderColor: cor }}>
+          <span className="text-sm truncate">
+            {modoEspecial.tipo === "virtual"
+              ? `🌐 Comprei pelo site${modoEspecial.canal ? ` · ${modoEspecial.canal}` : ""}`
+              : "Não comprei em loja"}
+          </span>
+          <button className="text-xs text-slate-500 hover:underline ml-2 shrink-0"
+            onClick={() => { setModoEspecial(null); setMostrarMarket(false); }}>
+            trocar
+          </button>
+        </div>
       ) : (
-        <div className="relative mb-3">
-          <input className="input" placeholder={marca.tema?.ph_loja || '🔎 Cidade, rua, bairro, shopping ou CEP… (ex.: "Iguatemi SP")'}
-            value={qLoja} onChange={(e) => setQLoja(e.target.value)} />
-          {lojas.length > 0 && qLoja.trim() !== "" && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-72 overflow-y-auto">
-              {lojas.map((l) => (
-                <button key={l.id} className="block w-full text-left px-3 py-2 hover:bg-slate-50"
-                  onClick={() => setLoja(l)}>
-                  <span className="block text-sm font-medium truncate">
-                    {l.tipo === "virtual" && "🌐 "}{l.nome}
-                  </span>
-                  {l.endereco && <span className="block text-xs text-slate-500 truncate">{l.endereco}</span>}
-                </button>
-              ))}
+        <div className="mb-3">
+          <div className="relative">
+            <input className="input" placeholder={marca.tema?.ph_loja || '🔎 Cidade, rua, bairro, shopping ou CEP… (ex.: "Iguatemi SP")'}
+              value={qLoja} onChange={(e) => setQLoja(e.target.value)} />
+            {lojas.length > 0 && qLoja.trim() !== "" && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-72 overflow-y-auto">
+                {lojas.map((l) => (
+                  <button key={l.id} className="block w-full text-left px-3 py-2 hover:bg-slate-50"
+                    onClick={() => setLoja(l)}>
+                    <span className="block text-sm font-medium truncate">
+                      {l.tipo === "virtual" && "🌐 "}{l.nome}
+                    </span>
+                    {l.endereco && <span className="block text-xs text-slate-500 truncate">{l.endereco}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {!mostrarMarket ? (
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button type="button" className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+                onClick={() => setMostrarMarket(true)}>🌐 Comprei pelo site / marketplace</button>
+              <button type="button" className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50"
+                onClick={() => setModoEspecial({ tipo: "sem" })}>Não comprei em loja</button>
+            </div>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2 items-center">
+              <span className="text-xs text-slate-500">Onde comprou:</span>
+              <select className="input w-auto" defaultValue=""
+                onChange={(e) => { if (e.target.value) setModoEspecial({ tipo: "virtual", canal: e.target.value }); }}>
+                <option value="" disabled>escolha…</option>
+                {MARKETPLACES.map((mk) => <option key={mk} value={mk}>{mk}</option>)}
+              </select>
+              <button type="button" className="text-xs text-slate-400 hover:underline" onClick={() => setMostrarMarket(false)}>cancelar</button>
             </div>
           )}
         </div>

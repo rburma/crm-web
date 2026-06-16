@@ -823,11 +823,13 @@ export type LojaPublica = {
 export function publicoLojas(slug: string, q = ""): Promise<LojaPublica[]> {
   return req(`publico/form/${encodeURIComponent(slug)}/lojas?q=${encodeURIComponent(q)}`);
 }
-export function publicoCampos(slug: string, lojaId: number): Promise<CampoForm[]> {
-  return req(`publico/form/${encodeURIComponent(slug)}/campos?loja_id=${lojaId}`);
+export function publicoCampos(slug: string, lojaId?: number): Promise<CampoForm[]> {
+  const qs = lojaId != null ? `?loja_id=${lojaId}` : "";
+  return req(`publico/form/${encodeURIComponent(slug)}/campos${qs}`);
 }
 export function publicoAbrir(body: {
-  marca_slug: string; loja_id: number; nome: string; email: string;
+  marca_slug: string; loja_id?: number; virtual?: boolean; canal_compra?: string;
+  nome: string; email: string;
   telefone?: string; cpf?: string; assunto: string; mensagem: string;
   campos?: Record<string, string>; aceita_contato?: boolean;
 }): Promise<{ numero: string; id: number; repetido: boolean; mensagem: string }> {

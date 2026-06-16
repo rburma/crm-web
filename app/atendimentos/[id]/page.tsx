@@ -52,6 +52,18 @@ function iconeSistema(texto: string): string {
   return "•";
 }
 
+const ROTULOS_EMAIL: Record<string, string> = {
+  cliente_abertura: "Confirmação de abertura",
+  cliente_andamento: "Resposta ao cliente",
+  cliente_resposta: "Resposta ao cliente",
+  cliente_encerramento: "Encerramento",
+  cliente_avaliacao: "Convite p/ avaliar",
+  resposta_avaliacao: "Resposta à avaliação",
+};
+function rotuloEmail(tipo: string | null): string {
+  return (tipo && ROTULOS_EMAIL[tipo]) || "E-mail";
+}
+
 function Evento({ m, clienteNome }: { m: Mensagem; clienteNome?: string | null }) {
   if (m.autor_tipo === "sistema") {
     return (
@@ -388,6 +400,38 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                 </div>
               );
             })()}
+
+            {/* Rastreio de e-mails: abriu / clicou, com dia e hora:minuto */}
+            {d.emails && d.emails.length > 0 && (
+              <div className="card p-5">
+                <div className="text-sm font-semibold text-slate-700 mb-3">
+                  Rastreio de e-mails
+                </div>
+                <ul className="space-y-2">
+                  {d.emails.map((ev, i) => (
+                    <li key={i} className="text-sm flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <span className="font-medium text-slate-700">{rotuloEmail(ev.tipo)}</span>
+                      <span className="text-slate-400">· enviado {fmtDataHora(ev.enviado_em)}</span>
+                      {ev.aberto_em ? (
+                        <span className="badge bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          📬 aberto {fmtDataHora(ev.aberto_em)}{ev.aberturas > 1 ? ` (${ev.aberturas}x)` : ""}
+                        </span>
+                      ) : (
+                        <span className="badge bg-slate-100 text-slate-500">não aberto</span>
+                      )}
+                      {ev.clicado_em && (
+                        <span className="badge bg-brand-50 text-brand-700 border border-brand-200">
+                          🔗 clicou {fmtDataHora(ev.clicado_em)}{ev.cliques > 1 ? ` (${ev.cliques}x)` : ""}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-slate-400 mt-2">
+                  Abertura depende de o cliente baixar as imagens do e-mail; clique é sempre registrado.
+                </p>
+              </div>
+            )}
 
             {/* Responder (registra + envia e-mail se habilitado) */}
             <div className="card p-5">

@@ -209,7 +209,19 @@ export type AtendimentoDetalhe = {
     atributos?: Record<string, unknown> | null;
   } | null;
   mensagens: Mensagem[];
+  emails?: EmailEvento[];
   total_mensagens: number;
+};
+
+// Rastreio de e-mail (abertura via pixel, clique via redirect).
+export type EmailEvento = {
+  tipo: string | null;          // cliente_abertura, cliente_avaliacao, ...
+  email: string | null;
+  enviado_em: string | null;
+  aberto_em: string | null;     // 1a abertura (ISO) — null se nunca abriu
+  aberturas: number;
+  clicado_em: string | null;    // ultimo clique (ISO) — null se nunca clicou
+  cliques: number;
 };
 
 // ── Endpoints ──────────────────────────────────────────────────────

@@ -8,9 +8,12 @@ import {
   type FranqueadoLoja,
 } from "@/lib/api";
 
-// Campos estruturados (sigla NÃO entra — é da franqueadora).
-const CAMPOS: { campo: string; rotulo: string; cols?: string; area?: boolean }[] = [
-  { campo: "nome", rotulo: "Nome da loja", cols: "sm:col-span-6" },
+// Campos do endereço/identificação (colunas da loja). A SIGLA não entra (é da franqueadora).
+const CAMPOS: { campo: string; rotulo: string; cols?: string; area?: boolean; dica?: string }[] = [
+  {
+    campo: "nome", rotulo: "Nome de exibição da loja", cols: "sm:col-span-6",
+    dica: 'Use o padrão simples — ex.: "Shopping Iguatemi - São Paulo, SP" ou "R. Augusta, 1200 - São Paulo, SP".',
+  },
   { campo: "endereco", rotulo: "Rua / logradouro", cols: "sm:col-span-4" },
   { campo: "numero", rotulo: "Número", cols: "sm:col-span-2" },
   { campo: "complemento", rotulo: "Complemento", cols: "sm:col-span-3" },
@@ -21,8 +24,27 @@ const CAMPOS: { campo: string; rotulo: string; cols?: string; area?: boolean }[]
   { campo: "shopping", rotulo: "Shopping (se houver)", cols: "sm:col-span-3" },
   { campo: "shopping_piso", rotulo: "Piso", cols: "sm:col-span-1" },
   { campo: "shopping_loja", rotulo: "Nº da loja no shopping", cols: "sm:col-span-2" },
-  { campo: "email", rotulo: "E-mail da loja", cols: "sm:col-span-6" },
-  { campo: "apelidos", rotulo: "Apelidos / como também é conhecida (1 por linha)", cols: "sm:col-span-6", area: true },
+  {
+    campo: "apelidos", area: true, cols: "sm:col-span-6",
+    rotulo: "Apelidos / como o shopping ou a rua também é conhecido (1 por linha)",
+    dica: 'Facilita o cliente achar a loja na busca. Ex.: "Pedreira" (shopping de Nova Iguaçu).',
+  },
+];
+
+// Contato e links (gaveta da loja → attr:<chave>). Labels conforme pedido.
+const CONTATOS: { chave: string; rotulo: string; area?: boolean }[] = [
+  { chave: "telefone", rotulo: "Telefone da loja" },
+  { chave: "whatsapp", rotulo: "WhatsApp de atendimento da loja" },
+  { chave: "site_loja", rotulo: "Link da página da loja no site da marca" },
+  { chave: "google_meu_negocio", rotulo: "Link da página no Google Meu Negócio" },
+  { chave: "instagram", rotulo: "Link do Instagram da loja" },
+  { chave: "facebook", rotulo: "Link do Facebook da loja" },
+  { chave: "tiktok", rotulo: "Link do TikTok da loja" },
+  { chave: "tripadvisor", rotulo: "Link no TripAdvisor" },
+  { chave: "reclame_aqui", rotulo: "Link no Reclame Aqui" },
+  { chave: "trustpilot", rotulo: "Link no Trustpilot" },
+  { chave: "ifood", rotulo: "Link no iFood" },
+  { chave: "hashtags", rotulo: "Hashtags pra achar a loja nas redes e buscas (1 por linha)", area: true },
 ];
 
 export default function MinhaLojaPage() {
@@ -32,7 +54,6 @@ export default function MinhaLojaPage() {
   const [data, setData] = useState<FranqueadoLoja | null>(null);
   const [erro, setErro] = useState("");
   const [form, setForm] = useState<Record<string, string>>({});
-  const [tipo, setTipo] = useState<"fisica" | "virtual">("fisica");
   const [ativo, setAtivo] = useState(true);
   const [autorNome, setAutorNome] = useState("");
   const [autorEmail, setAutorEmail] = useState("");
@@ -47,9 +68,8 @@ export default function MinhaLojaPage() {
         const atrs = (d.atual.atributos ?? {}) as Record<string, string>;
         const f: Record<string, string> = {};
         for (const c of CAMPOS) f[c.campo] = String((d.atual[c.campo] ?? "") as string);
-        for (const ce of d.campos_extra) f[`attr:${ce.chave}`] = String(atrs[ce.chave] ?? "");
+        for (const c of CONTATOS) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
         setForm(f);
-        setTipo((d.atual.tipo as "fisica" | "virtual") || "fisica");
         setAtivo(Boolean(d.atual.ativo));
       })
       .catch(() => setErro("Link inválido ou expirado. Peça um novo à franqueadora."));
@@ -61,11 +81,10 @@ export default function MinhaLojaPage() {
     setErro("");
     setEnviando(true);
     try {
-      const valores: Record<string, string> = { ...form, tipo };
       await franqueadoEnviarProposta(token, {
         autor_nome: autorNome.trim() || undefined,
         autor_email: autorEmail.trim() || undefined,
-        valores, ativo,
+        valores: { ...form }, ativo,
       });
       setEnviado(true);
     } catch (e) {
@@ -105,8 +124,9 @@ export default function MinhaLojaPage() {
           <b>{data.nome}</b>{data.sigla ? <> · <span className="font-mono text-xs">{data.sigla}</span></> : null}
         </p>
         <p className="text-xs text-slate-400 mb-5">
-          Revise e corrija os dados. O endereço completo é o que faz o cliente achar sua loja
-          no atendimento — capriche. <b>Suas alterações vão para a aprovação da franqueadora</b> antes de entrar no ar.
+          Revise e corrija os dados. O endereço completo e os apelidos são o que fazem o cliente
+          achar sua loja no atendimento — capriche. <b>Suas alterações vão para a aprovação da
+          franqueadora</b> antes de entrar no ar.
         </p>
 
         {data.ja_tem_pendente && (
@@ -121,11 +141,6 @@ export default function MinhaLojaPage() {
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
             Loja <b>{ativo ? "ativa" : "inativa"}</b> (inativa não aparece para os clientes)
           </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={tipo === "virtual"}
-              onChange={(e) => setTipo(e.target.checked ? "virtual" : "fisica")} />
-            É a <b>loja virtual</b> (site / marketplaces)
-          </label>
 
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
             {CAMPOS.map((c) => (
@@ -139,24 +154,32 @@ export default function MinhaLojaPage() {
                     maxLength={c.campo === "uf" ? 2 : undefined}
                     value={form[c.campo] ?? ""} onChange={(e) => set(c.campo, e.target.value)} />
                 )}
+                {c.dica && <p className="text-xs text-slate-400 mt-1">{c.dica}</p>}
               </div>
             ))}
           </div>
 
-          {data.campos_extra.length > 0 && (
-            <div className="border-t border-slate-200 pt-3">
-              <div className="text-sm font-semibold text-slate-700 mb-2">Contato e links (WhatsApp, redes, delivery…)</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {data.campos_extra.map((ce) => (
-                  <div key={ce.chave}>
-                    <label className="label">{ce.rotulo}</label>
-                    <input className="input" value={form[`attr:${ce.chave}`] ?? ""}
-                      onChange={(e) => set(`attr:${ce.chave}`, e.target.value)} />
-                  </div>
-                ))}
-              </div>
+          <div className="border-t border-slate-200 pt-3">
+            <div className="text-sm font-semibold text-slate-700 mb-1">Contato e links da loja</div>
+            <p className="text-xs text-slate-400 mb-2">
+              O atendimento é feito pelo sistema — não exibimos e-mail da loja. Telefone/WhatsApp e
+              os links abaixo ajudam o cliente e a busca.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {CONTATOS.map((c) => (
+                <div key={c.chave} className={c.area ? "sm:col-span-2" : ""}>
+                  <label className="label">{c.rotulo}</label>
+                  {c.area ? (
+                    <textarea className="input" rows={2} value={form[`attr:${c.chave}`] ?? ""}
+                      onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
+                  ) : (
+                    <input className="input" value={form[`attr:${c.chave}`] ?? ""}
+                      onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
 
           <div className="border-t border-slate-200 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>

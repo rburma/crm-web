@@ -239,7 +239,7 @@ export default function EquipePage() {
               ＋ Novo
             </button>
           </div>
-          <input className="input mb-2" placeholder="🔎 Buscar loja…" value={qLoja}
+          <input className="input mb-2" placeholder="🔎 Buscar por nome ou sigla…" value={qLoja}
             onChange={(e) => setQLoja(e.target.value)} />
           <div className="space-y-1 max-h-[520px] overflow-y-auto">
             {lojas.map((l) => (
@@ -247,7 +247,13 @@ export default function EquipePage() {
                 className={`w-full text-left rounded-lg px-3 py-2 text-sm transition ${
                   lojaSel?.id === l.id ? "bg-brand-50 text-brand-700 font-semibold" : "hover:bg-slate-50"
                 }`}>
-                <span className="truncate block">{l.nome}</span>
+                <span className="truncate block">
+                  {l.nome}
+                  {l.sigla && (
+                    <span className="ml-1.5 text-[11px] font-mono px-1 py-0.5 rounded bg-slate-100 text-slate-500"
+                      title="Sigla — liga com o cobrança">{l.sigla}</span>
+                  )}
+                </span>
                 <span className="text-xs text-slate-400">
                   {l.usuarios} usuário(s){l.admins ? ` · ${l.admins} admin` : ""}
                 </span>

@@ -726,7 +726,7 @@ export type EquipeResumo = {
   totais: { vinculos: number; usuarios_vinculados: number; admins_globais: number };
   marcas: { id: number; nome: string; lojas: number; usuarios: number }[];
 };
-export type LojaEquipe = { id: number; nome: string; usuarios: number; admins: number };
+export type LojaEquipe = { id: number; nome: string; sigla?: string | null; usuarios: number; admins: number };
 export type MembroLoja = {
   usuario_id: number; nome: string | null; email: string | null;
   papel: string; ativo: boolean; admin_loja: boolean;

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
 import ColunasConfig from "@/components/ColunasConfig";
+import SlaBadge from "@/components/SlaBadge";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   atendimentosEmLote,
@@ -40,9 +41,10 @@ const COLS_ATEND: {
   { key: "marca", label: "Marca", render: (a) => <span className="text-slate-600">{a.marca || "—"}</span> },
   { key: "loja", label: "Loja", render: (a) => <span className="text-slate-600">{a.loja || "—"}</span> },
   { key: "status", label: "Status", th: "th w-28", render: (a) => <span className={statusBadge(a.status)}>{a.status}</span> },
+  { key: "sla", label: "Prazo (SLA)", th: "th w-32", render: (a) => <SlaBadge venceEm={a.vence_em} alertaEm={a.alerta_em} /> },
   { key: "data", label: "Aberto em", th: "th w-28", render: (a) => <span className="text-slate-500">{fmtData(a.criado_em)}</span> },
 ];
-const COLS_ATEND_DEFAULT = ["assunto", "cliente", "status", "data"];
+const COLS_ATEND_DEFAULT = ["assunto", "cliente", "status", "sla", "data"];
 const COLS_ATEND_KEYS = COLS_ATEND.map((c) => c.key);
 
 export default function AtendimentosPage() {

@@ -163,6 +163,8 @@ export type AtendimentoItem = {
   prioridade: string;
   canal_origem: string | null;
   criado_em: string | null;
+  vence_em?: string | null;   // SLA: prazo (vermelho ao passar)
+  alerta_em?: string | null;  // SLA: a partir daqui fica amarelo
 };
 
 export type AtendimentosLista = {
@@ -195,6 +197,8 @@ export type AtendimentoDetalhe = {
   canal_origem: string | null;
   criado_em: string | null;
   encerrado_em: string | null;
+  vence_em?: string | null;
+  alerta_em?: string | null;
   custom: Record<string, unknown> | null;
   cliente: {
     id: number;

@@ -1271,6 +1271,8 @@ function SecaoGeral({ marca, onSalvo, onErro }: {
   // regras (config tipada)
   const [autoclose, setAutoclose] = useState(String(Number(env0.autoclose_dias ?? 0) || 0));
   const [flood, setFlood] = useState(Boolean(env0.flood));
+  const [slaAmarelo, setSlaAmarelo] = useState(String(Number(env0.sla_amarelo_horas ?? 0) || 0));
+  const [slaVermelho, setSlaVermelho] = useState(String(Number(env0.sla_vermelho_horas ?? 0) || 0));
   const [banEmails, setBanEmails] = useState(lst0("banidos_emails"));
   const [banIps, setBanIps] = useState(lst0("banidos_ips"));
   const [salvando, setSalvando] = useState(false);
@@ -1285,6 +1287,8 @@ function SecaoGeral({ marca, onSalvo, onErro }: {
     setDelivery(t("delivery")); setHeader(t("header")); setFooter(t("footer"));
     setAutoclose(String(Number(e.autoclose_dias ?? 0) || 0));
     setFlood(Boolean(e.flood));
+    setSlaAmarelo(String(Number(e.sla_amarelo_horas ?? 0) || 0));
+    setSlaVermelho(String(Number(e.sla_vermelho_horas ?? 0) || 0));
     setBanEmails(l("banidos_emails")); setBanIps(l("banidos_ips"));
   }, [marca]);
 
@@ -1303,6 +1307,8 @@ function SecaoGeral({ marca, onSalvo, onErro }: {
         config: {
           autoclose_dias: Number(autoclose) || 0,
           flood,
+          sla_amarelo_horas: Number(slaAmarelo) || 0,
+          sla_vermelho_horas: Number(slaVermelho) || 0,
           banidos_emails: parseLista(banEmails),
           banidos_ips: parseLista(banIps),
         },
@@ -1361,6 +1367,21 @@ function SecaoGeral({ marca, onSalvo, onErro }: {
         <input type="checkbox" checked={flood} onChange={(e) => setFlood(e.target.checked)} />
         Ativar controle de flood (evita aberturas duplicadas em sequência)
       </label>
+
+      <hr className="border-slate-200" />
+      <h3 className="font-semibold text-sm">Prazo de atendimento (SLA)</h3>
+      <p className="text-xs text-slate-500 -mt-2">
+        Conta da abertura do atendimento (horas corridas). O selo fica
+        <b className="text-amber-600"> amarelo</b> após o 1º prazo e
+        <b className="text-red-600"> vermelho</b> após o 2º. 0 = sem alerta.
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <label className="label mb-0">Amarelo após</label>
+        <input type="number" min={0} className="input w-24" value={slaAmarelo} onChange={(e) => setSlaAmarelo(e.target.value)} />
+        <span className="text-sm text-slate-500">horas · Vermelho após</span>
+        <input type="number" min={0} className="input w-24" value={slaVermelho} onChange={(e) => setSlaVermelho(e.target.value)} />
+        <span className="text-sm text-slate-500">horas</span>
+      </div>
 
       <hr className="border-slate-200" />
       <h3 className="font-semibold text-sm">Banimentos (formulário público)</h3>

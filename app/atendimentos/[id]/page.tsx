@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import SlaBadge from "@/components/SlaBadge";
 import {
   anexarFoto,
   detalheAtendimento,
@@ -231,7 +232,10 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                     {d.loja ? ` · ${d.loja}` : ""}
                   </div>
                 </div>
-                <span className={statusBadge(d.status)}>{d.status}</span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className={statusBadge(d.status)}>{d.status}</span>
+                  <SlaBadge venceEm={d.vence_em} alertaEm={d.alerta_em} />
+                </span>
               </div>
               <div className="text-xs text-slate-400 mt-3">
                 Aberto em {fmtDataHora(d.criado_em)} · {d.total_mensagens} mensagem(ns)

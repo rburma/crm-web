@@ -320,6 +320,10 @@ export type FranqueadoLoja = {
 export function franqueadoLoja(token: string): Promise<FranqueadoLoja> {
   return req(`franqueado/loja/${encodeURIComponent(token)}`);
 }
+// A cobrança monta o link só com a sigla ({codigo_loja}); o CRM resolve → token.
+export function franqueadoPorSigla(sigla: string): Promise<{ token: string; loja_id: number; nome: string }> {
+  return req(`franqueado/por-sigla/${encodeURIComponent(sigla)}`);
+}
 export function franqueadoEnviarProposta(token: string, body: {
   autor_nome?: string; autor_email?: string;
   valores: Record<string, string>; ativo?: boolean;

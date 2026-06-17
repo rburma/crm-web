@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
+import QrAvaliacao from "@/components/QrAvaliacao";
 import {
   boxDesconectar,
   boxIniciar,
@@ -1224,8 +1225,11 @@ function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
           url={`${base}/f/${marca.slug}`} arquivo={`qr-atendimento-${marca.slug}`} />
         <LinkComQr rotulo="Acompanhamento de atendimento"
           url={`${base}/acompanhar`} arquivo="qr-acompanhar" />
-        <LinkComQr rotulo="⭐ Avaliação do SITE (marca, com ou sem compra)"
-          url={`${base}/avaliar-site/${marca.slug}`} arquivo={`qr-avaliacao-site-${marca.slug}`} />
+        <div>
+          <p className="text-xs font-semibold text-slate-500 mb-1">⭐ Avaliação do SITE (marca, com ou sem compra)</p>
+          <QrAvaliacao url={`${base}/avaliar-site/${marca.slug}`} nome={marca.nome ?? marca.slug}
+            arquivo={`qr-avaliacao-site-${marca.slug}`} />
+        </div>
 
         {/* avaliação POR LOJA (QR pro balcão) */}
         <div className="border border-amber-200 bg-amber-50/40 rounded-lg p-3">
@@ -1255,8 +1259,8 @@ function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
             )}
           </div>
           {loja && (
-            <LinkComQr rotulo={`Avaliação da loja: ${loja.nome}`}
-              url={`${base}/avaliar-loja/${loja.id}`} arquivo={`qr-avaliacao-loja-${loja.id}`} />
+            <QrAvaliacao url={`${base}/avaliar-loja/${loja.id}`} nome={loja.nome}
+              arquivo={`qr-avaliacao-loja-${loja.id}`} />
           )}
         </div>
       </div>

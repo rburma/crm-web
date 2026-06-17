@@ -6,6 +6,7 @@
 // fixos (PATCH /dados) e a gaveta de atributos (PATCH /atributos) numa tacada.
 
 import { useCallback, useEffect, useState } from "react";
+import QrAvaliacao from "@/components/QrAvaliacao";
 import {
   franqueadoGerarLink,
   lojaCampos,
@@ -263,6 +264,21 @@ export default function LojaCadastro({
                     {gerandoLink ? "Gerando…" : "🔗 Gerar link do franqueado"}
                   </button>
                 )}
+              </div>
+
+              {/* QR de avaliação da loja: imprimir no balcão / salvar PDF / link p/ e-mail */}
+              <div className="rounded-lg border border-slate-200 p-3">
+                <div className="text-sm font-semibold text-slate-700">QR de avaliação da loja</div>
+                <p className="text-xs text-slate-400 mb-2">
+                  Cole no balcão pro cliente avaliar o atendimento (com ou sem compra). Escolha o
+                  tamanho e <b>imprima ou salve o PDF</b>. O mesmo link vai por e-mail com o
+                  placeholder <code>{"{loja.link_avaliacao}"}</code>.
+                </p>
+                <QrAvaliacao
+                  url={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "https://contactcenter.com.br").replace(/\/$/, "")}/avaliar-loja/${lojaId}`}
+                  nome={nome}
+                  arquivo={`qr-avaliacao-loja-${lojaId}`}
+                />
               </div>
 
               {/* Endereço e identificação (cadastro canônico + busca de roteamento) */}

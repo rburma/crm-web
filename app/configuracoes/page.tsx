@@ -61,6 +61,17 @@ const SECOES: { id: Secao; rotulo: string }[] = [
   { id: "box", rotulo: "10. Box (anexos)" },
 ];
 
+// Lembra a última marca escolhida (por navegador) p/ não voltar sempre à 1ª.
+const MARCA_STORAGE = "crm_cfg_marca_id";
+function lembrarMarca(id: number) {
+  if (typeof window !== "undefined") window.localStorage.setItem(MARCA_STORAGE, String(id));
+}
+function marcaLembrada(): number | null {
+  if (typeof window === "undefined") return null;
+  const v = Number(window.localStorage.getItem(MARCA_STORAGE));
+  return v > 0 ? v : null;
+}
+
 export default function ConfiguracoesPage() {
   const [marcas, setMarcas] = useState<MarcaConfig[]>([]);
   const [marca, setMarca] = useState<MarcaConfig | null>(null);
@@ -72,8 +83,10 @@ export default function ConfiguracoesPage() {
     try {
       const ms = await configMarcas();
       setMarcas(ms);
-      const alvo = manterId ?? marca?.id;
-      setMarca(ms.find((m) => m.id === alvo) ?? ms[0] ?? null);
+      const alvo = manterId ?? marca?.id ?? marcaLembrada() ?? undefined;
+      const escolhida = ms.find((m) => m.id === alvo) ?? ms[0] ?? null;
+      setMarca(escolhida);
+      if (escolhida) lembrarMarca(escolhida.id);
     } catch (e) {
       setErro(String((e as Error).message || e));
     }
@@ -92,7 +105,11 @@ export default function ConfiguracoesPage() {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <label className="label mb-0">Marca:</label>
         <select className="input max-w-xs" value={marca?.id ?? ""}
-          onChange={(e) => setMarca(marcas.find((m) => m.id === Number(e.target.value)) ?? null)}>
+          onChange={(e) => {
+            const m = marcas.find((x) => x.id === Number(e.target.value)) ?? null;
+            setMarca(m);
+            if (m) lembrarMarca(m.id);
+          }}>
           {marcas.map((m) => <option key={m.id} value={m.id}>{m.nome ?? m.slug}</option>)}
         </select>
         {aviso && <span className="text-sm text-emerald-700">✅ {aviso}</span>}

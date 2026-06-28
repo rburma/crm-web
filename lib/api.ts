@@ -633,7 +633,7 @@ export function criarUsuario(dados: {
 }
 
 export function atualizarUsuario(
-  id: number, dados: { nome?: string; papel?: string; ativo?: boolean },
+  id: number, dados: { nome?: string; email?: string; papel?: string; ativo?: boolean },
 ): Promise<UsuarioGestao> {
   return req(`auth/usuarios/${id}`, {
     method: "PATCH",
@@ -1447,4 +1447,34 @@ export function paresFicha(obj: Record<string, unknown> | null | undefined): Par
       valor: String(v),
       isLink: k === "link" || /^https?:\/\//i.test(String(v)),
     }));
+}
+
+
+// ── Bulk de e-mails de usuario (planilha) ────────────────────────────
+export type UsuarioExport = {
+  id: number; nome: string | null; papel: string;
+  email_atual: string | null; ativo: boolean; lojas: string;
+};
+
+export function exportarUsuarios(): Promise<{ usuarios: UsuarioExport[] }> {
+  return req("auth/usuarios/export");
+}
+
+export type EmailBulkLinha = {
+  id: number; nome: string | null; de: string | null;
+  para: string; status: string; erro: string | null;
+};
+export type EmailBulkResultado = {
+  total: number; validos: number; erros: number; aplicados: number;
+  preview: boolean; itens: EmailBulkLinha[];
+};
+
+export function emailsBulk(
+  aplicar: boolean, itens: { id: number; email: string }[],
+): Promise<EmailBulkResultado> {
+  return req("auth/usuarios/emails-bulk", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ aplicar, itens }),
+  });
 }

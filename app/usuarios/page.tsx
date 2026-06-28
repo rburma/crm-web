@@ -8,13 +8,72 @@ import {
   atualizarUsuario,
   criarUsuario,
   definirSenha,
+  emailsBulk,
+  exportarUsuarios,
   listarUsuarios,
+  me,
   usuariosEmLote,
+  type EmailBulkResultado,
   type UsuarioGestao,
 } from "@/lib/api";
 
 const PAPEIS = ["admin", "rede", "matriz", "master", "franqueado", "loja", "staff"];
 const PAGE = 50;
+const GLOBAIS = ["admin", "rede", "matriz"];
+
+function parseCSV(text: string): Record<string, string>[] {
+  const linhas = text.replace(/\r\n?/g, "\n").split("\n").filter((l) => l.trim().length > 0);
+  if (!linhas.length) return [];
+  const delim = linhas[0].split(";").length > linhas[0].split(",").length ? ";" : ",";
+  const corta = (linha: string): string[] => {
+    const out: string[] = [];
+    let cur = "";
+    let q = false;
+    for (let i = 0; i < linha.length; i++) {
+      const c = linha[i];
+      if (q) {
+        if (c === '"') {
+          if (linha[i + 1] === '"') { cur += '"'; i++; } else q = false;
+        } else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === delim) { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out;
+  };
+  const heads = corta(linhas[0]).map((h) => h.trim().toLowerCase());
+  return linhas.slice(1).map((l) => {
+    const cs = corta(l);
+    const o: Record<string, string> = {};
+    heads.forEach((h, i) => (o[h] = (cs[i] ?? "").trim()));
+    return o;
+  });
+}
+
+function montarCSV(
+  usuarios: { id: number; nome: string | null; papel: string; email_atual: string | null; lojas: string }[],
+): string {
+  const esc = (v: unknown) => {
+    const s = String(v ?? "");
+    return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const linhas = ["id,nome,papel,email_atual,email_novo,lojas"];
+  for (const u of usuarios) {
+    linhas.push([u.id, u.nome, u.papel, u.email_atual, "", u.lojas].map(esc).join(","));
+  }
+  return linhas.join("\r\n");
+}
+
+function baixarArquivo(nome: string, conteudo: string) {
+  const blob = new Blob(["﻿" + conteudo], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nome;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function UsuariosPage() {
   const [q, setQ] = useState("");
@@ -37,6 +96,12 @@ export default function UsuariosPage() {
   const selec = useSelecao(rows, (u) => String(u.id));
   const [bulkPapel, setBulkPapel] = useState("loja");
   const [bulkBusy, setBulkBusy] = useState(false);
+
+  // e-mails em massa (planilha) — so admin ve
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [previa, setPrevia] = useState<EmailBulkResultado | null>(null);
+  const [importItens, setImportItens] = useState<{ id: number; email: string }[]>([]);
+  const [importBusy, setImportBusy] = useState(false);
 
   async function carregar(pg: number, size = pageSize) {
     setLoading(true);
@@ -61,6 +126,12 @@ export default function UsuariosPage() {
   useEffect(() => {
     carregar(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    me()
+      .then((u) => setIsAdmin(GLOBAIS.includes(u.papel)))
+      .catch(() => setIsAdmin(false));
   }, []);
 
   async function criar(e: React.FormEvent) {
@@ -123,6 +194,62 @@ export default function UsuariosPage() {
     }
   }
 
+  async function exportarPlanilha() {
+    setErro("");
+    setMsg("");
+    try {
+      const r = await exportarUsuarios();
+      baixarArquivo("usuarios-emails.csv", montarCSV(r.usuarios));
+      setMsg(`Planilha exportada (${r.usuarios.length} usuarios). Preencha a coluna email_novo e importe.`);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao exportar");
+    }
+  }
+
+  async function onArquivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setErro("");
+    setMsg("");
+    setImportBusy(true);
+    try {
+      const texto = await file.text();
+      const itens = parseCSV(texto)
+        .filter((l) => (l["email_novo"] || "") !== "" && (l["id"] || "") !== "")
+        .map((l) => ({ id: Number(l["id"]), email: l["email_novo"] }))
+        .filter((x) => Number.isFinite(x.id));
+      if (!itens.length) {
+        setErro("Nenhuma linha com id e email_novo preenchidos.");
+        return;
+      }
+      setImportItens(itens);
+      setPrevia(await emailsBulk(false, itens));
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao ler a planilha");
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  async function aplicarImport() {
+    if (!importItens.length) return;
+    setImportBusy(true);
+    setErro("");
+    setMsg("");
+    try {
+      const r = await emailsBulk(true, importItens);
+      setMsg(`${r.aplicados} e-mail(s) atualizado(s)${r.erros ? `, ${r.erros} com erro` : ""}.`);
+      setPrevia(null);
+      setImportItens([]);
+      await carregar(page);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao aplicar");
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
   return (
     <Shell title="Usuários">
       <div className="max-w-5xl space-y-5">
@@ -148,6 +275,68 @@ export default function UsuariosPage() {
           <input className="input flex-1" placeholder="Buscar por nome ou e-mail…" value={q} onChange={(e) => setQ(e.target.value)} />
           <button className="btn-ghost" disabled={loading}>{loading ? "…" : "Buscar"}</button>
         </form>
+
+        {isAdmin && (
+          <div className="card p-4 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-slate-700">E-mails em massa (planilha)</span>
+              <button className="btn-ghost" onClick={exportarPlanilha}>Exportar planilha</button>
+              <label className="btn-ghost cursor-pointer">
+                Importar planilha
+                <input type="file" accept=".csv,text/csv" className="hidden" disabled={importBusy} onChange={onArquivo} />
+              </label>
+              <span className="text-xs text-slate-400">
+                Exporte, preencha a coluna email_novo no Excel/Sheets e importe (ha previa antes de aplicar).
+              </span>
+            </div>
+
+            {previa && (
+              <div className="rounded-lg border border-[var(--line)] overflow-hidden">
+                <div className="bg-slate-50 px-3 py-2 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span><b>{previa.total}</b> linhas</span>
+                  <span className="text-green-700"><b>{previa.validos}</b> a atualizar</span>
+                  <span className="text-red-700"><b>{previa.erros}</b> erros</span>
+                  <span className="text-amber-600 ml-auto">PREVIA — nada alterado ainda</span>
+                </div>
+                <div className="max-h-72 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-[var(--line)]">
+                      <tr>
+                        <th className="th">Nome</th>
+                        <th className="th">De</th>
+                        <th className="th">Para</th>
+                        <th className="th w-44">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--line)]">
+                      {previa.itens.map((it, i) => (
+                        <tr key={i} className={it.status === "erro" ? "bg-red-50/50" : ""}>
+                          <td className="td">{it.nome || `id ${it.id}`}</td>
+                          <td className="td text-slate-500">{it.de || "-"}</td>
+                          <td className="td">{it.para || "-"}</td>
+                          <td className="td">
+                            {it.status === "ok" && <span className="text-green-700">vai atualizar</span>}
+                            {it.status === "igual" && <span className="text-slate-400">sem mudanca</span>}
+                            {it.status === "ignorado" && <span className="text-slate-400">ignorado</span>}
+                            {it.status === "erro" && <span className="text-red-700">{it.erro}</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="px-3 py-2 bg-slate-50 flex gap-2">
+                  <button className="btn-primary" disabled={importBusy || previa.validos === 0} onClick={aplicarImport}>
+                    {importBusy ? "Aplicando..." : `Aplicar ${previa.validos} valida(s)`}
+                  </button>
+                  <button className="btn-ghost" disabled={importBusy} onClick={() => { setPrevia(null); setImportItens([]); }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Barra de ações em massa */}
         {selec.count > 0 && (

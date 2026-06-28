@@ -1478,3 +1478,17 @@ export function emailsBulk(
     body: JSON.stringify({ aplicar, itens }),
   });
 }
+
+
+// ── IA de Ajuda (duvidas de uso do CRM) ──────────────────────────────
+export function iaAjuda(pergunta: string): Promise<{ resposta: string }> {
+  return req("ia/ajuda", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta }),
+  });
+}
+
+export function iaManual(): Promise<{ markdown: string }> {
+  return req("ia/manual");
+}

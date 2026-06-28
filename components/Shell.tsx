@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import ChatIA from "@/components/ChatIA";
+import AjudaWidget from "@/components/AjudaWidget";
 import {
   impersonando,
   logout,
@@ -114,7 +114,7 @@ export default function Shell({
           <h1 className="text-sm font-semibold text-slate-700">{title}</h1>
         </header>
         <main className="flex-1 p-6">
-          <ChatIA />
+          <AjudaWidget />
           {children}
         </main>
       </div>

@@ -1569,3 +1569,16 @@ export function reputacaoSyncGoogleTodas(): Promise<{ ok: number; falhas: number
 export function reputacaoRemover(lojaId: number, veiculo: string): Promise<{ ok: boolean }> {
   return req(`reputacao/loja/${lojaId}/veiculo/${encodeURIComponent(veiculo)}`, { method: "DELETE" });
 }
+
+
+// ── Matriz de reputacao (lojas x redes) ──────────────────────────────
+export type ReputacaoMatriz = {
+  redes: string[];
+  lojas: {
+    loja_id: number; nome: string | null; sigla: string | null; total: number | null;
+    redes: Record<string, { nota: number; qtd: number; link: string | null }>;
+  }[];
+};
+export function reputacaoMatriz(): Promise<ReputacaoMatriz> {
+  return req("reputacao/matriz");
+}

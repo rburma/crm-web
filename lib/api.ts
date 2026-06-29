@@ -1574,8 +1574,11 @@ export function reputacaoRemover(lojaId: number, veiculo: string): Promise<{ ok:
 // ── Matriz de reputacao (lojas x redes) ──────────────────────────────
 export type ReputacaoMatriz = {
   redes: string[];
+  marcas: { id: number; nome: string | null }[];
   lojas: {
-    loja_id: number; nome: string | null; sigla: string | null; total: number | null;
+    loja_id: number; nome: string | null; sigla: string | null;
+    marca_id: number | null; marca: string | null;
+    total: number | null; total_qtd: number;
     redes: Record<string, { nota: number; qtd: number; link: string | null }>;
   }[];
 };

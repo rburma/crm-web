@@ -1492,3 +1492,24 @@ export function iaAjuda(pergunta: string): Promise<{ resposta: string }> {
 export function iaManual(): Promise<{ markdown: string }> {
   return req("ia/manual");
 }
+
+
+// ── Reputacao online da loja (score ponderado + notas por veiculo) ──
+export type ReputacaoVeic = { veiculo: string; nota: number; qtd_avaliacoes: number; peso: number };
+export type ReputacaoLoja = {
+  loja_id: number; score: number | null; qtd_veiculos: number; qtd_avaliacoes: number; veiculos: ReputacaoVeic[];
+};
+
+export function reputacaoLoja(lojaId: number): Promise<ReputacaoLoja> {
+  return req(`reputacao/loja/${lojaId}`);
+}
+
+export function reputacaoUpsert(payload: {
+  loja_id: number; veiculo: string; nota: number; qtd_avaliacoes: number; peso: number;
+}): Promise<ReputacaoVeic> {
+  return req("reputacao", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}

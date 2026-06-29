@@ -14,8 +14,11 @@ import {
   lojaDetalhe,
   lojaSalvarAtributos,
   lojaSalvarDados,
+  reputacaoLoja,
+  reputacaoUpsert,
   type LojaCampoDef,
   type LojaDados,
+  type ReputacaoLoja,
 } from "@/lib/api";
 
 const GRUPOS: { chave: string; titulo: string }[] = [
@@ -57,6 +60,14 @@ export default function LojaCadastro({
   const [linkFranq, setLinkFranq] = useState("");
   const [gerandoLink, setGerandoLink] = useState(false);
 
+  // reputacao online da loja
+  const [rep, setRep] = useState<ReputacaoLoja | null>(null);
+  const [repVeic, setRepVeic] = useState("");
+  const [repNota, setRepNota] = useState("");
+  const [repQtd, setRepQtd] = useState("");
+  const [repPeso, setRepPeso] = useState("");
+  const [repBusy, setRepBusy] = useState(false);
+
   async function gerarLink() {
     setGerandoLink(true); setErro("");
     try {
@@ -73,8 +84,13 @@ export default function LojaCadastro({
     setCarregando(true);
     setErro("");
     try {
-      const [cs, det] = await Promise.all([lojaCampos(), lojaDetalhe(lojaId)]);
+      const [cs, det, rp] = await Promise.all([
+        lojaCampos(),
+        lojaDetalhe(lojaId),
+        reputacaoLoja(lojaId).catch(() => null),
+      ]);
       setCampos(cs);
+      setRep(rp);
       setNome(det.nome ?? lojaNome);
       setAtivo(det.ativo);
       setEmail(det.email ?? "");
@@ -98,6 +114,28 @@ export default function LojaCadastro({
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  async function salvarVeiculo() {
+    const v = repVeic.trim();
+    if (!v) return;
+    setRepBusy(true);
+    setErro("");
+    try {
+      await reputacaoUpsert({
+        loja_id: lojaId,
+        veiculo: v,
+        nota: Number(repNota) || 0,
+        qtd_avaliacoes: Number(repQtd) || 0,
+        peso: Number(repPeso) || 1,
+      });
+      setRep(await reputacaoLoja(lojaId));
+      setRepVeic(""); setRepNota(""); setRepQtd(""); setRepPeso("");
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setRepBusy(false);
+    }
+  }
 
   function setVal(chave: string, v: string) {
     setValores((m) => ({ ...m, [chave]: v }));
@@ -279,6 +317,49 @@ export default function LojaCadastro({
                   nome={nome}
                   arquivo={`qr-avaliacao-loja-${lojaId}`}
                 />
+              </div>
+
+              {/* Reputacao online da loja (score ponderado + notas por veiculo) */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-baseline justify-between">
+                  <div className="text-sm font-semibold text-slate-700">Reputação online</div>
+                  <div className="text-xs text-slate-500">
+                    {rep && rep.score != null
+                      ? `Score ${rep.score.toFixed(2)} · ${rep.qtd_veiculos} veículo(s) · ${rep.qtd_avaliacoes} avaliações`
+                      : "sem notas ainda"}
+                  </div>
+                </div>
+                {rep && rep.veiculos.length > 0 && (
+                  <table className="w-full text-sm mt-2">
+                    <thead>
+                      <tr className="text-left text-xs text-slate-400">
+                        <th className="py-1">Veículo</th>
+                        <th>Nota</th>
+                        <th>Qtd</th>
+                        <th>Peso</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rep.veiculos.map((v) => (
+                        <tr key={v.veiculo} className="border-t border-slate-100">
+                          <td className="py-1">{v.veiculo}</td>
+                          <td>{v.nota}</td>
+                          <td>{v.qtd_avaliacoes}</td>
+                          <td>{v.peso}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-2">
+                  <input className="input sm:col-span-2" placeholder="Veículo (ex.: Google)" value={repVeic} onChange={(e) => setRepVeic(e.target.value)} />
+                  <input className="input" type="number" step="0.1" placeholder="Nota" value={repNota} onChange={(e) => setRepNota(e.target.value)} />
+                  <input className="input" type="number" placeholder="Qtd" value={repQtd} onChange={(e) => setRepQtd(e.target.value)} />
+                  <input className="input" type="number" step="0.1" placeholder="Peso" value={repPeso} onChange={(e) => setRepPeso(e.target.value)} />
+                </div>
+                <button type="button" className="btn-ghost text-sm mt-2" onClick={salvarVeiculo} disabled={repBusy || !repVeic.trim()}>
+                  {repBusy ? "Salvando…" : "Salvar veículo"}
+                </button>
               </div>
 
               {/* Endereço e identificação (cadastro canônico + busca de roteamento) */}

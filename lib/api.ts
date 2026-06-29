@@ -1513,3 +1513,26 @@ export function reputacaoUpsert(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+
+// ── Preference center do cliente (opt-in canal x tema x marca, LGPD) ──
+export type ClientePrefs = {
+  canais: string[];
+  temas: string[];
+  itens: { canal: string; tema: string; marca_id: number | null; permitido: boolean }[];
+};
+
+export function clientePreferencias(id: number | string): Promise<ClientePrefs> {
+  return req(`clientes/${id}/preferencias`);
+}
+
+export function clientePreferenciaSet(
+  id: number | string,
+  payload: { canal: string; tema: string; marca_id?: number | null; permitido: boolean },
+): Promise<{ ok: boolean }> {
+  return req(`clientes/${id}/preferencias`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}

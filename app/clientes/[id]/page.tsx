@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type Ficha } from "@/lib/api";
+import { clientePreferencias, clientePreferenciaSet, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type ClientePrefs, type Ficha } from "@/lib/api";
 
 const fmt1 = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -69,6 +69,8 @@ export default function FichaPage({ params }: { params: { id: string } }) {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
   const [copiado, setCopiado] = useState(false);
+  const [prefs, setPrefs] = useState<ClientePrefs | null>(null);
+  const [prefBusy, setPrefBusy] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -88,6 +90,12 @@ export default function FichaPage({ params }: { params: { id: string } }) {
     };
   }, [params.id]);
 
+  useEffect(() => {
+    clientePreferencias(params.id)
+      .then(setPrefs)
+      .catch(() => setPrefs(null));
+  }, [params.id]);
+
   const atr = (f?.atributos || {}) as Record<string, unknown>;
   const av = (k: string): string | null => {
     const v = atr[k];
@@ -101,6 +109,23 @@ export default function FichaPage({ params }: { params: { id: string } }) {
     : null;
   const ultimo = f && f.atendimentos.length ? f.atendimentos[0].criado_em : null;
   const situacao = f && f.atendimentos.length ? f.atendimentos[0].status : null;
+
+  function permitidoPref(canal: string, tema: string): boolean {
+    return !!prefs?.itens.find(
+      (i) => i.canal === canal && i.tema === tema && i.marca_id == null && i.permitido,
+    );
+  }
+  async function togglePref(canal: string, tema: string, novo: boolean) {
+    setPrefBusy(true);
+    try {
+      await clientePreferenciaSet(params.id, { canal, tema, marca_id: null, permitido: novo });
+      setPrefs(await clientePreferencias(params.id));
+    } catch {
+      /* mantem estado */
+    } finally {
+      setPrefBusy(false);
+    }
+  }
 
   async function copiar() {
     if (!f) return;
@@ -288,6 +313,47 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                 )}
               </Bloco>
             )}
+
+            {/* Preferencias de comunicacao (LGPD) — opt-in por canal x tema */}
+            <Bloco titulo="Preferências de comunicação (LGPD)">
+              {!prefs ? (
+                <div className="text-sm text-slate-400">Carregando…</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left text-xs text-slate-400 pr-3 py-1">Tema \ Canal</th>
+                        {prefs.canais.map((c) => (
+                          <th key={c} className="px-2 text-xs text-slate-500 capitalize">{c}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prefs.temas.map((t) => (
+                        <tr key={t} className="border-t border-slate-100">
+                          <td className="pr-3 py-1 capitalize text-slate-700">{t}</td>
+                          {prefs.canais.map((c) => (
+                            <td key={c} className="px-2 text-center">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={permitidoPref(c, t)}
+                                disabled={prefBusy}
+                                onChange={(e) => togglePref(c, t, e.target.checked)}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-xs text-slate-400 mt-2">
+                    Marcado = o cliente ACEITA receber (todas as marcas). Aplicado nas campanhas (opt-in LGPD).
+                  </p>
+                </div>
+              )}
+            </Bloco>
 
             {/* Atendimentos (Data, Assunto, Status — mais recente primeiro) */}
             <div className="card overflow-hidden">

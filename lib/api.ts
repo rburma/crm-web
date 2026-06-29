@@ -1543,3 +1543,10 @@ export type ClienteIdentidade = { canonico_id: number; sinais: { tipo: string; v
 export function clienteIdentidade(id: number | string): Promise<ClienteIdentidade> {
   return req(`clientes/${id}/identidade`);
 }
+
+
+export function reputacaoSyncGoogle(
+  lojaId: number,
+): Promise<{ ok: boolean; nota?: number; qtd?: number; motivo?: string }> {
+  return req(`reputacao/loja/${lojaId}/sync-google`, { method: "POST" });
+}

@@ -15,6 +15,7 @@ import {
   lojaSalvarAtributos,
   lojaSalvarDados,
   reputacaoLoja,
+  reputacaoSyncGoogle,
   reputacaoUpsert,
   type LojaCampoDef,
   type LojaDados,
@@ -67,6 +68,7 @@ export default function LojaCadastro({
   const [repQtd, setRepQtd] = useState("");
   const [repPeso, setRepPeso] = useState("");
   const [repBusy, setRepBusy] = useState(false);
+  const [repSync, setRepSync] = useState(false);
 
   async function gerarLink() {
     setGerandoLink(true); setErro("");
@@ -114,6 +116,20 @@ export default function LojaCadastro({
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  async function atualizarGoogle() {
+    setRepSync(true);
+    setErro("");
+    try {
+      const r = await reputacaoSyncGoogle(lojaId);
+      if (!r.ok) setErro(r.motivo || "Nao consegui buscar no Google.");
+      setRep(await reputacaoLoja(lojaId));
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setRepSync(false);
+    }
+  }
 
   async function salvarVeiculo() {
     const v = repVeic.trim();
@@ -357,9 +373,17 @@ export default function LojaCadastro({
                   <input className="input" type="number" placeholder="Qtd" value={repQtd} onChange={(e) => setRepQtd(e.target.value)} />
                   <input className="input" type="number" step="0.1" placeholder="Peso" value={repPeso} onChange={(e) => setRepPeso(e.target.value)} />
                 </div>
-                <button type="button" className="btn-ghost text-sm mt-2" onClick={salvarVeiculo} disabled={repBusy || !repVeic.trim()}>
-                  {repBusy ? "Salvando…" : "Salvar veículo"}
-                </button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" className="btn-ghost text-sm" onClick={salvarVeiculo} disabled={repBusy || !repVeic.trim()}>
+                    {repBusy ? "Salvando…" : "Salvar veículo (manual)"}
+                  </button>
+                  <button type="button" className="btn-primary text-sm" onClick={atualizarGoogle} disabled={repSync}>
+                    {repSync ? "Buscando no Google…" : "🔄 Atualizar do Google agora"}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  O Google atualiza sozinho todos os dias. O manual e' so' p/ veiculos sem API (ex.: Reclame Aqui).
+                </p>
               </div>
 
               {/* Endereço e identificação (cadastro canônico + busca de roteamento) */}

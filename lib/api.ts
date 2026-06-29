@@ -1563,3 +1563,8 @@ export function reputacaoRanking(): Promise<{ items: ReputacaoRankItem[] }> {
 export function reputacaoSyncGoogleTodas(): Promise<{ ok: number; falhas: number; total: number; erro?: string }> {
   return req("reputacao/sync-google", { method: "POST" });
 }
+
+
+export function reputacaoRemover(lojaId: number, veiculo: string): Promise<{ ok: boolean }> {
+  return req(`reputacao/loja/${lojaId}/veiculo/${encodeURIComponent(veiculo)}`, { method: "DELETE" });
+}

@@ -15,6 +15,7 @@ import {
   lojaSalvarAtributos,
   lojaSalvarDados,
   reputacaoLoja,
+  reputacaoRemover,
   reputacaoSyncGoogle,
   reputacaoUpsert,
   type LojaCampoDef,
@@ -128,6 +129,20 @@ export default function LojaCadastro({
       setErro(String((e as Error).message || e));
     } finally {
       setRepSync(false);
+    }
+  }
+
+  async function removerVeiculo(veiculo: string) {
+    if (!window.confirm(`Remover a fonte "${veiculo}"?`)) return;
+    setRepBusy(true);
+    setErro("");
+    try {
+      await reputacaoRemover(lojaId, veiculo);
+      setRep(await reputacaoLoja(lojaId));
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setRepBusy(false);
     }
   }
 
@@ -353,6 +368,7 @@ export default function LojaCadastro({
                         <th>Nota</th>
                         <th>Qtd</th>
                         <th>Peso</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -362,6 +378,11 @@ export default function LojaCadastro({
                           <td>{v.nota}</td>
                           <td>{v.qtd_avaliacoes}</td>
                           <td>{v.peso}</td>
+                          <td className="text-right">
+                            <button type="button" className="text-red-600 hover:underline text-xs" disabled={repBusy} onClick={() => removerVeiculo(v.veiculo)}>
+                              remover
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

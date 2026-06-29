@@ -1536,3 +1536,10 @@ export function clientePreferenciaSet(
     body: JSON.stringify(payload),
   });
 }
+
+
+// ── Identity graph: sinais que reconhecem o cliente ──────────────────
+export type ClienteIdentidade = { canonico_id: number; sinais: { tipo: string; valor: string }[] };
+export function clienteIdentidade(id: number | string): Promise<ClienteIdentidade> {
+  return req(`clientes/${id}/identidade`);
+}

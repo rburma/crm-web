@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { clientePreferencias, clientePreferenciaSet, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type ClientePrefs, type Ficha } from "@/lib/api";
+import { clienteIdentidade, clientePreferencias, clientePreferenciaSet, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type ClienteIdentidade, type ClientePrefs, type Ficha } from "@/lib/api";
 
 const fmt1 = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -71,6 +71,7 @@ export default function FichaPage({ params }: { params: { id: string } }) {
   const [copiado, setCopiado] = useState(false);
   const [prefs, setPrefs] = useState<ClientePrefs | null>(null);
   const [prefBusy, setPrefBusy] = useState(false);
+  const [ident, setIdent] = useState<ClienteIdentidade | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -94,6 +95,9 @@ export default function FichaPage({ params }: { params: { id: string } }) {
     clientePreferencias(params.id)
       .then(setPrefs)
       .catch(() => setPrefs(null));
+    clienteIdentidade(params.id)
+      .then(setIdent)
+      .catch(() => setIdent(null));
   }, [params.id]);
 
   const atr = (f?.atributos || {}) as Record<string, unknown>;
@@ -311,6 +315,23 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                       ))}
                   </div>
                 )}
+              </Bloco>
+            )}
+
+            {/* Identidade (identity graph) — sinais que reconhecem o cliente */}
+            {ident && ident.sinais.length > 0 && (
+              <Bloco titulo="Identidade (como reconhecemos este cliente)">
+                <div className="flex flex-wrap gap-2">
+                  {ident.sinais.map((s, i) => (
+                    <span key={i} className="text-xs rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                      <span className="text-slate-400 capitalize">{s.tipo}:</span>{" "}
+                      <span className="text-slate-700">{s.valor}</span>
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  Sinais unificados pelo sistema — o mesmo cliente e' reconhecido por estes dados.
+                </p>
               </Bloco>
             )}
 

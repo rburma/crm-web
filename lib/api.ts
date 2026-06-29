@@ -1556,6 +1556,7 @@ export function reputacaoSyncGoogle(
 export type ReputacaoRankItem = {
   loja_id: number; nome: string | null; sigla: string | null;
   score: number | null; qtd_veiculos: number; qtd_avaliacoes: number;
+  google_place_id?: string | null;
 };
 export function reputacaoRanking(): Promise<{ items: ReputacaoRankItem[] }> {
   return req("reputacao/ranking");

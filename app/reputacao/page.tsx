@@ -72,6 +72,7 @@ export default function ReputacaoPage() {
                 <th className="th w-24">Nota</th>
                 <th className="th w-32">Avaliações</th>
                 <th className="th w-20">Fontes</th>
+                <th className="th w-24">Conferir</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
@@ -85,11 +86,25 @@ export default function ReputacaoPage() {
                   </td>
                   <td className="td text-slate-500">{it.qtd_avaliacoes}</td>
                   <td className="td text-slate-500">{it.qtd_veiculos}</td>
+                  <td className="td">
+                    {it.google_place_id ? (
+                      <a
+                        className="text-brand-700 hover:underline text-xs"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        href={`https://www.google.com/maps/place/?q=place_id:${it.google_place_id}`}
+                      >
+                        ver no Google
+                      </a>
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {!loading && items.length === 0 && (
                 <tr>
-                  <td className="td text-slate-400" colSpan={6}>
+                  <td className="td text-slate-400" colSpan={7}>
                     Nenhuma reputação ainda. Use "Atualizar Google (todas)".
                   </td>
                 </tr>

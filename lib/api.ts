@@ -1550,3 +1550,16 @@ export function reputacaoSyncGoogle(
 ): Promise<{ ok: boolean; nota?: number; qtd?: number; motivo?: string }> {
   return req(`reputacao/loja/${lojaId}/sync-google`, { method: "POST" });
 }
+
+
+// ── Ranking de reputacao (ver a reputacao no CRM) ────────────────────
+export type ReputacaoRankItem = {
+  loja_id: number; nome: string | null; sigla: string | null;
+  score: number | null; qtd_veiculos: number; qtd_avaliacoes: number;
+};
+export function reputacaoRanking(): Promise<{ items: ReputacaoRankItem[] }> {
+  return req("reputacao/ranking");
+}
+export function reputacaoSyncGoogleTodas(): Promise<{ ok: number; falhas: number; total: number; erro?: string }> {
+  return req("reputacao/sync-google", { method: "POST" });
+}

@@ -50,6 +50,12 @@ export default function ReputacaoPage() {
   }
 
   const redes = data?.redes ?? [];
+  const fmtPost = (s: string) => {
+    const d = new Date(s);
+    return isNaN(d.getTime())
+      ? ""
+      : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  };
   const marcas = data?.marcas ?? [];
 
   function ordenar(col: string) {
@@ -150,18 +156,29 @@ export default function ReputacaoPage() {
                   </td>
                   {redes.map((r) => {
                     const c = l.redes[r];
+                    const conteudo =
+                      c == null ? null : c.tipo === "social" ? (
+                        <>
+                          {(c.seguidores ?? 0).toLocaleString("pt-BR")}
+                          {c.ultimo_post && (
+                            <span className="block text-[10px] text-slate-400">{fmtPost(c.ultimo_post)}</span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {c.nota.toFixed(1)}/{c.qtd}
+                        </>
+                      );
                     return (
                       <td key={r} className="td text-center px-2">
-                        {c ? (
-                          c.link ? (
-                            <a href={c.link} target="_blank" rel="noopener noreferrer" className="text-brand-700 hover:underline">
-                              {c.nota.toFixed(1)}/{c.qtd}
-                            </a>
-                          ) : (
-                            <span>{c.nota.toFixed(1)}/{c.qtd}</span>
-                          )
-                        ) : (
+                        {c == null ? (
                           <span className="text-slate-300">—</span>
+                        ) : c.link ? (
+                          <a href={c.link} target="_blank" rel="noopener noreferrer" className="text-brand-700 hover:underline">
+                            {conteudo}
+                          </a>
+                        ) : (
+                          <span>{conteudo}</span>
                         )}
                       </td>
                     );

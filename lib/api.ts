@@ -1622,3 +1622,14 @@ export function confirmarIfood(
     body: JSON.stringify({ url }),
   });
 }
+
+// ── Atualizar reputacoes (background): redes vazio = tudo (Google + iFood) ──
+export function reputacaoRefresh(
+  redes?: string[],
+): Promise<{ ok: boolean; iniciado?: string[]; msg?: string }> {
+  return req("reputacao/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ redes: redes ?? [] }),
+  });
+}

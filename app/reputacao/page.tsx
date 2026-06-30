@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Shell from "@/components/Shell";
-import { me, reputacaoMatriz, reputacaoSyncGoogleTodas, type ReputacaoMatriz } from "@/lib/api";
+import { me, reputacaoMatriz, reputacaoRefresh, type ReputacaoMatriz } from "@/lib/api";
 
 const GLOBAIS = ["admin", "rede", "matriz"];
 
@@ -35,15 +35,13 @@ export default function ReputacaoPage() {
     me().then((u) => setIsAdmin(GLOBAIS.includes(u.papel))).catch(() => setIsAdmin(false));
   }, []);
 
-  async function atualizarTodas() {
+  async function dispararRefresh(redes: string[]) {
     setSync(true);
     setErro("");
     setMsg("");
     try {
-      const r = await reputacaoSyncGoogleTodas();
-      if (r.erro) setErro(r.erro);
-      else setMsg(`Google: ${r.ok} loja(s) ok, ${r.falhas} sem nota.`);
-      await carregar();
+      const r = await reputacaoRefresh(redes);
+      setMsg(r.msg || "Atualização iniciada. Recarregue a página em ~2 min.");
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro");
     } finally {
@@ -101,9 +99,17 @@ export default function ReputacaoPage() {
             <span className="text-xs text-slate-400">{lojas.length} loja(s) · clique no cabeçalho p/ ordenar</span>
           </div>
           {isAdmin && (
-            <button className="btn-primary text-sm whitespace-nowrap" onClick={atualizarTodas} disabled={sync}>
-              {sync ? "Atualizando…" : "🔄 Atualizar Google (todas)"}
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button className="btn-primary text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google", "ifood"])} disabled={sync}>
+                {sync ? "Iniciando…" : "🔄 Atualizar tudo"}
+              </button>
+              <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google"])} disabled={sync} title="Só Google (rápido)">
+                Google
+              </button>
+              <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["ifood"])} disabled={sync} title="Só iFood (Apify)">
+                iFood
+              </button>
+            </div>
           )}
         </div>
         <div className="card overflow-x-auto">

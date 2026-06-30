@@ -100,7 +100,7 @@ export default function ReputacaoPage() {
           </div>
           {isAdmin && (
             <div className="flex items-center gap-2 flex-wrap">
-              <button className="btn-primary text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google", "ifood"])} disabled={sync}>
+              <button className="btn-primary text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google", "ifood", "instagram"])} disabled={sync}>
                 {sync ? "Iniciando…" : "🔄 Atualizar tudo"}
               </button>
               <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google"])} disabled={sync} title="Só Google (rápido)">
@@ -108,6 +108,9 @@ export default function ReputacaoPage() {
               </button>
               <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["ifood"])} disabled={sync} title="Só iFood (Apify)">
                 iFood
+              </button>
+              <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["instagram"])} disabled={sync} title="Só Instagram (Apify)">
+                Instagram
               </button>
             </div>
           )}

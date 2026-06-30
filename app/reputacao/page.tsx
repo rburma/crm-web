@@ -72,7 +72,7 @@ export default function ReputacaoPage() {
       if (sortCol === "total") return l.total ?? -1;
       if (sortCol === "loja") return (l.nome || "").toLowerCase();
       const c = l.redes[sortCol];
-      return c ? c.nota : -1;
+      return c ? (c.tipo === "social" ? (c.seguidores ?? 0) : c.nota) : -1;
     };
     return [...base].sort((a, b) => {
       const va = val(a);

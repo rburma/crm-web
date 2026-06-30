@@ -20,6 +20,7 @@ import {
   reputacaoUpsert,
   sugerirGoogleLoja,
   confirmarGoogleLoja,
+  confirmarIfood,
   type GoogleCandidato,
   type LojaCampoDef,
   type LojaDados,
@@ -75,6 +76,8 @@ export default function LojaCadastro({
   const [repSync, setRepSync] = useState(false);
   const [candG, setCandG] = useState<GoogleCandidato[]>([]);
   const [buscandoG, setBuscandoG] = useState(false);
+  const [ifoodUrl, setIfoodUrl] = useState("");
+  const [ifoodBusy, setIfoodBusy] = useState(false);
 
   async function gerarLink() {
     setGerandoLink(true); setErro("");
@@ -156,6 +159,20 @@ export default function LojaCadastro({
       setErro(String((e as Error).message || e));
     } finally {
       setRepSync(false);
+    }
+  }
+
+  async function salvarIfood() {
+    setIfoodBusy(true);
+    setErro("");
+    try {
+      const r = await confirmarIfood(lojaId, ifoodUrl);
+      if (!r.ok) setErro(r.motivo || "iFood nao retornou nota p/ essa URL.");
+      setRep(await reputacaoLoja(lojaId));
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setIfoodBusy(false);
     }
   }
 
@@ -433,6 +450,25 @@ export default function LojaCadastro({
                       ))}
                     </div>
                   )}
+                </div>
+                {/* iFood: colar a URL da loja -> busca nota+qtd via Apify */}
+                <div className="mt-2 rounded-lg border border-[var(--line)] bg-slate-50/60 p-3">
+                  <div className="text-sm font-semibold text-slate-700 mb-1">iFood</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="url"
+                      value={ifoodUrl}
+                      onChange={(e) => setIfoodUrl(e.target.value)}
+                      placeholder="Cole a URL da loja no iFood (ifood.com.br/delivery/...)"
+                      className="input flex-1 min-w-[220px] text-sm"
+                    />
+                    <button type="button" className="btn-primary text-sm" onClick={salvarIfood} disabled={ifoodBusy}>
+                      {ifoodBusy ? "Buscando…" : "Salvar iFood"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Cole o link da página da loja no iFood. A nota e o nº de avaliações entram sozinhos (e atualizam 2×/semana).
+                  </p>
                 </div>
                 {rep && rep.veiculos.length > 0 && (
                   <table className="w-full text-sm mt-2">

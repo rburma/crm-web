@@ -1610,3 +1610,15 @@ export function confirmarGoogleLoja(
     body: JSON.stringify({ place_id: placeId }),
   });
 }
+
+// ── iFood (Apify): salvar a URL da loja + buscar nota/qtd (grava veiculo iFood) ──
+export function confirmarIfood(
+  lojaId: number,
+  url: string,
+): Promise<{ ok: boolean; nome?: string; nota?: number; qtd?: number; motivo?: string }> {
+  return req(`reputacao/loja/${lojaId}/ifood`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+}

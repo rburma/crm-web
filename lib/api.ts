@@ -1585,3 +1585,28 @@ export type ReputacaoMatriz = {
 export function reputacaoMatriz(): Promise<ReputacaoMatriz> {
   return req("reputacao/matriz");
 }
+
+
+// ── Busca-no-cadastro do Google (sugerir + confirmar place_id) ──────
+export type GoogleCandidato = {
+  place_id: string | null; nome: string | null; endereco: string | null;
+  nota: number | null; qtd: number | null; link: string | null;
+};
+export function sugerirGoogleLoja(
+  lojaId: number, endereco?: string,
+): Promise<{ query?: string; candidatos: GoogleCandidato[]; erro?: string }> {
+  return req(`reputacao/loja/${lojaId}/sugerir-google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endereco: endereco || "" }),
+  });
+}
+export function confirmarGoogleLoja(
+  lojaId: number, placeId: string,
+): Promise<{ ok: boolean; nota?: number; qtd?: number; motivo?: string }> {
+  return req(`reputacao/loja/${lojaId}/confirmar-google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ place_id: placeId }),
+  });
+}

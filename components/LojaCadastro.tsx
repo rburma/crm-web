@@ -18,6 +18,9 @@ import {
   reputacaoRemover,
   reputacaoSyncGoogle,
   reputacaoUpsert,
+  sugerirGoogleLoja,
+  confirmarGoogleLoja,
+  type GoogleCandidato,
   type LojaCampoDef,
   type LojaDados,
   type ReputacaoLoja,
@@ -70,6 +73,8 @@ export default function LojaCadastro({
   const [repPeso, setRepPeso] = useState("");
   const [repBusy, setRepBusy] = useState(false);
   const [repSync, setRepSync] = useState(false);
+  const [candG, setCandG] = useState<GoogleCandidato[]>([]);
+  const [buscandoG, setBuscandoG] = useState(false);
 
   async function gerarLink() {
     setGerandoLink(true); setErro("");
@@ -117,6 +122,42 @@ export default function LojaCadastro({
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  async function buscarGoogle() {
+    setBuscandoG(true);
+    setErro("");
+    setCandG([]);
+    try {
+      const endTxt = [end.endereco, end.bairro, end.cidade, end.uf, end.shopping]
+        .filter(Boolean)
+        .join(" ");
+      const r = await sugerirGoogleLoja(lojaId, endTxt);
+      if (r.erro) setErro(r.erro);
+      setCandG(r.candidatos || []);
+      if (!r.erro && (r.candidatos || []).length === 0) {
+        setErro("Nada encontrado no Google p/ esse endereco. Refine o endereco e tente de novo.");
+      }
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setBuscandoG(false);
+    }
+  }
+
+  async function confirmarG(placeId: string) {
+    setRepSync(true);
+    setErro("");
+    try {
+      const r = await confirmarGoogleLoja(lojaId, placeId);
+      if (!r.ok) setErro(r.motivo || "Nao consegui buscar a nota desse lugar.");
+      setCandG([]);
+      setRep(await reputacaoLoja(lojaId));
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setRepSync(false);
+    }
+  }
 
   async function atualizarGoogle() {
     setRepSync(true);
@@ -360,6 +401,39 @@ export default function LojaCadastro({
                       : "sem notas ainda"}
                   </div>
                 </div>
+                {/* Buscar no Google pelo endereco -> confirmar o lugar certo */}
+                <div className="mt-2 rounded-lg border border-[var(--line)] bg-slate-50/60 p-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button type="button" className="btn-primary text-sm" onClick={buscarGoogle} disabled={buscandoG}>
+                      {buscandoG ? "Buscando…" : "🔎 Buscar no Google"}
+                    </button>
+                    <span className="text-xs text-slate-400">usa a marca + o endereço do cadastro abaixo.</span>
+                  </div>
+                  {candG.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {candG.map((c, i) => (
+                        <div key={c.place_id || i} className="flex items-start justify-between gap-2 rounded border border-slate-200 bg-white p-2">
+                          <div className="text-sm">
+                            <div className="font-medium text-slate-700">{c.nome}</div>
+                            <div className="text-xs text-slate-500">{c.endereco}</div>
+                            <div className="text-xs text-amber-600">
+                              {c.nota != null ? `${c.nota.toFixed(1)} ★ (${c.qtd ?? 0})` : "sem nota"}
+                              {c.link && (
+                                <>
+                                  {" · "}
+                                  <a href={c.link} target="_blank" rel="noopener noreferrer" className="text-brand-700 hover:underline">ver no Google ↗</a>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <button type="button" className="btn-ghost text-sm whitespace-nowrap" disabled={!c.place_id || repSync} onClick={() => confirmarG(c.place_id || "")}>
+                            É essa
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {rep && rep.veiculos.length > 0 && (
                   <table className="w-full text-sm mt-2">
                     <thead>
@@ -403,7 +477,7 @@ export default function LojaCadastro({
                   </button>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  O Google atualiza sozinho todos os dias. O manual e' so' p/ veiculos sem API (ex.: Reclame Aqui).
+                  Depois de "É essa", o Google atualiza sozinho. O manual e' so' p/ veiculos sem API (ex.: Reclame Aqui).
                 </p>
               </div>
 

@@ -54,6 +54,7 @@ export default function ReputacaoPage() {
     { rede: "google", label: "Google" },
     { rede: "ifood", label: "iFood" },
     { rede: "ubereats", label: "Uber Eats" },
+    { rede: "tripadvisor", label: "TripAdvisor" },
     { rede: "instagram", label: "Instagram" },
     { rede: "facebook", label: "Facebook" },
     { rede: "tiktok", label: "TikTok" },

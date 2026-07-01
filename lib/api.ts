@@ -1579,7 +1579,7 @@ export type ReputacaoMatriz = {
     loja_id: number; nome: string | null; sigla: string | null;
     marca_id: number | null; marca: string | null;
     total: number | null; total_qtd: number;
-    redes: Record<string, { nota: number; qtd: number; link: string | null; tipo?: string | null; seguidores?: number; ultimo_post?: string | null }>;
+    redes: Record<string, { nota?: number; qtd?: number; link: string | null; tipo?: string | null; seguidores?: number; ultimo_post?: string | null }>;
   }[];
 };
 export function reputacaoMatriz(): Promise<ReputacaoMatriz> {

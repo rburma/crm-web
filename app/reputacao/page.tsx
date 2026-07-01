@@ -72,7 +72,7 @@ export default function ReputacaoPage() {
       if (sortCol === "total") return l.total ?? -1;
       if (sortCol === "loja") return (l.nome || "").toLowerCase();
       const c = l.redes[sortCol];
-      return c ? (c.tipo === "social" ? (c.seguidores ?? 0) : c.nota) : -1;
+      return c ? (c.tipo === "social" ? (c.seguidores ?? 0) : (c.nota ?? -1)) : -1;
     };
     return [...base].sort((a, b) => {
       const va = val(a);
@@ -157,7 +157,9 @@ export default function ReputacaoPage() {
                   {redes.map((r) => {
                     const c = l.redes[r];
                     const conteudo =
-                      c == null ? null : c.tipo === "social" ? (
+                      c == null ? null : c.tipo === "link" ? (
+                        <>🔗</>
+                      ) : c.tipo === "social" ? (
                         <>
                           {(c.seguidores ?? 0).toLocaleString("pt-BR")}
                           {c.ultimo_post && (
@@ -166,7 +168,7 @@ export default function ReputacaoPage() {
                         </>
                       ) : (
                         <>
-                          {c.nota.toFixed(1)}/{c.qtd}
+                          {(c.nota ?? 0).toFixed(1)}/{c.qtd ?? 0}
                         </>
                       );
                     return (

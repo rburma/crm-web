@@ -50,6 +50,14 @@ export default function ReputacaoPage() {
   }
 
   const redes = data?.redes ?? [];
+  const REDES_REFRESH = [
+    { rede: "google", label: "Google" },
+    { rede: "ifood", label: "iFood" },
+    { rede: "ubereats", label: "Uber Eats" },
+    { rede: "instagram", label: "Instagram" },
+    { rede: "facebook", label: "Facebook" },
+    { rede: "tiktok", label: "TikTok" },
+  ];
   const fmtPost = (s: string) => {
     const d = new Date(s);
     return isNaN(d.getTime())
@@ -109,15 +117,16 @@ export default function ReputacaoPage() {
               <button className="btn-primary text-sm whitespace-nowrap" onClick={() => dispararRefresh([])} disabled={sync}>
                 {sync ? "Iniciando…" : "🔄 Atualizar tudo"}
               </button>
-              <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google"])} disabled={sync} title="Só Google (rápido)">
-                Google
-              </button>
-              <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["ifood"])} disabled={sync} title="Só iFood (Apify)">
-                iFood
-              </button>
-              <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["instagram"])} disabled={sync} title="Só Instagram (Apify)">
-                Instagram
-              </button>
+              {REDES_REFRESH.map((rr) => (
+                <button
+                  key={rr.rede}
+                  className="btn-ghost text-sm whitespace-nowrap"
+                  onClick={() => dispararRefresh([rr.rede])}
+                  disabled={sync}
+                >
+                  Atualizar {rr.label}
+                </button>
+              ))}
             </div>
           )}
         </div>

@@ -106,7 +106,7 @@ export default function ReputacaoPage() {
           </div>
           {isAdmin && (
             <div className="flex items-center gap-2 flex-wrap">
-              <button className="btn-primary text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google", "ifood", "instagram"])} disabled={sync}>
+              <button className="btn-primary text-sm whitespace-nowrap" onClick={() => dispararRefresh([])} disabled={sync}>
                 {sync ? "Iniciando…" : "🔄 Atualizar tudo"}
               </button>
               <button className="btn-ghost text-sm whitespace-nowrap" onClick={() => dispararRefresh(["google"])} disabled={sync} title="Só Google (rápido)">

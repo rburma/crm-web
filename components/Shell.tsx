@@ -48,7 +48,10 @@ export default function Shell({
     setImp(impersonando());
   }, []);
   const papel = u?.papel ?? "";
-  const ehGlobal = GLOBAIS_MENU.includes(papel);
+  // Piloto: atras do portao, o backend trata sem-login como admin (X-Usuario-Id=1).
+  // Entao SEM usuario salvo -> menu de admin. So um usuario NAO-global logado (ex.:
+  // franqueado) ve o menu restrito.
+  const ehGlobal = !papel || GLOBAIS_MENU.includes(papel);
   const navVisivel = NAV.filter(
     (n) =>
       ehGlobal ||

@@ -583,13 +583,32 @@ export function usuarioLogado(): UsuarioLogado | null {
   } catch { return null; }
 }
 
+function _lerCookie(nome: string): string {
+  try {
+    const m = document.cookie.match(new RegExp("(?:^|; )" + nome + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : "";
+  } catch { return ""; }
+}
+
 export function logout(): void {
   document.cookie = "crm_token=; path=/; max-age=0";
-  try { localStorage.removeItem("crm_usuario"); } catch { /* ignore */ }
+  try {
+    localStorage.removeItem("crm_usuario");
+    localStorage.removeItem("crm_impersonando");
+    localStorage.removeItem("crm_admin_backup_u");
+    localStorage.removeItem("crm_admin_backup_t");
+  } catch { /* ignore */ }
 }
 
 // ── "Entrar como" (impersonação — admin verifica a visão de outro usuário) ──
 export async function entrarComo(usuarioId: number): Promise<UsuarioLogado> {
+  // Guarda a sessao ATUAL (admin) pra poder VOLTAR sem re-login.
+  try {
+    const adminU = localStorage.getItem("crm_usuario");
+    const adminT = _lerCookie("crm_token");
+    if (adminU) localStorage.setItem("crm_admin_backup_u", adminU);
+    if (adminT) localStorage.setItem("crm_admin_backup_t", adminT);
+  } catch { /* ignore */ }
   const r = await req<{ token: string; usuario: UsuarioLogado }>(
     `auth/impersonar/${usuarioId}`, { method: "POST" },
   );
@@ -605,8 +624,20 @@ export function impersonando(): boolean {
 }
 
 export function sairImpersonacao(): void {
-  logout();
-  try { localStorage.removeItem("crm_impersonando"); } catch { /* ignore */ }
+  // Restaura a sessao admin guardada (sem re-login). Sem backup -> desloga.
+  try {
+    const adminU = localStorage.getItem("crm_admin_backup_u");
+    const adminT = localStorage.getItem("crm_admin_backup_t");
+    if (adminU && adminT) {
+      salvarSessao(adminT, JSON.parse(adminU) as UsuarioLogado);
+    } else {
+      document.cookie = "crm_token=; path=/; max-age=0";
+      localStorage.removeItem("crm_usuario");
+    }
+    localStorage.removeItem("crm_impersonando");
+    localStorage.removeItem("crm_admin_backup_u");
+    localStorage.removeItem("crm_admin_backup_t");
+  } catch { /* ignore */ }
 }
 
 // ── Gestão de usuários (admin) ──────────────────────────────────────

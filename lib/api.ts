@@ -1633,3 +1633,9 @@ export function reputacaoRefresh(
     body: JSON.stringify({ redes: redes ?? [] }),
   });
 }
+
+// ── Minha Loja (portal como pagina; franqueado logado ve as SUAS lojas) ──
+export type MinhaLoja = { loja_id: number; nome: string | null; sigla: string | null; token: string };
+export function minhasLojas(): Promise<MinhaLoja[]> {
+  return req("franqueado/minhas-lojas");
+}

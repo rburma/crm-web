@@ -12,10 +12,12 @@ import {
   fmtData,
   listarAtendimentos,
   listarMarcas,
+  minhasObrigacoes,
   obterPreferencia,
   statusBadge,
   type AtendimentoItem,
   type MarcaItem,
+  type ObrigacaoLojaItem,
 } from "@/lib/api";
 
 const PAGE = 50;
@@ -60,6 +62,7 @@ export default function AtendimentosPage() {
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
   const [cols, setCols] = useState<string[]>(COLS_ATEND_DEFAULT);
+  const [obrig, setObrig] = useState<ObrigacaoLojaItem[]>([]);
 
   // seleção + ações em massa
   const selec = useSelecao(items, (a) => String(a.id));
@@ -119,6 +122,7 @@ export default function AtendimentosPage() {
   // Carrega marcas (filtro) + os atendimentos mais recentes na 1a abertura.
   useEffect(() => {
     listarMarcas().then(setMarcas).catch(() => {});
+    minhasObrigacoes().then((r) => setObrig(r.itens || [])).catch(() => {});
     obterPreferencia<{ cols?: string[] }>("cols_atendimentos")
       .then((v) => {
         const ok = (v.cols || []).filter((k) => COLS_ATEND_KEYS.includes(k));
@@ -132,6 +136,37 @@ export default function AtendimentosPage() {
   return (
     <Shell title="Atendimentos">
       <div className="max-w-5xl">
+        {obrig.length > 0 && (
+          <div className="card border-amber-300 bg-amber-50 p-3 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-amber-800">📋 Obrigações a tratar ({obrig.length})</span>
+              <Link href="/obrigacoes" className="text-xs text-amber-700 hover:underline">Ver todas →</Link>
+            </div>
+            <ul className="space-y-1">
+              {[...obrig]
+                .sort((a, b) => (a.vencimento ?? "9999").localeCompare(b.vencimento ?? "9999"))
+                .slice(0, 6)
+                .map((o, i) => (
+                  <li key={i} className="text-sm text-amber-900 flex flex-wrap items-center gap-2">
+                    {o.sigla && (
+                      <span className="text-[11px] font-bold bg-amber-200 text-amber-900 rounded-full px-2 py-0.5">{o.sigla}</span>
+                    )}
+                    <span className="font-medium">{o.titulo || "(obrigação)"}</span>
+                    {o.tipo && <span className="text-amber-700">{o.tipo}</span>}
+                    {o.vencimento && (
+                      <span className="text-amber-600">· vence {o.vencimento.split("-").reverse().join("/")}</span>
+                    )}
+                  </li>
+                ))}
+            </ul>
+            {obrig.length > 6 && (
+              <div className="text-xs text-amber-700 mt-1">
+                +{obrig.length - 6} outra(s) —{" "}
+                <Link href="/obrigacoes" className="underline">ver todas</Link>
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex justify-end items-center gap-2 mb-3">
           <ColunasConfig
             chave="cols_atendimentos"

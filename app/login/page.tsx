@@ -73,14 +73,13 @@ export default function LoginPage() {
           {carregando ? "Entrando…" : "Entrar"}
         </button>
 
-        {process.env.NEXT_PUBLIC_GOOGLE_LOGIN === "1" && (
-          <a
-            href="/api/auth/google/start"
-            className="btn-ghost w-full mt-3 flex items-center justify-center gap-2"
-          >
-            Entrar com Google
-          </a>
-        )}
+        {/* Login por Google SEMPRE visivel (org loga por Google; a conta admin nao tem senha). */}
+        <a
+          href="/api/auth/google/start"
+          className="btn-primary w-full mt-3 flex items-center justify-center gap-2"
+        >
+          Entrar com Google
+        </a>
       </form>
     </div>
   );

@@ -12,23 +12,25 @@ import {
   type UsuarioLogado,
 } from "@/lib/api";
 
+// vis: "todos" (loja+franqueado+admin) | "franqueado" (franqueado+admin) | "admin" (só global)
 const NAV = [
-  { href: "/", label: "Painel", icon: "📊" },
-  { href: "/clientes", label: "Clientes", icon: "👥" },
-  { href: "/atendimentos", label: "Atendimentos", icon: "💬" },
-  { href: "/obrigacoes", label: "Obrigações", icon: "📋" },
-  { href: "/avaliacoes", label: "Avaliações", icon: "⭐" },
-  { href: "/reputacao", label: "Reputação", icon: "🏆" },
-  { href: "/importar", label: "Importar", icon: "📥" },
-  { href: "/equipe", label: "Equipe", icon: "🏪" },
-  { href: "/aprovacoes", label: "Aprovações", icon: "📝" },
-  { href: "/usuarios", label: "Usuários", icon: "🔑" },
-  { href: "/go-live", label: "Go-live", icon: "🚀" },
-  { href: "/ajuda", label: "Ajuda", icon: "❓" },
-  { href: "/configuracoes", label: "Configurações", icon: "⚙️" },
-  { href: "/backup", label: "Backup", icon: "💾" },
-  { href: "/lgpd", label: "LGPD", icon: "🛡️" },
+  { href: "/", label: "Painel", icon: "📊", vis: "todos" },
+  { href: "/clientes", label: "Clientes", icon: "👥", vis: "admin" },
+  { href: "/atendimentos", label: "Atendimentos", icon: "💬", vis: "todos" },
+  { href: "/obrigacoes", label: "Obrigações", icon: "📋", vis: "todos" },
+  { href: "/avaliacoes", label: "Avaliações", icon: "⭐", vis: "todos" },
+  { href: "/reputacao", label: "Reputação", icon: "🏆", vis: "todos" },
+  { href: "/importar", label: "Importar", icon: "📥", vis: "admin" },
+  { href: "/equipe", label: "Equipe", icon: "🏪", vis: "admin" },
+  { href: "/aprovacoes", label: "Aprovações", icon: "📝", vis: "admin" },
+  { href: "/usuarios", label: "Usuários", icon: "🔑", vis: "admin" },
+  { href: "/go-live", label: "Go-live", icon: "🚀", vis: "admin" },
+  { href: "/ajuda", label: "Ajuda", icon: "❓", vis: "todos" },
+  { href: "/configuracoes", label: "Configurações", icon: "⚙️", vis: "admin" },
+  { href: "/backup", label: "Backup", icon: "💾", vis: "admin" },
+  { href: "/lgpd", label: "LGPD", icon: "🛡️", vis: "admin" },
 ];
+const GLOBAIS_MENU = ["admin", "rede", "matriz", "staff", "master"];
 
 export default function Shell({
   children,
@@ -44,6 +46,14 @@ export default function Shell({
     setU(usuarioLogado());
     setImp(impersonando());
   }, []);
+  const papel = u?.papel ?? "";
+  const ehGlobal = GLOBAIS_MENU.includes(papel);
+  const navVisivel = NAV.filter(
+    (n) =>
+      ehGlobal ||
+      n.vis === "todos" ||
+      (n.vis === "franqueado" && papel === "franqueado"),
+  );
   return (
     <div className="min-h-screen flex flex-col">
       {imp && u && (
@@ -70,7 +80,7 @@ export default function Shell({
           <div className="text-xs text-slate-400">piloto</div>
         </div>
         <nav className="space-y-1">
-          {NAV.map((n) => {
+          {navVisivel.map((n) => {
             const active = n.href === "/" ? path === "/" : path.startsWith(n.href);
             return (
               <Link

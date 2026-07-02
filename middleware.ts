@@ -10,8 +10,12 @@ import { NextRequest, NextResponse } from "next/server";
  * QR de loja/site) e o proxy publico (/api/render/publico/*) NAO sao trancados —
  * sao o site voltado ao cliente no dominio. Essas rotas tem anti-flood no motor.
  */
-const USER = process.env.APP_USER;
-const PASS = process.env.APP_PASS;
+// PORTAO DESLIGADO (02/07, pedido do Renato: franqueados testando + admin travado
+// na senha root). Ignora APP_USER/APP_PASS lendo chaves inexistentes -> USER/PASS
+// ficam undefined -> o middleware libera tudo. REATIVAR: remover o sufixo __OFF.
+// (O admin segue protegido pelo LOGIN Google + checagens do backend.)
+const USER = process.env.APP_USER__OFF;
+const PASS = process.env.APP_PASS__OFF;
 // Interruptor de LANÇAMENTO: enquanto != "1", o site inteiro (inclusive as
 // paginas publicas dos clientes) fica atras da senha do piloto — "fechado".
 // Quando a programacao estiver pronta, definir PUBLICO_ABERTO=1 na Vercel para

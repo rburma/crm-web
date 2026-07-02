@@ -650,7 +650,7 @@ export function definirSenha(id: number, senha: string): Promise<{ ok: boolean }
   });
 }
 
-export type BulkResult = { ok: number; falhas: { id?: number; motivo: string }[] };
+export type BulkResult = { ok: number; convites_avaliacao?: number; falhas: { id?: number; motivo: string }[] };
 
 // Ação em lote sobre usuários: define papel, ativa ou desativa (não exclui).
 export function usuariosEmLote(

@@ -80,6 +80,7 @@ export default function AtendimentosPage() {
     try {
       const r = await atendimentosEmLote(ids, acao, valor);
       let m = `${r.ok} atendimento(s) atualizado(s).`;
+      if (r.convites_avaliacao) m += ` ${r.convites_avaliacao} convite(s) de avaliação enviado(s).`;
       if (r.falhas.length) m += ` ${r.falhas.map((f) => f.motivo).join("; ")}.`;
       setMsg(m);
       selec.limpar();

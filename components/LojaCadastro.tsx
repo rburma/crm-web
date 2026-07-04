@@ -189,6 +189,8 @@ export default function LojaCadastro({
     try {
       const r = await confirmarGoogleLoja(lojaId, placeId);
       if (!r.ok) setErro(r.motivo || "Nao consegui buscar a nota desse lugar.");
+      // Mostra o link do GMN na hora (o motor tambem grava no banco ao confirmar).
+      setVal("google_meu_negocio", "https://www.google.com/maps/place/?q=place_id:" + placeId);
       setCandG([]);
       setRep(await reputacaoLoja(lojaId));
     } catch (e) {

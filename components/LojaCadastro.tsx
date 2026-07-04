@@ -35,6 +35,42 @@ const GRUPOS: { chave: string; titulo: string }[] = [
   { chave: "reputacao", titulo: "Avaliação / reputação" },
 ];
 
+// ── Secao "Paginas da loja nas redes e delivery" (MESMO formato do portal do
+// franqueado, pedido do Renato 04/07): pais define o delivery; botao Buscar a
+// direita abre a busca do proprio site. Estas chaves SAEM dos grupos dinamicos.
+const CHAVES_REDES = new Set([
+  "pais", "google_meu_negocio", "ifood", "ubereats", "glovo", "doordash",
+  "instagram", "tripadvisor", "tiktok", "facebook", "hashtags",
+]);
+function paisNormalizado(v: string): "Brasil" | "Portugal" | "EUA" {
+  const s = (v || "").toLowerCase();
+  if (s.includes("portug")) return "Portugal";
+  if (s.includes("eua") || s.includes("estados") || s.includes("usa") || s.includes("united")) return "EUA";
+  return "Brasil";
+}
+const DELIVERY_POR_PAIS: Record<string, string[]> = {
+  Brasil: ["ifood"], Portugal: ["ubereats", "glovo"], EUA: ["ubereats", "doordash"],
+};
+const REDES_DEFS: Record<string, { rotulo: string; placeholder: string; busca: (q: string) => string }> = {
+  ifood: { rotulo: "Link no iFood", placeholder: "https://www.ifood.com.br/delivery/...",
+    busca: (q) => "https://www.ifood.com.br/busca?q=" + encodeURIComponent(q) },
+  ubereats: { rotulo: "Link no Uber Eats", placeholder: "https://www.ubereats.com/store/...",
+    busca: (q) => "https://www.ubereats.com/search?q=" + encodeURIComponent(q) },
+  glovo: { rotulo: "Link no Glovo", placeholder: "https://glovoapp.com/...",
+    busca: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:glovoapp.com " + q) },
+  doordash: { rotulo: "Link no DoorDash", placeholder: "https://www.doordash.com/store/...",
+    busca: (q) => "https://www.doordash.com/search/store/" + encodeURIComponent(q) + "/" },
+  instagram: { rotulo: "Link do Instagram da loja", placeholder: "https://www.instagram.com/sualoja",
+    busca: (q) => "https://www.instagram.com/explore/search/keyword/?q=" + encodeURIComponent(q) },
+  tripadvisor: { rotulo: "Link no TripAdvisor", placeholder: "https://www.tripadvisor.com.br/Restaurant_Review-...",
+    busca: (q) => "https://www.tripadvisor.com.br/Search?q=" + encodeURIComponent(q) },
+  tiktok: { rotulo: "Link do TikTok da loja", placeholder: "https://www.tiktok.com/@sualoja",
+    busca: (q) => "https://www.tiktok.com/search?q=" + encodeURIComponent(q) },
+  facebook: { rotulo: "Link do Facebook da loja", placeholder: "https://www.facebook.com/nomedapagina",
+    busca: (q) => "https://www.facebook.com/search/pages/?q=" + encodeURIComponent(q) },
+};
+const ORDEM_REDES = ["instagram", "tripadvisor", "tiktok", "facebook"];
+
 export default function LojaCadastro({
   lojaId,
   lojaNome,
@@ -280,6 +316,7 @@ export default function LojaCadastro({
   // agrupa campos por categoria (categorias desconhecidas caem em "Outros").
   const porGrupo = new Map<string, LojaCampoDef[]>();
   for (const c of campos) {
+    if (CHAVES_REDES.has(c.chave)) continue; // renderizadas na secao propria (formato portal)
     const g =
       c.categoria && GRUPOS.some((x) => x.chave === c.categoria) ? c.categoria : "outros";
     const arr = porGrupo.get(g) ?? [];
@@ -321,21 +358,198 @@ export default function LojaCadastro({
             <p className="text-sm text-slate-400 py-6 text-center">Carregando…</p>
           ) : (
             <>
-              {/* Nome do departamento + ativo/inativo */}
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
-                <div>
-                  <label className="label">Nome do departamento / loja</label>
-                  <input
-                    className="input"
-                    placeholder="Ex.: WT Iguatemi, Delivery SP…"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                  />
+              {/* Esta loja esta ativa? — mesmo formato do portal */}
+              <div className={"card p-4 border-2 " + (ativo ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50")}>
+                <div className="text-sm font-bold mb-2">Esta loja está ativa?</div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setAtivo(true)}
+                    className={"px-6 py-2 rounded-lg text-sm font-bold border-2 " +
+                      (ativo ? "bg-green-600 text-white border-green-600" : "bg-white text-slate-500 border-slate-300")}>
+                    SIM
+                  </button>
+                  <button type="button" onClick={() => setAtivo(false)}
+                    className={"px-6 py-2 rounded-lg text-sm font-bold border-2 " +
+                      (!ativo ? "bg-red-600 text-white border-red-600" : "bg-white text-slate-500 border-slate-300")}>
+                    NÃO
+                  </button>
                 </div>
-                <label className="flex items-center gap-2 text-sm pb-2 cursor-pointer whitespace-nowrap">
-                  <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
-                  Ativo
+                {!ativo && <p className="text-xs text-red-700 mt-2">Loja inativa não aparece para os clientes.</p>}
+              </div>
+
+              <div>
+                <label className="label">Nome do departamento / loja</label>
+                <input
+                  className="input"
+                  placeholder="Ex.: Itaú Power Shopping - Contagem, MG 32210-110"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                />
+              </div>
+
+              {/* Endereço e identificação (cadastro canônico + busca de roteamento) */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="text-sm font-semibold text-slate-700 mb-1">Endereço e identificação</div>
+                <p className="text-xs text-slate-400 mb-2">
+                  É por aqui que o cliente acha a loja na abertura do atendimento (cidade, rua, bairro,
+                  CEP, shopping, apelido). Preencha bem — é o que roteia pra loja certa.
+                </p>
+
+                <label className="flex items-center gap-2 text-sm mb-3 cursor-pointer">
+                  <input type="checkbox" checked={end.tipo === "virtual"}
+                    onChange={(e) => setEnd((m) => ({ ...m, tipo: e.target.checked ? "virtual" : "fisica" }))} />
+                  É a <b>loja virtual</b> da marca (recebe os pedidos do site e dos marketplaces)
                 </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                  <div className="sm:col-span-4">
+                    <label className="label">Rua / logradouro</label>
+                    <input className="input" value={end.endereco ?? ""} onChange={(e) => setE("endereco", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="label">Número</label>
+                    <input className="input" value={end.numero ?? ""} onChange={(e) => setE("numero", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Complemento</label>
+                    <input className="input" value={end.complemento ?? ""} onChange={(e) => setE("complemento", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Bairro</label>
+                    <input className="input" value={end.bairro ?? ""} onChange={(e) => setE("bairro", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Cidade</label>
+                    <input className="input" value={end.cidade ?? ""} onChange={(e) => setE("cidade", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <label className="label">UF</label>
+                    <input className="input uppercase" maxLength={2} value={end.uf ?? ""} onChange={(e) => setE("uf", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="label">CEP</label>
+                    <input className="input" placeholder="00000-000" value={end.cep ?? ""} onChange={(e) => setE("cep", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="label">Shopping (se houver)</label>
+                    <input className="input" value={end.shopping ?? ""} onChange={(e) => setE("shopping", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <label className="label">Piso</label>
+                    <input className="input" value={end.shopping_piso ?? ""} onChange={(e) => setE("shopping_piso", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="label">Nº da loja no shopping</label>
+                    <input className="input" value={end.shopping_loja ?? ""} onChange={(e) => setE("shopping_loja", e.target.value)} />
+                  </div>
+                  <div className="sm:col-span-6">
+                    <label className="label">Apelidos / como também é conhecida (1 por linha ou separados por vírgula)</label>
+                    <textarea className="input" rows={2} placeholder="Ex.: Pedreira (shopping de Nova Iguaçu), Iguatemi SP"
+                      value={end.apelidos ?? ""} onChange={(e) => setE("apelidos", e.target.value)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contato (formato portal) */}
+              {["contato"].map((g) => {
+                const lista = porGrupo.get(g);
+                if (!lista || lista.length === 0) return null;
+                const titulo =
+                  GRUPOS.find((x) => x.chave === g)?.titulo ?? "Outros campos";
+                return (
+                  <div key={g}>
+                    <div className="text-sm font-semibold text-slate-700 mb-2">{titulo}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {lista
+                        .slice()
+                        .sort((a, b) => a.ordem - b.ordem)
+                        .map((c) => (
+                          <div key={c.id}>
+                            <label className="label">
+                              {c.rotulo}{" "}
+                              <span className="text-slate-300">{`{${c.placeholder}}`}</span>
+                            </label>
+                            <input
+                              className="input"
+                              value={valores[c.chave] ?? ""}
+                              onChange={(e) => setVal(c.chave, e.target.value)}
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+
+              {/* Paginas da loja nas redes e delivery — MESMO formato do portal */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="text-sm font-semibold text-slate-700 mb-1">Páginas da loja nas redes e delivery</div>
+                <p className="text-xs text-slate-400 mb-2">
+                  O país define os apps de delivery. O botão <b>Buscar</b> abre a busca do próprio site.
+                </p>
+                <div className="mb-3 max-w-xs">
+                  <label className="label">País da loja</label>
+                  <select className="input" value={paisNormalizado(valores["pais"] ?? "")}
+                    onChange={(e) => setVal("pais", e.target.value)}>
+                    <option value="Brasil">Brasil</option>
+                    <option value="Portugal">Portugal</option>
+                    <option value="EUA">Estados Unidos</option>
+                  </select>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="label">Google (Google Meu Negócio)</label>
+                    <div className="flex gap-2">
+                      <input className="input flex-1" placeholder="https://maps.app.goo.gl/..."
+                        value={valores["google_meu_negocio"] ?? ""}
+                        onChange={(e) => setVal("google_meu_negocio", e.target.value)} />
+                      <button type="button" onClick={buscarGoogle} disabled={buscandoG}
+                        className="btn-secondary text-xs whitespace-nowrap self-center">
+                        {buscandoG ? "Buscando…" : "Buscar"}
+                      </button>
+                    </div>
+                    {candG.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {candG.map((c) => (
+                          <div key={c.place_id ?? c.nome} className="card p-2 flex items-center justify-between gap-2">
+                            <div className="text-xs">
+                              <div className="font-medium">{c.nome}</div>
+                              <div className="text-slate-500">{c.endereco}</div>
+                            </div>
+                            <button type="button" className="btn-primary text-xs whitespace-nowrap"
+                              onClick={() => c.place_id && confirmarG(c.place_id)}>
+                              É esta
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {[...DELIVERY_POR_PAIS[paisNormalizado(valores["pais"] ?? "")], ...ORDEM_REDES].map((k) => {
+                    const d = REDES_DEFS[k];
+                    if (!d) return null;
+                    return (
+                      <div key={k}>
+                        <label className="label">{d.rotulo}</label>
+                        <div className="flex gap-2">
+                          <input className="input flex-1" placeholder={d.placeholder}
+                            value={valores[k] ?? ""}
+                            onChange={(e) => setVal(k, e.target.value)} />
+                          <a className="btn-secondary text-xs whitespace-nowrap self-center"
+                            target="_blank" rel="noreferrer" href={d.busca(nome || lojaNome)}>
+                            Buscar ↗
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3">
+                  <label className="label">Hashtags pra achar a loja nas redes e buscas (1 por linha)</label>
+                  <textarea className="input" rows={2} value={valores["hashtags"] ?? ""}
+                    onChange={(e) => setVal("hashtags", e.target.value)} />
+                  <p className="text-[11px] text-slate-400 mt-0.5">Com ou sem # — os dois valem.</p>
+                </div>
               </div>
 
               {/* E-mail oficial da loja (notificações) */}
@@ -418,40 +632,6 @@ export default function LojaCadastro({
                       : "sem notas ainda"}
                   </div>
                 </div>
-                {/* Buscar no Google pelo endereco -> confirmar o lugar certo */}
-                <div className="mt-2 rounded-lg border border-[var(--line)] bg-slate-50/60 p-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button type="button" className="btn-primary text-sm" onClick={buscarGoogle} disabled={buscandoG}>
-                      {buscandoG ? "Buscando…" : "🔎 Buscar no Google"}
-                    </button>
-                    <span className="text-xs text-slate-400">usa a marca + o endereço do cadastro abaixo.</span>
-                  </div>
-                  {candG.length > 0 && (
-                    <div className="mt-2 space-y-2">
-                      {candG.map((c, i) => (
-                        <div key={c.place_id || i} className="flex items-start justify-between gap-2 rounded border border-slate-200 bg-white p-2">
-                          <div className="text-sm">
-                            <div className="font-medium text-slate-700">{c.nome}</div>
-                            <div className="text-xs text-slate-500">{c.endereco}</div>
-                            <div className="text-xs text-amber-600">
-                              {c.nota != null ? `${c.nota.toFixed(1)} ★ (${c.qtd ?? 0})` : "sem nota"}
-                              {c.link && (
-                                <>
-                                  {" · "}
-                                  <a href={c.link} target="_blank" rel="noopener noreferrer" className="text-brand-700 hover:underline">ver no Google ↗</a>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          <button type="button" className="btn-ghost text-sm whitespace-nowrap" disabled={!c.place_id || repSync} onClick={() => confirmarG(c.place_id || "")}>
-                            É essa
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* iFood: colar a URL da loja -> busca nota+qtd via Apify */}
                 <div className="mt-2 rounded-lg border border-[var(--line)] bg-slate-50/60 p-3">
                   <div className="text-sm font-semibold text-slate-700 mb-1">iFood</div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -517,71 +697,9 @@ export default function LojaCadastro({
                 </p>
               </div>
 
-              {/* Endereço e identificação (cadastro canônico + busca de roteamento) */}
-              <div className="border-t border-slate-200 pt-4">
-                <div className="text-sm font-semibold text-slate-700 mb-1">Endereço e identificação</div>
-                <p className="text-xs text-slate-400 mb-2">
-                  É por aqui que o cliente acha a loja na abertura do atendimento (cidade, rua, bairro,
-                  CEP, shopping, apelido). Preencha bem — é o que roteia pra loja certa.
-                </p>
 
-                <label className="flex items-center gap-2 text-sm mb-3 cursor-pointer">
-                  <input type="checkbox" checked={end.tipo === "virtual"}
-                    onChange={(e) => setEnd((m) => ({ ...m, tipo: e.target.checked ? "virtual" : "fisica" }))} />
-                  É a <b>loja virtual</b> da marca (recebe os pedidos do site e dos marketplaces)
-                </label>
-
-                <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
-                  <div className="sm:col-span-4">
-                    <label className="label">Rua / logradouro</label>
-                    <input className="input" value={end.endereco ?? ""} onChange={(e) => setE("endereco", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="label">Número</label>
-                    <input className="input" value={end.numero ?? ""} onChange={(e) => setE("numero", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <label className="label">Complemento</label>
-                    <input className="input" value={end.complemento ?? ""} onChange={(e) => setE("complemento", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <label className="label">Bairro</label>
-                    <input className="input" value={end.bairro ?? ""} onChange={(e) => setE("bairro", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <label className="label">Cidade</label>
-                    <input className="input" value={end.cidade ?? ""} onChange={(e) => setE("cidade", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <label className="label">UF</label>
-                    <input className="input uppercase" maxLength={2} value={end.uf ?? ""} onChange={(e) => setE("uf", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="label">CEP</label>
-                    <input className="input" placeholder="00000-000" value={end.cep ?? ""} onChange={(e) => setE("cep", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <label className="label">Shopping (se houver)</label>
-                    <input className="input" value={end.shopping ?? ""} onChange={(e) => setE("shopping", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <label className="label">Piso</label>
-                    <input className="input" value={end.shopping_piso ?? ""} onChange={(e) => setE("shopping_piso", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="label">Nº da loja no shopping</label>
-                    <input className="input" value={end.shopping_loja ?? ""} onChange={(e) => setE("shopping_loja", e.target.value)} />
-                  </div>
-                  <div className="sm:col-span-6">
-                    <label className="label">Apelidos / como também é conhecida (1 por linha ou separados por vírgula)</label>
-                    <textarea className="input" rows={2} placeholder="Ex.: Pedreira (shopping de Nova Iguaçu), Iguatemi SP"
-                      value={end.apelidos ?? ""} onChange={(e) => setE("apelidos", e.target.value)} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Campos extensíveis por grupo */}
-              {ordemGrupos.map((g) => {
+              {/* Demais campos (admin) */}
+              {ordemGrupos.filter((g) => g !== "contato").map((g) => {
                 const lista = porGrupo.get(g);
                 if (!lista || lista.length === 0) return null;
                 const titulo =
@@ -645,8 +763,8 @@ export default function LojaCadastro({
           <button className="btn-ghost" onClick={onClose}>
             Fechar
           </button>
-          <button className="btn-primary" onClick={salvar} disabled={salvando || carregando}>
-            {salvando ? "Salvando…" : "Salvar cadastro"}
+          <button className="btn-primary text-lg px-10 py-3" onClick={salvar} disabled={salvando || carregando}>
+            {salvando ? "Salvando…" : "Salvar"}
           </button>
         </div>
       </div>

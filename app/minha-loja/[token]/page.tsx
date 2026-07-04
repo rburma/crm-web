@@ -233,8 +233,8 @@ export default function MinhaLojaPage() {
           )}
         </div>
 
+        {ativo && (
         <div className="card p-5 space-y-4">
-
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
             {CAMPOS.map((c) => (
               <div key={c.campo} className={c.cols}>
@@ -359,6 +359,30 @@ export default function MinhaLojaPage() {
             O que você salvar passa pela conferência da franqueadora antes de entrar no ar.
           </p>
         </div>
+        )}
+
+        {!ativo && (
+        <div className="card p-5 space-y-4 border-red-200">
+          <p className="text-sm text-red-800">
+            Você marcou que esta loja <b>não está ativa</b>. Não precisa preencher o restante do
+            cadastro — clique em <b>Salvar</b> para informar o encerramento à franqueadora
+            (a loja sai do ar para os clientes após a conferência).
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Seu nome (quem está informando)</label>
+              <input className="input" value={autorNome} onChange={(e) => setAutorNome(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Seu e-mail (opcional)</label>
+              <input className="input" type="email" value={autorEmail} onChange={(e) => setAutorEmail(e.target.value)} />
+            </div>
+          </div>
+          <button className="btn-primary" onClick={enviar} disabled={enviando}>
+            {enviando ? "Salvando…" : "Salvar"}
+          </button>
+        </div>
+        )}
       </div>
     </div>
   );

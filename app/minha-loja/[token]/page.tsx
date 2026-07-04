@@ -15,7 +15,7 @@ import {
 const CAMPOS: { campo: string; rotulo: string; cols?: string; area?: boolean; dica?: string }[] = [
   {
     campo: "nome", rotulo: "Nome de exibição da loja", cols: "sm:col-span-6",
-    dica: 'Use o padrão simples — ex.: "Shopping Iguatemi - São Paulo, SP" ou "R. Augusta, 1200 - São Paulo, SP".',
+    dica: 'Use o padrão simples — ex.: "Itaú Power Shopping - Contagem, MG 32210-110" ou "R. Augusta, 1200 - São Paulo, SP".',
   },
   { campo: "endereco", rotulo: "Rua / logradouro", cols: "sm:col-span-4" },
   { campo: "numero", rotulo: "Número", cols: "sm:col-span-2" },
@@ -85,6 +85,50 @@ const REDES: {
   },
 ];
 
+// ── Formatacao do NOME DE EXIBICAO ───────────────────────────────
+// O legado gravou nomes TODOS EM MAIUSCULAS ("ITAU POWER SHOPPING - CONTAGEM - MG
+// - 32210-110"). Se detectamos caixa-alta pura, ja mostramos formatado
+// ("Itaú Power Shopping - Contagem, MG 32210-110"): UF entra com virgula e o CEP
+// so com espaco (menos hifens). O franqueado confere/ajusta e o salvar leva a
+// versao nova (via aprovacao). Nome ja com minusculas = nao mexemos.
+const UFS = new Set(["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"]);
+const CONECTORES = new Set(["de", "da", "do", "das", "dos", "e", "em", "no", "na"]);
+const PALAVRAS: Record<string, string> = {
+  itau: "Itaú", sao: "São", grao: "Grão", jose: "José", goiania: "Goiânia",
+  brasilia: "Brasília", florianopolis: "Florianópolis", maceio: "Maceió",
+  cuiaba: "Cuiabá", vitoria: "Vitória", ribeirao: "Ribeirão", sabara: "Sabará",
+  niteroi: "Niterói", taubate: "Taubaté", uberlandia: "Uberlândia",
+};
+
+function tituloPalavra(w: string, primeira: boolean): string {
+  const lw = w.toLowerCase();
+  if (UFS.has(w.toUpperCase()) && w.length === 2) return w.toUpperCase();
+  if (PALAVRAS[lw]) return PALAVRAS[lw];
+  if (!primeira && CONECTORES.has(lw)) return lw;
+  if (/^\d/.test(w)) return w; // numeros/CEP ficam como estao
+  return lw.charAt(0).toUpperCase() + lw.slice(1);
+}
+
+function formatarNomeExibicao(bruto: string): string {
+  const s = (bruto || "").trim();
+  if (!s || /[a-zà-ú]/.test(s)) return s; // ja tem minusculas: respeita como esta
+  const partes = s.split(/\s*-\s*/);
+  // "... - UF - CEP" vira ", UF CEP"
+  let sufixo = "";
+  while (partes.length >= 2) {
+    const ult = partes[partes.length - 1];
+    if (/^\d{5}-?\d{3}$/.test(ult)) { sufixo = " " + ult + sufixo; partes.pop(); continue; }
+    if (UFS.has(ult.toUpperCase()) && ult.trim().length === 2) {
+      sufixo = ", " + ult.toUpperCase() + sufixo; partes.pop(); continue;
+    }
+    break;
+  }
+  const corpo = partes
+    .map((seg) => seg.split(/\s+/).map((w, i) => tituloPalavra(w, i === 0)).join(" "))
+    .join(" - ");
+  return (corpo + sufixo).trim();
+}
+
 export default function MinhaLojaPage() {
   const params = useParams<{ token: string }>();
   const token = params?.token ?? "";
@@ -106,6 +150,8 @@ export default function MinhaLojaPage() {
         const atrs = (d.atual.atributos ?? {}) as Record<string, string>;
         const f: Record<string, string> = {};
         for (const c of CAMPOS) f[c.campo] = String((d.atual[c.campo] ?? "") as string);
+        // Nome legado TODO EM MAIUSCULAS: ja mostramos formatado pro franqueado so conferir.
+        f["nome"] = formatarNomeExibicao(f["nome"]);
         for (const c of CONTATOS) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
         for (const c of REDES) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
         f["attr:hashtags"] = String(atrs["hashtags"] ?? "");

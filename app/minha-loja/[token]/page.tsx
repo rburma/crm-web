@@ -255,12 +255,12 @@ export default function MinhaLojaPage() {
     if (!v) return;
     setLinkSalvo((m) => ({ ...m, [chave]: "salvando" }));
     try {
-      await franqueadoEnviarProposta(token, {
+      const r = await franqueadoEnviarProposta(token, {
         autor_nome: autorNome.trim() || undefined,
         autor_email: autorEmail.trim() || undefined,
         valores: { [`attr:${chave}`]: v },
       });
-      setLinkSalvo((m) => ({ ...m, [chave]: "salvo" }));
+      setLinkSalvo((m) => ({ ...m, [chave]: r.sem_mudanca ? "igual" : "salvo" }));
     } catch (e) {
       setLinkSalvo((m) => ({ ...m, [chave]: "erro: " + String((e as Error).message || e) }));
     }
@@ -503,8 +503,10 @@ export default function MinhaLojaPage() {
                             : "https://" + (form[`attr:${c.chave}`] ?? "").trim()}>
                           Abrir e conferir ↗
                         </a>
-                        {linkSalvo[c.chave] === "salvo" ? (
-                          <span className="text-xs text-green-700 font-medium">✓ Link salvo</span>
+                        {linkSalvo[c.chave] === "salvo" || linkSalvo[c.chave] === "igual" ? (
+                          <span className="text-xs text-green-700 font-medium">
+                            {linkSalvo[c.chave] === "igual" ? "✓ Este link já estava salvo" : "✓ Link salvo"}
+                          </span>
                         ) : (
                           <button type="button" className="btn-primary text-xs"
                             disabled={linkSalvo[c.chave] === "salvando"}

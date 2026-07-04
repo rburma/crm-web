@@ -344,7 +344,7 @@ export function franqueadoPorSigla(sigla: string): Promise<{ token: string; loja
 export function franqueadoEnviarProposta(token: string, body: {
   autor_nome?: string; autor_email?: string;
   valores: Record<string, string>; ativo?: boolean;
-}): Promise<{ ok: boolean; proposta_id: number; n_campos: number }> {
+}): Promise<{ ok: boolean; proposta_id: number | null; n_campos: number; sem_mudanca?: boolean }> {
   return req(`franqueado/loja/${encodeURIComponent(token)}/proposta`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

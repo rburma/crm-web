@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QrAvaliacao from "@/components/QrAvaliacao";
 import { useParams } from "next/navigation";
 import {
   franqueadoLoja,
@@ -236,15 +237,37 @@ export default function MinhaLojaPage() {
   }
 
   if (enviado) {
+    const urlAvaliacao =
+      (process.env.NEXT_PUBLIC_SITE_URL ?? "https://contactcenter.com.br").replace(/\/$/, "") +
+      "/avaliar-loja/" + data.loja_id;
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-        <div className="card p-8 max-w-md text-center">
-          <div className="text-5xl mb-3">✅</div>
-          <h2 className="text-xl font-bold mb-1">Enviado para revisão!</h2>
-          <p className="text-sm text-slate-500">
-            A franqueadora vai revisar suas informações e aprovar. Obrigado por manter o
-            cadastro de <b>{data.nome}</b> em dia.
-          </p>
+      <div className="min-h-screen bg-slate-50 py-8 px-4">
+        <div className="max-w-3xl mx-auto space-y-4">
+          <div className="card p-6 text-center">
+            <div className="text-5xl mb-2">✅</div>
+            <h2 className="text-xl font-bold mb-1">Salvo!</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              A franqueadora vai conferir e aprovar suas informações. Obrigado por manter o
+              cadastro de <b>{data.nome}</b> em dia.
+            </p>
+            <button className="btn-secondary" onClick={() => setEnviado(false)}>
+              ← Voltar e corrigir dados
+            </button>
+          </div>
+
+          <div className="card p-6">
+            <div className="text-sm font-semibold text-slate-700">QR de avaliação da loja</div>
+            <p className="text-xs text-slate-400 mb-2">
+              Cole no balcão pro cliente avaliar o atendimento (com ou sem compra). Escolha o
+              tamanho e <b>imprima ou salve o PDF</b>. O mesmo link vai por e-mail com o
+              placeholder <code>{"{loja.link_avaliacao}"}</code>.
+            </p>
+            <QrAvaliacao
+              url={urlAvaliacao}
+              nome={data.nome}
+              arquivo={"qr-avaliacao-loja-" + data.loja_id}
+            />
+          </div>
         </div>
       </div>
     );
@@ -408,12 +431,14 @@ export default function MinhaLojaPage() {
             </div>
           </div>
 
-          <button className="btn-primary" onClick={enviar} disabled={enviando}>
-            {enviando ? "Salvando…" : "Salvar"}
-          </button>
-          <p className="text-[11px] text-slate-400 -mt-2">
-            O que você salvar passa pela conferência da franqueadora antes de entrar no ar.
-          </p>
+          <div className="flex flex-col items-end gap-1">
+            <button className="btn-primary text-lg px-10 py-3" onClick={enviar} disabled={enviando}>
+              {enviando ? "Salvando…" : "Salvar"}
+            </button>
+            <p className="text-[11px] text-slate-400">
+              O que você salvar passa pela conferência da franqueadora antes de entrar no ar.
+            </p>
+          </div>
         </div>
         )}
 
@@ -434,9 +459,11 @@ export default function MinhaLojaPage() {
               <input className="input" type="email" value={autorEmail} onChange={(e) => setAutorEmail(e.target.value)} />
             </div>
           </div>
-          <button className="btn-primary" onClick={enviar} disabled={enviando}>
-            {enviando ? "Salvando…" : "Salvar"}
-          </button>
+          <div className="flex justify-end">
+            <button className="btn-primary text-lg px-10 py-3" onClick={enviar} disabled={enviando}>
+              {enviando ? "Salvando…" : "Salvar"}
+            </button>
+          </div>
         </div>
         )}
       </div>

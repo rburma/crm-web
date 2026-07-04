@@ -328,7 +328,12 @@ export default function LojaCadastro({
   return (
     <div
       className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
+      // Fecha SO se o clique COMECOU no proprio fundo. Selecionar texto num campo e
+      // soltar o mouse fora do card NAO fecha mais (mousedown dentro + mouseup fora
+      // vira "click" no fundo — era isso que sumia com a pagina).
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="bg-white rounded-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto"

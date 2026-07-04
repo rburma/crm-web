@@ -153,9 +153,12 @@ export default function MinhaLojaPage() {
         // Nome legado TODO EM MAIUSCULAS: ja mostramos formatado pro franqueado so conferir.
         f["nome"] = formatarNomeExibicao(f["nome"]);
         for (const c of CONTATOS) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
-        for (const c of REDES) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
+        // REDES comecam EM BRANCO (decisao Renato 04/07: os links legados nao estao
+        // bons e atrapalham quem preenche). Campo vazio NAO propoe apagar nada —
+        // e' removido do envio (so o que for preenchido vira proposta).
+        for (const c of REDES) f[`attr:${c.chave}`] = "";
         f["attr:hashtags"] = String(atrs["hashtags"] ?? "");
-        f["attr:google_meu_negocio"] = String(atrs["google_meu_negocio"] ?? "");
+        f["attr:google_meu_negocio"] = "";
         setForm(f);
         setAtivo(Boolean(d.atual.ativo));
       })
@@ -205,10 +208,17 @@ export default function MinhaLojaPage() {
     setErro("");
     setEnviando(true);
     try {
+      // Campos de REDE em branco ficam FORA do envio (comecam vazios de proposito;
+      // vazio nao pode virar proposta de apagar o que ja existe no cadastro).
+      const valores: Record<string, string> = { ...form };
+      for (const c of REDES) {
+        if (!(valores[`attr:${c.chave}`] ?? "").trim()) delete valores[`attr:${c.chave}`];
+      }
+      if (!(valores["attr:google_meu_negocio"] ?? "").trim()) delete valores["attr:google_meu_negocio"];
       await franqueadoEnviarProposta(token, {
         autor_nome: autorNome.trim() || undefined,
         autor_email: autorEmail.trim() || undefined,
-        valores: { ...form }, ativo,
+        valores, ativo,
       });
       setEnviado(true);
     } catch (e) {
@@ -299,46 +309,6 @@ export default function MinhaLojaPage() {
           </div>
 
           <div className="border-t border-slate-200 pt-3">
-            <div className="text-sm font-semibold text-slate-700 mb-1">🔎 Buscar no Google Meu Negócio</div>
-            <p className="text-xs text-slate-400 mb-2">
-              Preencha o endereço acima e clique — <b>nós achamos sua loja no Google</b> e você só
-              confirma. Isso conecta as avaliações do Google (Google Meu Negócio) à sua loja —
-              não precisa colar link nenhum.
-            </p>
-            <button type="button" className="btn-secondary text-sm" onClick={buscarGoogle} disabled={gBusy}>
-              {gBusy ? "Buscando…" : "Buscar minha loja no Google"}
-            </button>
-            {gOk && <div className="mt-2 text-sm text-green-700 font-medium">✓ {gOk}</div>}
-            {gErro && <div className="mt-2 text-sm text-red-600">{gErro}</div>}
-            {gCands && gCands.length === 0 && (
-              <div className="mt-2 text-sm text-slate-500">
-                Nenhum resultado — confira o endereço/cidade acima e tente de novo.
-              </div>
-            )}
-            {gCands && gCands.length > 0 && (
-              <div className="mt-2 space-y-2">
-                <div className="text-xs text-slate-500">Qual destas é a sua loja?</div>
-                {gCands.map((c, ci) => (
-                  <div key={c.place_id ?? ci} className="card p-3 flex items-center justify-between gap-3">
-                    <div className="text-sm">
-                      <div className="font-medium">{c.nome}</div>
-                      <div className="text-xs text-slate-500">{c.endereco}</div>
-                      {c.nota != null && (
-                        <div className="text-xs text-amber-600">★ {c.nota} · {c.qtd ?? 0} avaliações</div>
-                      )}
-                    </div>
-                    <button type="button" className="btn-primary text-xs whitespace-nowrap"
-                      disabled={gBusy} onClick={() => confirmarGoogle(c)}>
-                      É esta
-                    </button>
-                  </div>
-                ))}
-                <div className="text-xs text-slate-400">Nenhuma é a sua? Ajuste o endereço acima e busque de novo.</div>
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-slate-200 pt-3">
             <div className="text-sm font-semibold text-slate-700 mb-1">Contato da loja</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {CONTATOS.map((c) => (
@@ -360,6 +330,45 @@ export default function MinhaLojaPage() {
               <b> Deixe EM BRANCO as redes que a loja não tem</b> — link errado é recusado no salvar.
             </p>
             <div className="space-y-3">
+              {/* GOOGLE (Google Meu Negócio): a UNICA busca automatica — clica em
+                  Buscar, escolhe a loja nos candidatos e o campo preenche sozinho. */}
+              <div>
+                <label className="label">Google (Google Meu Negócio)</label>
+                <div className="flex gap-2">
+                  <input className="input flex-1" readOnly
+                    placeholder="Clique em Buscar — nós achamos sua loja e você só confirma"
+                    value={form["attr:google_meu_negocio"] ?? ""} />
+                  <button type="button" onClick={buscarGoogle} disabled={gBusy}
+                    className="btn-secondary text-xs whitespace-nowrap self-center">
+                    {gBusy ? "Buscando…" : "Buscar"}
+                  </button>
+                </div>
+                {gOk && <div className="mt-1 text-xs text-green-700 font-medium">✓ {gOk}</div>}
+                {gErro && <div className="mt-1 text-xs text-red-600">{gErro}</div>}
+                {gCands && gCands.length === 0 && (
+                  <div className="mt-1 text-xs text-slate-500">Nenhum resultado — confira o endereço acima e busque de novo.</div>
+                )}
+                {gCands && gCands.length > 0 && (
+                  <div className="mt-1 space-y-1">
+                    <div className="text-xs text-slate-500">Qual destas é a sua loja?</div>
+                    {gCands.map((c, ci) => (
+                      <div key={c.place_id ?? ci} className="card p-2 flex items-center justify-between gap-2">
+                        <div className="text-xs">
+                          <div className="font-medium">{c.nome}</div>
+                          <div className="text-slate-500">{c.endereco}</div>
+                          {c.nota != null && (
+                            <div className="text-amber-600">★ {c.nota} · {c.qtd ?? 0} avaliações</div>
+                          )}
+                        </div>
+                        <button type="button" className="btn-primary text-xs whitespace-nowrap"
+                          disabled={gBusy} onClick={() => confirmarGoogle(c)}>
+                          É esta
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {REDES.map((c) => (
                 <div key={c.chave}>
                   <label className="label">{c.rotulo}</label>
@@ -369,8 +378,9 @@ export default function MinhaLojaPage() {
                       onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
                     <a className="btn-secondary text-xs whitespace-nowrap self-center"
                       target="_blank" rel="noreferrer"
+                      title={c.buscaRotulo}
                       href={c.buscaUrl([data?.marca, data?.nome].filter(Boolean).join(" "))}>
-                      {c.buscaRotulo} ↗
+                      Buscar ↗
                     </a>
                   </div>
                   {c.dica && <p className="text-[11px] text-slate-400 mt-0.5">{c.dica}</p>}

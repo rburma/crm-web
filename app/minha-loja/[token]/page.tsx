@@ -193,14 +193,13 @@ export default function MinhaLojaPage() {
         // Nome legado TODO EM MAIUSCULAS: ja mostramos formatado pro franqueado so conferir.
         f["nome"] = formatarNomeExibicao(f["nome"]);
         for (const c of CONTATOS) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
-        // REDES comecam EM BRANCO (decisao Renato 04/07: os links legados nao estao
-        // bons e atrapalham quem preenche). Campo vazio NAO propoe apagar nada —
-        // e' removido do envio (so o que for preenchido vira proposta).
-        for (const c of SOCIAIS) f[`attr:${c.chave}`] = "";
-        for (const k of TODAS_DELIVERY) f[`attr:${k}`] = "";
+        // Campos PRE-PREENCHIDOS com o que ja existe (decisao Renato 04/07 v2:
+        // campo em branco com dado existente confunde quem preenche).
+        for (const c of SOCIAIS) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
+        for (const k of TODAS_DELIVERY) f[`attr:${k}`] = String(atrs[k] ?? "");
         f["attr:pais"] = String(atrs["pais"] ?? "Brasil");
         f["attr:hashtags"] = String(atrs["hashtags"] ?? "");
-        f["attr:google_meu_negocio"] = "";
+        f["attr:google_meu_negocio"] = String(atrs["google_meu_negocio"] ?? "");
         setForm(f);
         setAtivo(Boolean(d.atual.ativo));
       })
@@ -270,16 +269,9 @@ export default function MinhaLojaPage() {
     setErro("");
     setEnviando(true);
     try {
-      // Campos de REDE em branco ficam FORA do envio (comecam vazios de proposito;
-      // vazio nao pode virar proposta de apagar o que ja existe no cadastro).
+      // Campos pre-preenchidos: apagar um valor = pedir a LIMPEZA daquele campo
+      // (vai pra aprovacao como qualquer mudanca).
       const valores: Record<string, string> = { ...form };
-      for (const c of SOCIAIS) {
-        if (!(valores[`attr:${c.chave}`] ?? "").trim()) delete valores[`attr:${c.chave}`];
-      }
-      for (const k of TODAS_DELIVERY) {
-        if (!(valores[`attr:${k}`] ?? "").trim()) delete valores[`attr:${k}`];
-      }
-      if (!(valores["attr:google_meu_negocio"] ?? "").trim()) delete valores["attr:google_meu_negocio"];
       await franqueadoEnviarProposta(token, {
         autor_nome: autorNome.trim() || undefined,
         autor_email: autorEmail.trim() || undefined,

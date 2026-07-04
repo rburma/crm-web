@@ -7,10 +7,8 @@ import {
   franqueadoEnviarProposta,
   franqueadoSugerirGoogle,
   franqueadoConfirmarGoogle,
-  franqueadoSugerirRede,
   type FranqueadoLoja,
   type GoogleCandidato,
-  type RedeCandidato,
 } from "@/lib/api";
 
 // Campos do endereço/identificação (colunas da loja). A SIGLA não entra (é da franqueadora).
@@ -37,19 +35,54 @@ const CAMPOS: { campo: string; rotulo: string; cols?: string; area?: boolean; di
 ];
 
 // Contato e links (gaveta da loja → attr:<chave>). Labels conforme pedido.
-const CONTATOS: { chave: string; rotulo: string; area?: boolean; dica?: string; busca?: string }[] = [
-  { chave: "telefone", rotulo: "Telefone da loja" },
-  { chave: "whatsapp", rotulo: "WhatsApp de atendimento da loja" },
-  { chave: "site_loja", rotulo: "Link da página da loja no site da marca" },
-  { chave: "google_meu_negocio", rotulo: "Link da página no Google Meu Negócio" },
-  { chave: "instagram", rotulo: "Link do Instagram da loja", dica: "Ex.: @sualoja ou instagram.com/sualoja", busca: "instagram" },
-  { chave: "facebook", rotulo: "Link do Facebook da loja", dica: "Use a PAGINA (facebook.com/nomedapagina) — perfil pessoal nao vale" },
-  { chave: "tiktok", rotulo: "Link do TikTok da loja", dica: "Ex.: @sualoja ou tiktok.com/@sualoja" },
-  { chave: "tripadvisor", rotulo: "Link no TripAdvisor", busca: "tripadvisor" },
-  { chave: "reclame_aqui", rotulo: "Link no Reclame Aqui" },
-  { chave: "trustpilot", rotulo: "Link no Trustpilot" },
-  { chave: "ifood", rotulo: "Link no iFood", dica: "Abra a SUA loja no iFood e copie o endereco (ifood.com.br/delivery/...)" },
-  { chave: "hashtags", rotulo: "Hashtags pra achar a loja nas redes e buscas (1 por linha)", area: true },
+// Contato basico (2 colunas). Links das REDES ficam na secao propria abaixo.
+const CONTATOS: { chave: string; rotulo: string; placeholder?: string }[] = [
+  { chave: "telefone", rotulo: "Telefone da loja", placeholder: "(11) 3333-0000" },
+  { chave: "whatsapp", rotulo: "WhatsApp de atendimento da loja", placeholder: "(11) 99999-0000" },
+  { chave: "site_loja", rotulo: "Link da página da loja no site da marca", placeholder: "https://..." },
+];
+
+// REDES/DELIVERY: 1 por LINHA, campo + botão "Buscar no X" à DIREITA. O botão abre a
+// BUSCA DO PRÓPRIO SITE (sem busca automática — só o Google é automático, no bloco
+// acima): o franqueado acha a página da loja lá, copia o link e cola no campo.
+// O placeholder mostra o FORMATO esperado (link, não @).
+const REDES: {
+  chave: string; rotulo: string; placeholder: string;
+  buscaRotulo: string; buscaUrl: (q: string) => string; dica?: string;
+}[] = [
+  {
+    chave: "ifood", rotulo: "Link no iFood",
+    placeholder: "https://www.ifood.com.br/delivery/cidade/sua-loja/...",
+    buscaRotulo: "Buscar no iFood",
+    buscaUrl: (q) => "https://www.ifood.com.br/busca?q=" + encodeURIComponent(q),
+    dica: "Abra sua loja no iFood e copie o endereço da página.",
+  },
+  {
+    chave: "instagram", rotulo: "Link do Instagram da loja",
+    placeholder: "https://www.instagram.com/sualoja",
+    buscaRotulo: "Buscar no Instagram",
+    buscaUrl: (q) => "https://www.instagram.com/explore/search/keyword/?q=" + encodeURIComponent(q),
+    dica: "Cole o LINK do perfil (não o @).",
+  },
+  {
+    chave: "tripadvisor", rotulo: "Link no TripAdvisor",
+    placeholder: "https://www.tripadvisor.com.br/Restaurant_Review-...",
+    buscaRotulo: "Buscar no TripAdvisor",
+    buscaUrl: (q) => "https://www.tripadvisor.com.br/Search?q=" + encodeURIComponent(q),
+  },
+  {
+    chave: "tiktok", rotulo: "Link do TikTok da loja",
+    placeholder: "https://www.tiktok.com/@sualoja",
+    buscaRotulo: "Buscar no TikTok",
+    buscaUrl: (q) => "https://www.tiktok.com/search?q=" + encodeURIComponent(q),
+  },
+  {
+    chave: "facebook", rotulo: "Link do Facebook da loja",
+    placeholder: "https://www.facebook.com/nomedapagina",
+    buscaRotulo: "Buscar no Facebook",
+    buscaUrl: (q) => "https://www.facebook.com/search/pages/?q=" + encodeURIComponent(q),
+    dica: "Use a PÁGINA da loja (facebook.com/nomedapagina) — perfil pessoal não vale.",
+  },
 ];
 
 export default function MinhaLojaPage() {
@@ -74,6 +107,9 @@ export default function MinhaLojaPage() {
         const f: Record<string, string> = {};
         for (const c of CAMPOS) f[c.campo] = String((d.atual[c.campo] ?? "") as string);
         for (const c of CONTATOS) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
+        for (const c of REDES) f[`attr:${c.chave}`] = String(atrs[c.chave] ?? "");
+        f["attr:hashtags"] = String(atrs["hashtags"] ?? "");
+        f["attr:google_meu_negocio"] = String(atrs["google_meu_negocio"] ?? "");
         setForm(f);
         setAtivo(Boolean(d.atual.ativo));
       })
@@ -104,32 +140,6 @@ export default function MinhaLojaPage() {
       setGBusy(false);
     }
   }
-  // Busca por REDE (instagram/tripadvisor): sistema acha, franqueado escolhe
-  // (preenche o campo; o salvar segue via proposta com aprovacao — dupla confirmacao).
-  const [redeCands, setRedeCands] = useState<Record<string, RedeCandidato[] | null>>({});
-  const [redeBusy, setRedeBusy] = useState<string>("");
-  const [redeErro, setRedeErro] = useState<Record<string, string>>({});
-
-  async function buscarRede(rede: string) {
-    setRedeBusy(rede);
-    setRedeErro((m) => ({ ...m, [rede]: "" }));
-    setRedeCands((m) => ({ ...m, [rede]: null }));
-    try {
-      const termo = [data?.marca, data?.nome, form["cidade"], form["uf"]].filter(Boolean).join(" ");
-      const r = await franqueadoSugerirRede(token, rede, termo);
-      if (r.erro) setRedeErro((m) => ({ ...m, [rede]: r.erro! }));
-      setRedeCands((m) => ({ ...m, [rede]: r.candidatos ?? [] }));
-    } catch (e) {
-      setRedeErro((m) => ({ ...m, [rede]: String((e as Error).message || e) }));
-    } finally {
-      setRedeBusy("");
-    }
-  }
-  function usarCandidato(chave: string, rede: string, c: RedeCandidato) {
-    set(`attr:${chave}`, c.link);
-    setRedeCands((m) => ({ ...m, [rede]: null }));
-  }
-
   async function confirmarGoogle(c: GoogleCandidato) {
     if (!c.place_id) return;
     setGBusy(true); setGErro("");
@@ -193,8 +203,8 @@ export default function MinhaLojaPage() {
         </p>
         <p className="text-xs text-slate-400 mb-5">
           Revise e corrija os dados. O endereço completo e os apelidos são o que fazem o cliente
-          achar sua loja no atendimento — capriche. <b>Suas alterações vão para a aprovação da
-          franqueadora</b> antes de entrar no ar.
+          achar sua loja no atendimento — capriche. <b>Escreva com maiúsculas e minúsculas
+          normais</b> (ex.: “Avenida Brasil, 100”) — evite TUDO EM MAIÚSCULAS.
         </p>
 
         {data.ja_tem_pendente && (
@@ -204,11 +214,26 @@ export default function MinhaLojaPage() {
         )}
         {erro && <div className="card p-3 mb-4 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
 
+        <div className={"card p-4 mb-4 border-2 " + (ativo ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50")}>
+          <div className="text-sm font-bold mb-2">Esta loja está ativa?</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setAtivo(true)}
+              className={"px-6 py-2 rounded-lg text-sm font-bold border-2 " +
+                (ativo ? "bg-green-600 text-white border-green-600" : "bg-white text-slate-500 border-slate-300")}>
+              SIM
+            </button>
+            <button type="button" onClick={() => setAtivo(false)}
+              className={"px-6 py-2 rounded-lg text-sm font-bold border-2 " +
+                (!ativo ? "bg-red-600 text-white border-red-600" : "bg-white text-slate-500 border-slate-300")}>
+              NÃO
+            </button>
+          </div>
+          {!ativo && (
+            <p className="text-xs text-red-700 mt-2">Loja inativa não aparece para os clientes.</p>
+          )}
+        </div>
+
         <div className="card p-5 space-y-4">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
-            Loja <b>{ativo ? "ativa" : "inativa"}</b> (inativa não aparece para os clientes)
-          </label>
 
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
             {CAMPOS.map((c) => (
@@ -228,10 +253,11 @@ export default function MinhaLojaPage() {
           </div>
 
           <div className="border-t border-slate-200 pt-3">
-            <div className="text-sm font-semibold text-slate-700 mb-1">🔎 Google da loja</div>
+            <div className="text-sm font-semibold text-slate-700 mb-1">🔎 Buscar no Google Meu Negócio</div>
             <p className="text-xs text-slate-400 mb-2">
               Preencha o endereço acima e clique — <b>nós achamos sua loja no Google</b> e você só
-              confirma. Isso conecta as avaliações do Google à sua loja.
+              confirma. Isso conecta as avaliações do Google (Google Meu Negócio) à sua loja —
+              não precisa colar link nenhum.
             </p>
             <button type="button" className="btn-secondary text-sm" onClick={buscarGoogle} disabled={gBusy}>
               {gBusy ? "Buscando…" : "Buscar minha loja no Google"}
@@ -267,63 +293,51 @@ export default function MinhaLojaPage() {
           </div>
 
           <div className="border-t border-slate-200 pt-3">
-            <div className="text-sm font-semibold text-slate-700 mb-1">Contato e links da loja</div>
-            <p className="text-xs text-slate-400 mb-2">
-              O atendimento é feito pelo sistema — não exibimos e-mail da loja. Telefone/WhatsApp e
-              os links abaixo ajudam o cliente e a busca. <b>Deixe EM BRANCO as redes que a loja
-              não tem</b> — link errado é recusado na hora do envio.
-            </p>
+            <div className="text-sm font-semibold text-slate-700 mb-1">Contato da loja</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {CONTATOS.map((c) => (
-                <div key={c.chave} className={c.area ? "sm:col-span-2" : ""}>
+                <div key={c.chave}>
                   <label className="label">{c.rotulo}</label>
-                  {c.area ? (
-                    <textarea className="input" rows={2} value={form[`attr:${c.chave}`] ?? ""}
-                      onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
-                  ) : (
-                    <input className="input" value={form[`attr:${c.chave}`] ?? ""}
-                      onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
-                  )}
-                  {c.dica && <p className="text-[11px] text-slate-400 mt-0.5">{c.dica}</p>}
-                  {c.busca && (
-                    <div className="mt-1">
-                      <button type="button" className="text-xs text-brand-700 underline"
-                        disabled={redeBusy !== ""} onClick={() => buscarRede(c.busca!)}>
-                        {redeBusy === c.busca ? "Buscando… (pode levar ~30s)" : "🔎 Buscar automaticamente"}
-                      </button>
-                      {redeErro[c.busca] && <span className="text-xs text-red-600 ml-2">{redeErro[c.busca]}</span>}
-                      {redeCands[c.busca] && redeCands[c.busca]!.length === 0 && (
-                        <span className="text-xs text-slate-500 ml-2">nada encontrado — confira cidade/nome.</span>
-                      )}
-                      {redeCands[c.busca] && redeCands[c.busca]!.length > 0 && (
-                        <div className="mt-1 space-y-1">
-                          {redeCands[c.busca]!.map((cand, i2) => (
-                            <div key={i2} className="card p-2 flex items-center justify-between gap-2">
-                              <div className="text-xs">
-                                <div className="font-medium">{cand.titulo}</div>
-                                <div className="text-slate-500">{cand.subtitulo}</div>
-                              </div>
-                              <button type="button" className="btn-primary text-xs whitespace-nowrap"
-                                onClick={() => usarCandidato(c.chave, c.busca!, cand)}>
-                                É esta
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {c.chave === "ifood" && (
-                    <p className="text-[11px] mt-0.5">
-                      <a className="text-brand-700 underline" target="_blank" rel="noreferrer"
-                        href={"https://www.ifood.com.br/busca?q=" + encodeURIComponent([data?.marca, data?.nome].filter(Boolean).join(" "))}>
-                        Procurar minha loja no iFood ↗
-                      </a>
-                      <span className="text-slate-400"> — abra sua loja lá e cole o link aqui.</span>
-                    </p>
-                  )}
+                  <input className="input" placeholder={c.placeholder}
+                    value={form[`attr:${c.chave}`] ?? ""}
+                    onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-200 pt-3">
+            <div className="text-sm font-semibold text-slate-700 mb-1">Páginas da loja nas redes e delivery</div>
+            <p className="text-xs text-slate-400 mb-2">
+              Clique em <b>Buscar</b> (à direita) para abrir a busca do próprio site, ache a página
+              da <b>sua</b> loja, copie o link e cole no campo. O campo mostra um exemplo do formato.
+              <b> Deixe EM BRANCO as redes que a loja não tem</b> — link errado é recusado no salvar.
+            </p>
+            <div className="space-y-3">
+              {REDES.map((c) => (
+                <div key={c.chave}>
+                  <label className="label">{c.rotulo}</label>
+                  <div className="flex gap-2">
+                    <input className="input flex-1" placeholder={c.placeholder}
+                      value={form[`attr:${c.chave}`] ?? ""}
+                      onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
+                    <a className="btn-secondary text-xs whitespace-nowrap self-center"
+                      target="_blank" rel="noreferrer"
+                      href={c.buscaUrl([data?.marca, data?.nome].filter(Boolean).join(" "))}>
+                      {c.buscaRotulo} ↗
+                    </a>
+                  </div>
+                  {c.dica && <p className="text-[11px] text-slate-400 mt-0.5">{c.dica}</p>}
+                </div>
+              ))}
+            </div>
+            <div className="mt-3">
+              <label className="label">Hashtags pra achar a loja nas redes e buscas (1 por linha)</label>
+              <textarea className="input" rows={2} value={form["attr:hashtags"] ?? ""}
+                onChange={(e) => set("attr:hashtags", e.target.value)} />
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Pode escrever com ou sem o símbolo # — os dois valem (ex.: minhaloja ou #minhaloja).
+              </p>
             </div>
           </div>
 
@@ -339,8 +353,11 @@ export default function MinhaLojaPage() {
           </div>
 
           <button className="btn-primary" onClick={enviar} disabled={enviando}>
-            {enviando ? "Enviando…" : "Enviar para aprovação"}
+            {enviando ? "Salvando…" : "Salvar"}
           </button>
+          <p className="text-[11px] text-slate-400 -mt-2">
+            O que você salvar passa pela conferência da franqueadora antes de entrar no ar.
+          </p>
         </div>
       </div>
     </div>

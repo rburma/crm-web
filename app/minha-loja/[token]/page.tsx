@@ -7,8 +7,10 @@ import {
   franqueadoEnviarProposta,
   franqueadoSugerirGoogle,
   franqueadoConfirmarGoogle,
+  franqueadoSugerirRede,
   type FranqueadoLoja,
   type GoogleCandidato,
+  type RedeCandidato,
 } from "@/lib/api";
 
 // Campos do endereço/identificação (colunas da loja). A SIGLA não entra (é da franqueadora).
@@ -35,15 +37,15 @@ const CAMPOS: { campo: string; rotulo: string; cols?: string; area?: boolean; di
 ];
 
 // Contato e links (gaveta da loja → attr:<chave>). Labels conforme pedido.
-const CONTATOS: { chave: string; rotulo: string; area?: boolean; dica?: string }[] = [
+const CONTATOS: { chave: string; rotulo: string; area?: boolean; dica?: string; busca?: string }[] = [
   { chave: "telefone", rotulo: "Telefone da loja" },
   { chave: "whatsapp", rotulo: "WhatsApp de atendimento da loja" },
   { chave: "site_loja", rotulo: "Link da página da loja no site da marca" },
   { chave: "google_meu_negocio", rotulo: "Link da página no Google Meu Negócio" },
-  { chave: "instagram", rotulo: "Link do Instagram da loja", dica: "Ex.: @sualoja ou instagram.com/sualoja" },
+  { chave: "instagram", rotulo: "Link do Instagram da loja", dica: "Ex.: @sualoja ou instagram.com/sualoja", busca: "instagram" },
   { chave: "facebook", rotulo: "Link do Facebook da loja", dica: "Use a PAGINA (facebook.com/nomedapagina) — perfil pessoal nao vale" },
   { chave: "tiktok", rotulo: "Link do TikTok da loja", dica: "Ex.: @sualoja ou tiktok.com/@sualoja" },
-  { chave: "tripadvisor", rotulo: "Link no TripAdvisor" },
+  { chave: "tripadvisor", rotulo: "Link no TripAdvisor", busca: "tripadvisor" },
   { chave: "reclame_aqui", rotulo: "Link no Reclame Aqui" },
   { chave: "trustpilot", rotulo: "Link no Trustpilot" },
   { chave: "ifood", rotulo: "Link no iFood", dica: "Abra a SUA loja no iFood e copie o endereco (ifood.com.br/delivery/...)" },
@@ -102,6 +104,32 @@ export default function MinhaLojaPage() {
       setGBusy(false);
     }
   }
+  // Busca por REDE (instagram/tripadvisor): sistema acha, franqueado escolhe
+  // (preenche o campo; o salvar segue via proposta com aprovacao — dupla confirmacao).
+  const [redeCands, setRedeCands] = useState<Record<string, RedeCandidato[] | null>>({});
+  const [redeBusy, setRedeBusy] = useState<string>("");
+  const [redeErro, setRedeErro] = useState<Record<string, string>>({});
+
+  async function buscarRede(rede: string) {
+    setRedeBusy(rede);
+    setRedeErro((m) => ({ ...m, [rede]: "" }));
+    setRedeCands((m) => ({ ...m, [rede]: null }));
+    try {
+      const termo = [data?.nome, form["cidade"], form["uf"]].filter(Boolean).join(" ");
+      const r = await franqueadoSugerirRede(token, rede, termo);
+      if (r.erro) setRedeErro((m) => ({ ...m, [rede]: r.erro! }));
+      setRedeCands((m) => ({ ...m, [rede]: r.candidatos ?? [] }));
+    } catch (e) {
+      setRedeErro((m) => ({ ...m, [rede]: String((e as Error).message || e) }));
+    } finally {
+      setRedeBusy("");
+    }
+  }
+  function usarCandidato(chave: string, rede: string, c: RedeCandidato) {
+    set(`attr:${chave}`, c.link);
+    setRedeCands((m) => ({ ...m, [rede]: null }));
+  }
+
   async function confirmarGoogle(c: GoogleCandidato) {
     if (!c.place_id) return;
     setGBusy(true); setGErro("");
@@ -257,6 +285,43 @@ export default function MinhaLojaPage() {
                       onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
                   )}
                   {c.dica && <p className="text-[11px] text-slate-400 mt-0.5">{c.dica}</p>}
+                  {c.busca && (
+                    <div className="mt-1">
+                      <button type="button" className="text-xs text-brand-700 underline"
+                        disabled={redeBusy !== ""} onClick={() => buscarRede(c.busca!)}>
+                        {redeBusy === c.busca ? "Buscando… (pode levar ~30s)" : "🔎 Buscar automaticamente"}
+                      </button>
+                      {redeErro[c.busca] && <span className="text-xs text-red-600 ml-2">{redeErro[c.busca]}</span>}
+                      {redeCands[c.busca] && redeCands[c.busca]!.length === 0 && (
+                        <span className="text-xs text-slate-500 ml-2">nada encontrado — confira cidade/nome.</span>
+                      )}
+                      {redeCands[c.busca] && redeCands[c.busca]!.length > 0 && (
+                        <div className="mt-1 space-y-1">
+                          {redeCands[c.busca]!.map((cand, i2) => (
+                            <div key={i2} className="card p-2 flex items-center justify-between gap-2">
+                              <div className="text-xs">
+                                <div className="font-medium">{cand.titulo}</div>
+                                <div className="text-slate-500">{cand.subtitulo}</div>
+                              </div>
+                              <button type="button" className="btn-primary text-xs whitespace-nowrap"
+                                onClick={() => usarCandidato(c.chave, c.busca!, cand)}>
+                                É esta
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {c.chave === "ifood" && (
+                    <p className="text-[11px] mt-0.5">
+                      <a className="text-brand-700 underline" target="_blank" rel="noreferrer"
+                        href={"https://www.ifood.com.br/busca?q=" + encodeURIComponent(String(data?.nome ?? ""))}>
+                        Procurar minha loja no iFood ↗
+                      </a>
+                      <span className="text-slate-400"> — abra sua loja lá e cole o link aqui.</span>
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

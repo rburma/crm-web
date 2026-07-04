@@ -357,6 +357,14 @@ export function franqueadoSugerirGoogle(token: string, endereco?: string): Promi
     body: JSON.stringify({ endereco: endereco || undefined }),
   });
 }
+export type RedeCandidato = { titulo: string; subtitulo: string; link: string };
+// Busca a pagina da loja na rede (instagram|tripadvisor) — franqueado escolhe e o campo e preenchido.
+export function franqueadoSugerirRede(token: string, rede: string, termo?: string): Promise<{ candidatos: RedeCandidato[]; erro?: string }> {
+  return req(`franqueado/loja/${encodeURIComponent(token)}/sugerir-rede`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rede, termo: termo || undefined }),
+  });
+}
 export function franqueadoConfirmarGoogle(token: string, placeId: string): Promise<{ ok?: boolean; nota?: number; qtd?: number }> {
   return req(`franqueado/loja/${encodeURIComponent(token)}/confirmar-google`, {
     method: "POST", headers: { "Content-Type": "application/json" },

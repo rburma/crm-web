@@ -115,7 +115,7 @@ export default function MinhaLojaPage() {
     setRedeErro((m) => ({ ...m, [rede]: "" }));
     setRedeCands((m) => ({ ...m, [rede]: null }));
     try {
-      const termo = [data?.nome, form["cidade"], form["uf"]].filter(Boolean).join(" ");
+      const termo = [data?.marca, data?.nome, form["cidade"], form["uf"]].filter(Boolean).join(" ");
       const r = await franqueadoSugerirRede(token, rede, termo);
       if (r.erro) setRedeErro((m) => ({ ...m, [rede]: r.erro! }));
       setRedeCands((m) => ({ ...m, [rede]: r.candidatos ?? [] }));
@@ -316,7 +316,7 @@ export default function MinhaLojaPage() {
                   {c.chave === "ifood" && (
                     <p className="text-[11px] mt-0.5">
                       <a className="text-brand-700 underline" target="_blank" rel="noreferrer"
-                        href={"https://www.ifood.com.br/busca?q=" + encodeURIComponent(String(data?.nome ?? ""))}>
+                        href={"https://www.ifood.com.br/busca?q=" + encodeURIComponent([data?.marca, data?.nome].filter(Boolean).join(" "))}>
                         Procurar minha loja no iFood ↗
                       </a>
                       <span className="text-slate-400"> — abra sua loja lá e cole o link aqui.</span>

@@ -329,6 +329,7 @@ export function criarLoja(
 // ── Portal do FRANQUEADO (preenche o cadastro da loja por link; admin aprova) ──
 export type FranqueadoLoja = {
   loja_id: number; nome: string; sigla: string | null;
+  marca?: string | null;
   atual: Record<string, unknown>;
   campos_extra: { chave: string; rotulo: string; categoria: string | null }[];
   ja_tem_pendente: boolean;

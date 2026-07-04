@@ -841,6 +841,24 @@ export function importAplicar(
   return req<ImportResultado>("importacoes/clientes/aplicar", { method: "POST", body: fd });
 }
 
+// Lotes GRANDES: aplica em SEGUNDO PLANO no motor (nao estoura o tempo do proxy).
+export function importAplicarAsync(
+  arquivo: File, mapeamento: Record<string, string>, origem: string, descricao?: string,
+): Promise<{ importacao_id: number; status: string; total_linhas: number }> {
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  fd.append("mapeamento", JSON.stringify(mapeamento));
+  fd.append("origem", origem);
+  if (descricao) fd.append("descricao", descricao);
+  return req("importacoes/clientes/aplicar-async", { method: "POST", body: fd });
+}
+export type ImportLoteStatus = {
+  importacao_id: number; status: string; processadas: number; total_linhas: number;
+  novos: number; enriquecidos: number; erros: number; erro?: string | null;
+};
+export function importLoteStatus(id: number): Promise<ImportLoteStatus> {
+  return req(`importacoes/clientes/lote/${id}`);
+}
 // ── Equipe & Departamentos (matriz usuário↔loja, modelo do legado) ──
 export type EquipeResumo = {
   totais: { vinculos: number; usuarios_vinculados: number; admins_globais: number };

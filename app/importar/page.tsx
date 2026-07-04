@@ -10,6 +10,8 @@ import {
   type ImportColunas,
   type ImportPreview,
   type ImportResultado,
+  importAplicarAsync,
+  importLoteStatus,
 } from "@/lib/api";
 
 // Heurística de auto-mapeamento pelo nome da coluna (o usuário pode trocar).
@@ -33,6 +35,7 @@ export default function ImportarPage() {
   const [descricao, setDescricao] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [resultado, setResultado] = useState<ImportResultado | null>(null);
+  const [andamento, setAndamento] = useState<{ id: number; proc: number; total: number } | null>(null);
   const [carregando, setCarregando] = useState<"" | "colunas" | "preview" | "aplicar">("");
   const [erro, setErro] = useState("");
 
@@ -85,11 +88,38 @@ export default function ImportarPage() {
     if (!confirm("Aplicar a importação na base? Clientes novos serão criados e os existentes enriquecidos.")) return;
     setErro(""); setCarregando("aplicar");
     try {
-      const r = await importAplicar(arquivo, mapaEfetivo(), origem.trim() || "import", descricao.trim() || undefined);
-      setResultado(r);
+      const grande = (preview?.total ?? 0) > 800;
+      if (!grande) {
+        const r = await importAplicar(arquivo, mapaEfetivo(), origem.trim() || "import", descricao.trim() || undefined);
+        setResultado(r);
+        setPreview(null);
+        return;
+      }
+      // LOTE GRANDE: processa em segundo plano no motor e acompanha aqui.
+      const ini = await importAplicarAsync(arquivo, mapaEfetivo(), origem.trim() || "import", descricao.trim() || undefined);
       setPreview(null);
+      setAndamento({ id: ini.importacao_id, proc: 0, total: ini.total_linhas });
+      for (;;) {
+        await new Promise((res) => setTimeout(res, 3000));
+        const st = await importLoteStatus(ini.importacao_id);
+        setAndamento({ id: st.importacao_id, proc: st.processadas, total: st.total_linhas });
+        if (st.status !== "processando") {
+          setAndamento(null);
+          if (st.status === "erro") {
+            setErro("Importação falhou no meio: " + (st.erro || "erro desconhecido"));
+          }
+          setResultado({
+            importacao_id: st.importacao_id, origem: origem.trim() || "import",
+            descricao: descricao.trim() || null, total_linhas: st.total_linhas,
+            novos: st.novos, enriquecidos: st.enriquecidos, erros: st.erros,
+            detalhe: { linhas: [] },
+          });
+          return;
+        }
+      }
     } catch (e) {
       setErro(String((e as Error).message || e));
+      setAndamento(null);
     } finally {
       setCarregando("");
     }
@@ -204,6 +234,17 @@ export default function ImportarPage() {
               </div>
             )}
             <p className="text-xs text-slate-500">Confira os números. Se estiver certo, clique em <b>Aplicar na base</b>.</p>
+          </div>
+        )}
+
+        {/* Andamento do lote grande (segundo plano) */}
+        {andamento && (
+          <div className="card p-4 border-blue-200 bg-blue-50">
+            <div className="label">⏳ Importando em segundo plano (lote #{andamento.id})…</div>
+            <p className="text-sm text-blue-800">
+              {andamento.proc.toLocaleString("pt-BR")} de {andamento.total.toLocaleString("pt-BR")} linhas processadas.
+              Pode deixar esta tela aberta — atualiza sozinha.
+            </p>
           </div>
         )}
 

@@ -103,6 +103,7 @@ export default function MinhaLojaPage() {
     }
   }
   async function confirmarGoogle(c: GoogleCandidato) {
+    if (!c.place_id) return;
     setGBusy(true); setGErro("");
     try {
       await franqueadoConfirmarGoogle(token, c.place_id);
@@ -217,8 +218,8 @@ export default function MinhaLojaPage() {
             {gCands && gCands.length > 0 && (
               <div className="mt-2 space-y-2">
                 <div className="text-xs text-slate-500">Qual destas é a sua loja?</div>
-                {gCands.map((c) => (
-                  <div key={c.place_id} className="card p-3 flex items-center justify-between gap-3">
+                {gCands.map((c, ci) => (
+                  <div key={c.place_id ?? ci} className="card p-3 flex items-center justify-between gap-3">
                     <div className="text-sm">
                       <div className="font-medium">{c.nome}</div>
                       <div className="text-xs text-slate-500">{c.endereco}</div>

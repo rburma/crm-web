@@ -349,10 +349,7 @@ export function franqueadoEnviarProposta(token: string, body: {
     body: JSON.stringify(body),
   });
 }
-export type GoogleCandidato = {
-  place_id: string; nome: string | null; endereco: string | null;
-  nota: number | null; qtd: number | null; link: string | null;
-};
+// (tipo GoogleCandidato ja declarado mais abaixo, junto da busca do admin)
 // O SISTEMA busca a loja no Google (nome+endereco); o franqueado so confirma.
 export function franqueadoSugerirGoogle(token: string, endereco?: string): Promise<{ candidatos: GoogleCandidato[]; erro?: string }> {
   return req(`franqueado/loja/${encodeURIComponent(token)}/sugerir-google`, {

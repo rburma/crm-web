@@ -26,9 +26,35 @@ const PUBLICAS = ["/f/", "/acompanhar", "/avaliar", "/vitrine", "/embed", "/api/
 const AUTH_LIVRE = ["/login", "/entrar", "/api/auth/"];
 
 export function middleware(req: NextRequest) {
-  if (!USER || !PASS) return NextResponse.next();
-
   const path = req.nextUrl.pathname;
+
+  // ── Camada 1: rotas SEMPRE publicas (clientes finais / franqueado por token) ──
+  const publica =
+    path === "/baixar-app" || path.startsWith("/baixar-app/") ||
+    path.startsWith("/minha-loja") ||
+    path.startsWith("/api/render/franqueado/loja/") ||
+    path.startsWith("/api/render/franqueado/por-sigla/") ||
+    AUTH_LIVRE.some((pp) => path === pp || path.startsWith(pp)) ||
+    PUBLICAS.some((pp) => path === pp || path.startsWith(pp));
+
+  // ── Camada 2 (03/07): SEM portao, o site exige LOGIN em tudo que nao e publico.
+  // Deslogado: qualquer pagina interna -> /login; a RAIZ vira a pagina
+  // institucional minima /bemvindo (clientes finais que digitarem o dominio
+  // nao veem conteudo do sistema). Logado: segue normal. A SEGURANCA real e o
+  // backend (fail-closed); aqui e a experiencia/curtina.
+  if (!USER || !PASS) {
+    if (publica) return NextResponse.next();
+    if (path === "/bemvindo") return NextResponse.next();
+    const tok = req.cookies.get("crm_token")?.value;
+    if (!tok) {
+      if (path === "/") {
+        return NextResponse.rewrite(new URL("/bemvindo", req.url));
+      }
+      if (path.startsWith("/api/")) return NextResponse.next(); // API: o motor responde 401
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next();
+  }
   // Download do instalador do app de balcão: SEMPRE público (arquivo sem segredo;
   // usar o app exige um código de ativação). Não fica atrás do portão do piloto.
   if (path === "/baixar-app" || path.startsWith("/baixar-app/")) {

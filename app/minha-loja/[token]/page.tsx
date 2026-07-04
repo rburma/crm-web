@@ -47,17 +47,56 @@ const CONTATOS: { chave: string; rotulo: string; placeholder?: string }[] = [
 // BUSCA DO PRÓPRIO SITE (sem busca automática — só o Google é automático, no bloco
 // acima): o franqueado acha a página da loja lá, copia o link e cola no campo.
 // O placeholder mostra o FORMATO esperado (link, não @).
-const REDES: {
+type RedeDef = {
   chave: string; rotulo: string; placeholder: string;
   buscaRotulo: string; buscaUrl: (q: string) => string; dica?: string;
-}[] = [
-  {
+};
+
+// DELIVERY muda por PAIS (decisao Renato 04/07): Brasil=iFood; Portugal=UberEats+Glovo;
+// EUA=UberEats+DoorDash. O pais vem do campo "Pais" do endereco (padrao Brasil).
+const DELIVERY_DEFS: Record<string, RedeDef> = {
+  ifood: {
     chave: "ifood", rotulo: "Link no iFood",
     placeholder: "https://www.ifood.com.br/delivery/cidade/sua-loja/...",
     buscaRotulo: "Buscar no iFood",
     buscaUrl: (q) => "https://www.ifood.com.br/busca?q=" + encodeURIComponent(q),
     dica: "Abra sua loja no iFood e copie o endereço da página.",
   },
+  ubereats: {
+    chave: "ubereats", rotulo: "Link no Uber Eats",
+    placeholder: "https://www.ubereats.com/store/sua-loja/...",
+    buscaRotulo: "Buscar no Uber Eats",
+    buscaUrl: (q) => "https://www.ubereats.com/search?q=" + encodeURIComponent(q),
+  },
+  glovo: {
+    chave: "glovo", rotulo: "Link no Glovo",
+    placeholder: "https://glovoapp.com/pt/pt/cidade/sua-loja/...",
+    buscaRotulo: "Buscar no Glovo",
+    buscaUrl: (q) => "https://www.google.com/search?q=" + encodeURIComponent("site:glovoapp.com " + q),
+  },
+  doordash: {
+    chave: "doordash", rotulo: "Link no DoorDash",
+    placeholder: "https://www.doordash.com/store/sua-loja-.../",
+    buscaRotulo: "Buscar no DoorDash",
+    buscaUrl: (q) => "https://www.doordash.com/search/store/" + encodeURIComponent(q) + "/",
+  },
+};
+const DELIVERY_POR_PAIS: Record<string, string[]> = {
+  Brasil: ["ifood"],
+  Portugal: ["ubereats", "glovo"],
+  EUA: ["ubereats", "doordash"],
+};
+const TODAS_DELIVERY = ["ifood", "ubereats", "glovo", "doordash"];
+
+function paisNormalizado(v: string): "Brasil" | "Portugal" | "EUA" {
+  const s = (v || "").toLowerCase();
+  if (s.includes("portug")) return "Portugal";
+  if (s.includes("eua") || s.includes("estados") || s.includes("usa") || s.includes("united")) return "EUA";
+  return "Brasil";
+}
+
+// Redes SOCIAIS (iguais em todos os paises).
+const SOCIAIS: RedeDef[] = [
   {
     chave: "instagram", rotulo: "Link do Instagram da loja",
     placeholder: "https://www.instagram.com/sualoja",
@@ -157,7 +196,9 @@ export default function MinhaLojaPage() {
         // REDES comecam EM BRANCO (decisao Renato 04/07: os links legados nao estao
         // bons e atrapalham quem preenche). Campo vazio NAO propoe apagar nada —
         // e' removido do envio (so o que for preenchido vira proposta).
-        for (const c of REDES) f[`attr:${c.chave}`] = "";
+        for (const c of SOCIAIS) f[`attr:${c.chave}`] = "";
+        for (const k of TODAS_DELIVERY) f[`attr:${k}`] = "";
+        f["attr:pais"] = String(atrs["pais"] ?? "Brasil");
         f["attr:hashtags"] = String(atrs["hashtags"] ?? "");
         f["attr:google_meu_negocio"] = "";
         setForm(f);
@@ -170,6 +211,8 @@ export default function MinhaLojaPage() {
 
   // ── Google: o SISTEMA busca, o franqueado CONFIRMA (combinado com a rede) ──
   const [gCands, setGCands] = useState<GoogleCandidato[] | null>(null);
+  const [gManual, setGManual] = useState(false);
+  const [linkSalvo, setLinkSalvo] = useState<Record<string, string>>({});
   const [gBusy, setGBusy] = useState(false);
   const [gOk, setGOk] = useState("");
   const [gErro, setGErro] = useState("");
@@ -205,6 +248,24 @@ export default function MinhaLojaPage() {
     }
   }
 
+  // Salva UM link especifico (mini-proposta so daquele campo). O franqueado ve a
+  // previa, confere e salva o link na hora — sem esperar o Salvar geral.
+  async function salvarLink(chave: string) {
+    const v = (form[`attr:${chave}`] ?? "").trim();
+    if (!v) return;
+    setLinkSalvo((m) => ({ ...m, [chave]: "salvando" }));
+    try {
+      await franqueadoEnviarProposta(token, {
+        autor_nome: autorNome.trim() || undefined,
+        autor_email: autorEmail.trim() || undefined,
+        valores: { [`attr:${chave}`]: v },
+      });
+      setLinkSalvo((m) => ({ ...m, [chave]: "salvo" }));
+    } catch (e) {
+      setLinkSalvo((m) => ({ ...m, [chave]: "erro: " + String((e as Error).message || e) }));
+    }
+  }
+
   async function enviar() {
     setErro("");
     setEnviando(true);
@@ -212,8 +273,11 @@ export default function MinhaLojaPage() {
       // Campos de REDE em branco ficam FORA do envio (comecam vazios de proposito;
       // vazio nao pode virar proposta de apagar o que ja existe no cadastro).
       const valores: Record<string, string> = { ...form };
-      for (const c of REDES) {
+      for (const c of SOCIAIS) {
         if (!(valores[`attr:${c.chave}`] ?? "").trim()) delete valores[`attr:${c.chave}`];
+      }
+      for (const k of TODAS_DELIVERY) {
+        if (!(valores[`attr:${k}`] ?? "").trim()) delete valores[`attr:${k}`];
       }
       if (!(valores["attr:google_meu_negocio"] ?? "").trim()) delete valores["attr:google_meu_negocio"];
       await franqueadoEnviarProposta(token, {
@@ -349,18 +413,29 @@ export default function MinhaLojaPage() {
             <div className="text-sm font-semibold text-slate-700 mb-1">Páginas da loja nas redes e delivery</div>
             <p className="text-xs text-slate-400 mb-2">
               Clique em <b>Buscar</b> (à direita) para abrir a busca do próprio site, ache a página
-              da <b>sua</b> loja, copie o link e cole no campo. O campo mostra um exemplo do formato.
-              <b> Deixe EM BRANCO as redes que a loja não tem</b> — link errado é recusado no salvar.
+              da <b>sua</b> loja, copie o link e cole no campo. Ao colar, aparece a <b>prévia para
+              conferir</b> e o botão pra salvar aquele link.
+              <b> Deixe EM BRANCO as redes que a loja não tem.</b>
             </p>
+            <div className="mb-3 max-w-xs">
+              <label className="label">País da loja</label>
+              <select className="input" value={paisNormalizado(form["attr:pais"] ?? "")}
+                onChange={(e) => set("attr:pais", e.target.value)}>
+                <option value="Brasil">Brasil</option>
+                <option value="Portugal">Portugal</option>
+                <option value="EUA">Estados Unidos</option>
+              </select>
+            </div>
             <div className="space-y-3">
-              {/* GOOGLE (Google Meu Negócio): a UNICA busca automatica — clica em
-                  Buscar, escolhe a loja nos candidatos e o campo preenche sozinho. */}
               <div>
                 <label className="label">Google (Google Meu Negócio)</label>
                 <div className="flex gap-2">
-                  <input className="input flex-1" readOnly
-                    placeholder="Clique em Buscar — nós achamos sua loja e você só confirma"
-                    value={form["attr:google_meu_negocio"] ?? ""} />
+                  <input className="input flex-1" readOnly={!gManual}
+                    placeholder={gManual
+                      ? "https://maps.app.goo.gl/... (link da sua loja no Google Maps)"
+                      : "Clique em Buscar — nós achamos sua loja e você só confirma"}
+                    value={form["attr:google_meu_negocio"] ?? ""}
+                    onChange={(e) => set("attr:google_meu_negocio", e.target.value)} />
                   <button type="button" onClick={buscarGoogle} disabled={gBusy}
                     className="btn-secondary text-xs whitespace-nowrap self-center">
                     {gBusy ? "Buscando…" : "Buscar"}
@@ -389,24 +464,60 @@ export default function MinhaLojaPage() {
                         </button>
                       </div>
                     ))}
+                    <button type="button" className="text-xs text-brand-700 underline"
+                      onClick={() => { setGCands(null); setGManual(true); }}>
+                      Não é nenhuma destas — colar o link manualmente
+                    </button>
                   </div>
                 )}
+                {!gManual && !gCands && (
+                  <button type="button" className="mt-1 text-[11px] text-slate-400 underline"
+                    onClick={() => setGManual(true)}>
+                    Prefiro colar o link manualmente
+                  </button>
+                )}
               </div>
-              {REDES.map((c) => (
+              {[...DELIVERY_POR_PAIS[paisNormalizado(form["attr:pais"] ?? "")].map((k) => DELIVERY_DEFS[k]), ...SOCIAIS].map((c) => (
                 <div key={c.chave}>
                   <label className="label">{c.rotulo}</label>
                   <div className="flex gap-2">
                     <input className="input flex-1" placeholder={c.placeholder}
                       value={form[`attr:${c.chave}`] ?? ""}
-                      onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
+                      onChange={(e) => { set(`attr:${c.chave}`, e.target.value); setLinkSalvo((m) => ({ ...m, [c.chave]: "" })); }} />
                     <a className="btn-secondary text-xs whitespace-nowrap self-center"
-                      target="_blank" rel="noreferrer"
-                      title={c.buscaRotulo}
+                      target="_blank" rel="noreferrer" title={c.buscaRotulo}
                       href={c.buscaUrl([data?.marca, data?.nome].filter(Boolean).join(" "))}>
                       Buscar ↗
                     </a>
                   </div>
                   {c.dica && <p className="text-[11px] text-slate-400 mt-0.5">{c.dica}</p>}
+                  {(form[`attr:${c.chave}`] ?? "").trim() !== "" && (
+                    <div className="card p-2 mt-1 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs text-slate-600 truncate max-w-[60%]">
+                        Prévia: <span className="font-mono">{(form[`attr:${c.chave}`] ?? "").trim().slice(0, 60)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a className="text-xs text-brand-700 underline" target="_blank" rel="noreferrer"
+                          href={(form[`attr:${c.chave}`] ?? "").trim().startsWith("http")
+                            ? (form[`attr:${c.chave}`] ?? "").trim()
+                            : "https://" + (form[`attr:${c.chave}`] ?? "").trim()}>
+                          Abrir e conferir ↗
+                        </a>
+                        {linkSalvo[c.chave] === "salvo" ? (
+                          <span className="text-xs text-green-700 font-medium">✓ Link salvo</span>
+                        ) : (
+                          <button type="button" className="btn-primary text-xs"
+                            disabled={linkSalvo[c.chave] === "salvando"}
+                            onClick={() => salvarLink(c.chave)}>
+                            {linkSalvo[c.chave] === "salvando" ? "Salvando…" : "Salvar este link"}
+                          </button>
+                        )}
+                      </div>
+                      {(linkSalvo[c.chave] ?? "").startsWith("erro") && (
+                        <div className="w-full text-xs text-red-600">{linkSalvo[c.chave]}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -5,7 +5,10 @@ import { useParams } from "next/navigation";
 import {
   franqueadoLoja,
   franqueadoEnviarProposta,
+  franqueadoSugerirGoogle,
+  franqueadoConfirmarGoogle,
   type FranqueadoLoja,
+  type GoogleCandidato,
 } from "@/lib/api";
 
 // Campos do endereço/identificação (colunas da loja). A SIGLA não entra (é da franqueadora).
@@ -32,18 +35,18 @@ const CAMPOS: { campo: string; rotulo: string; cols?: string; area?: boolean; di
 ];
 
 // Contato e links (gaveta da loja → attr:<chave>). Labels conforme pedido.
-const CONTATOS: { chave: string; rotulo: string; area?: boolean }[] = [
+const CONTATOS: { chave: string; rotulo: string; area?: boolean; dica?: string }[] = [
   { chave: "telefone", rotulo: "Telefone da loja" },
   { chave: "whatsapp", rotulo: "WhatsApp de atendimento da loja" },
   { chave: "site_loja", rotulo: "Link da página da loja no site da marca" },
   { chave: "google_meu_negocio", rotulo: "Link da página no Google Meu Negócio" },
-  { chave: "instagram", rotulo: "Link do Instagram da loja" },
-  { chave: "facebook", rotulo: "Link do Facebook da loja" },
-  { chave: "tiktok", rotulo: "Link do TikTok da loja" },
+  { chave: "instagram", rotulo: "Link do Instagram da loja", dica: "Ex.: @sualoja ou instagram.com/sualoja" },
+  { chave: "facebook", rotulo: "Link do Facebook da loja", dica: "Use a PAGINA (facebook.com/nomedapagina) — perfil pessoal nao vale" },
+  { chave: "tiktok", rotulo: "Link do TikTok da loja", dica: "Ex.: @sualoja ou tiktok.com/@sualoja" },
   { chave: "tripadvisor", rotulo: "Link no TripAdvisor" },
   { chave: "reclame_aqui", rotulo: "Link no Reclame Aqui" },
   { chave: "trustpilot", rotulo: "Link no Trustpilot" },
-  { chave: "ifood", rotulo: "Link no iFood" },
+  { chave: "ifood", rotulo: "Link no iFood", dica: "Abra a SUA loja no iFood e copie o endereco (ifood.com.br/delivery/...)" },
   { chave: "hashtags", rotulo: "Hashtags pra achar a loja nas redes e buscas (1 por linha)", area: true },
 ];
 
@@ -76,6 +79,42 @@ export default function MinhaLojaPage() {
   }, [token]);
 
   function set(k: string, v: string) { setForm((m) => ({ ...m, [k]: v })); }
+
+  // ── Google: o SISTEMA busca, o franqueado CONFIRMA (combinado com a rede) ──
+  const [gCands, setGCands] = useState<GoogleCandidato[] | null>(null);
+  const [gBusy, setGBusy] = useState(false);
+  const [gOk, setGOk] = useState("");
+  const [gErro, setGErro] = useState("");
+
+  async function buscarGoogle() {
+    setGBusy(true); setGErro(""); setGOk(""); setGCands(null);
+    try {
+      const endereco = [
+        form["endereco"], form["numero"], form["bairro"],
+        form["cidade"], form["uf"], form["shopping"],
+      ].filter(Boolean).join(", ");
+      const r = await franqueadoSugerirGoogle(token, endereco);
+      if (r.erro) setGErro(r.erro);
+      setGCands(r.candidatos ?? []);
+    } catch (e) {
+      setGErro(String((e as Error).message || e));
+    } finally {
+      setGBusy(false);
+    }
+  }
+  async function confirmarGoogle(c: GoogleCandidato) {
+    setGBusy(true); setGErro("");
+    try {
+      await franqueadoConfirmarGoogle(token, c.place_id);
+      if (c.link) set("attr:google_meu_negocio", c.link);
+      setGOk(`Conectado: ${c.nome ?? "loja"}${c.nota ? ` (nota ${c.nota} · ${c.qtd ?? 0} avaliações)` : ""}`);
+      setGCands(null);
+    } catch (e) {
+      setGErro(String((e as Error).message || e));
+    } finally {
+      setGBusy(false);
+    }
+  }
 
   async function enviar() {
     setErro("");
@@ -160,10 +199,50 @@ export default function MinhaLojaPage() {
           </div>
 
           <div className="border-t border-slate-200 pt-3">
+            <div className="text-sm font-semibold text-slate-700 mb-1">🔎 Google da loja</div>
+            <p className="text-xs text-slate-400 mb-2">
+              Preencha o endereço acima e clique — <b>nós achamos sua loja no Google</b> e você só
+              confirma. Isso conecta as avaliações do Google à sua loja.
+            </p>
+            <button type="button" className="btn-secondary text-sm" onClick={buscarGoogle} disabled={gBusy}>
+              {gBusy ? "Buscando…" : "Buscar minha loja no Google"}
+            </button>
+            {gOk && <div className="mt-2 text-sm text-green-700 font-medium">✓ {gOk}</div>}
+            {gErro && <div className="mt-2 text-sm text-red-600">{gErro}</div>}
+            {gCands && gCands.length === 0 && (
+              <div className="mt-2 text-sm text-slate-500">
+                Nenhum resultado — confira o endereço/cidade acima e tente de novo.
+              </div>
+            )}
+            {gCands && gCands.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <div className="text-xs text-slate-500">Qual destas é a sua loja?</div>
+                {gCands.map((c) => (
+                  <div key={c.place_id} className="card p-3 flex items-center justify-between gap-3">
+                    <div className="text-sm">
+                      <div className="font-medium">{c.nome}</div>
+                      <div className="text-xs text-slate-500">{c.endereco}</div>
+                      {c.nota != null && (
+                        <div className="text-xs text-amber-600">★ {c.nota} · {c.qtd ?? 0} avaliações</div>
+                      )}
+                    </div>
+                    <button type="button" className="btn-primary text-xs whitespace-nowrap"
+                      disabled={gBusy} onClick={() => confirmarGoogle(c)}>
+                      É esta
+                    </button>
+                  </div>
+                ))}
+                <div className="text-xs text-slate-400">Nenhuma é a sua? Ajuste o endereço acima e busque de novo.</div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-slate-200 pt-3">
             <div className="text-sm font-semibold text-slate-700 mb-1">Contato e links da loja</div>
             <p className="text-xs text-slate-400 mb-2">
               O atendimento é feito pelo sistema — não exibimos e-mail da loja. Telefone/WhatsApp e
-              os links abaixo ajudam o cliente e a busca.
+              os links abaixo ajudam o cliente e a busca. <b>Deixe EM BRANCO as redes que a loja
+              não tem</b> — link errado é recusado na hora do envio.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {CONTATOS.map((c) => (
@@ -176,6 +255,7 @@ export default function MinhaLojaPage() {
                     <input className="input" value={form[`attr:${c.chave}`] ?? ""}
                       onChange={(e) => set(`attr:${c.chave}`, e.target.value)} />
                   )}
+                  {c.dica && <p className="text-[11px] text-slate-400 mt-0.5">{c.dica}</p>}
                 </div>
               ))}
             </div>

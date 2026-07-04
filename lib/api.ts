@@ -349,6 +349,23 @@ export function franqueadoEnviarProposta(token: string, body: {
     body: JSON.stringify(body),
   });
 }
+export type GoogleCandidato = {
+  place_id: string; nome: string | null; endereco: string | null;
+  nota: number | null; qtd: number | null; link: string | null;
+};
+// O SISTEMA busca a loja no Google (nome+endereco); o franqueado so confirma.
+export function franqueadoSugerirGoogle(token: string, endereco?: string): Promise<{ candidatos: GoogleCandidato[]; erro?: string }> {
+  return req(`franqueado/loja/${encodeURIComponent(token)}/sugerir-google`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endereco: endereco || undefined }),
+  });
+}
+export function franqueadoConfirmarGoogle(token: string, placeId: string): Promise<{ ok?: boolean; nota?: number; qtd?: number }> {
+  return req(`franqueado/loja/${encodeURIComponent(token)}/confirmar-google`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ place_id: placeId }),
+  });
+}
 export function franqueadoGerarLink(lojaId: number): Promise<{ token: string; loja_id: number }> {
   return req(`franqueado/admin/loja/${lojaId}/link`, { method: "POST" });
 }

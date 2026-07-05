@@ -797,6 +797,15 @@ export const CAMPOS_IMPORT: { campo: string; rotulo: string }[] = [
   { campo: "nascimento", rotulo: "Nascimento" },
   { campo: "loja_ref", rotulo: "Loja (apelido/código/CNPJ/nome)" },
   { campo: "tags", rotulo: "Tags (separadas por , ou ;)" },
+  // Campos de ENDEREÇO e extras: entram na gaveta de dados do cliente (atributos).
+  { campo: "cidade", rotulo: "Cidade (dado do cliente)" },
+  { campo: "uf", rotulo: "UF / Estado (dado do cliente)" },
+  { campo: "cep", rotulo: "CEP (dado do cliente)" },
+  { campo: "endereco", rotulo: "Endereço (dado do cliente)" },
+  { campo: "bairro", rotulo: "Bairro (dado do cliente)" },
+  { campo: "pais", rotulo: "País (dado do cliente)" },
+  { campo: "sobrenome", rotulo: "Sobrenome (dado do cliente)" },
+  { campo: "origem_id", rotulo: "ID no sistema de origem (dado do cliente)" },
 ];
 
 export type ImportColunas = { colunas: string[]; amostra: string[][] };

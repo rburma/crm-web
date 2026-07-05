@@ -24,6 +24,16 @@ function adivinhar(coluna: string): string {
   if (c.includes("nome")) return "nome";
   if (/(loja|franquia|unidade|apelido)/.test(c)) return "loja_ref";
   if (c.includes("tag")) return "tags";
+  // Cabeçalhos comuns de exportação (HubSpot/planilhas em inglês):
+  if (/(city|cidade)/.test(c)) return "cidade";
+  if (/^(state|uf|estado)$/.test(c)) return "uf";
+  if (/(zip|cep)/.test(c)) return "cep";
+  if (/date_of_birth|birth/.test(c)) return "nascimento";
+  if (/firstname|first_name/.test(c)) return "nome";
+  if (/lastname|last_name|sobrenome/.test(c)) return "sobrenome";
+  if (/(endereco|address|logradouro|rua)/.test(c)) return "endereco";
+  if (/(bairro|district)/.test(c)) return "bairro";
+  if (/^phone|mobile/.test(c)) return "telefone";
   return "";
 }
 

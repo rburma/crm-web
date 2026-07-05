@@ -98,7 +98,7 @@ export default function ImportarPage() {
     if (!confirm("Aplicar a importação na base? Clientes novos serão criados e os existentes enriquecidos.")) return;
     setErro(""); setCarregando("aplicar");
     try {
-      const grande = (preview?.total ?? 0) > 800;
+      const grande = (preview?.total_arquivo ?? preview?.total ?? 0) > 800;
       if (!grande) {
         const r = await importAplicar(arquivo, mapaEfetivo(), origem.trim() || "import", descricao.trim() || undefined);
         setResultado(r);
@@ -227,7 +227,7 @@ export default function ImportarPage() {
           <div className="card p-4 space-y-3">
             <div className="label">3. Prévia (nada foi gravado ainda)</div>
             <div className="flex flex-wrap gap-2">
-              <span className="badge-gray">Total: {preview.total}</span>
+              <span className="badge-gray">Total: {preview.total}{preview.parcial ? ` (amostra de ${(preview.total_arquivo ?? 0).toLocaleString("pt-BR")})` : ""}</span>
               <span className="badge-green">Novos: {preview.novos}</span>
               <span className="badge-blue">Enriquece: {preview.enriquece}</span>
               <span className={preview.erros.length ? "badge-amber" : "badge-gray"}>Erros: {preview.erros.length}</span>

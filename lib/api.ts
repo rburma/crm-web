@@ -822,6 +822,8 @@ export type ImportLinhaPreview = {
   consumidor_id?: number; loja_id?: number; motivo?: string;
 };
 export type ImportPreview = {
+  total_arquivo?: number;
+  parcial?: boolean;
   total: number; novos: number; enriquece: number;
   erros: { linha: number; motivo: string }[];
   amostra: ImportLinhaPreview[];

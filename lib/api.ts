@@ -227,9 +227,23 @@ export type EmailEvento = {
 // ── Endpoints ──────────────────────────────────────────────────────
 export type ClientesPagina = { items: ClienteResumo[]; total: number };
 
-export function buscarClientes(q: string, limit = 50, offset = 0): Promise<ClientesPagina> {
+export function buscarClientes(q: string, limit = 50, offset = 0, lojaId?: number | null): Promise<ClientesPagina> {
   const qs = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
+  if (lojaId) qs.set("loja_id", String(lojaId));
   return reqLista<ClienteResumo>(`clientes?${qs.toString()}`);
+}
+
+// Edita o cadastro do cliente (colunas quentes e/ou atributos — atributos fazem MERGE).
+export function atualizarCliente(
+  id: number,
+  dados: { nome?: string | null; cpf?: string | null; telefone?: string | null;
+           email?: string | null; nascimento?: string | null;
+           atributos?: Record<string, string> },
+): Promise<unknown> {
+  return req(`clientes/${id}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
 }
 
 export function ficha360(id: number | string): Promise<Ficha> {

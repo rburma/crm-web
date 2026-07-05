@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { clienteIdentidade, clientePreferencias, clientePreferenciaSet, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type ClienteIdentidade, type ClientePrefs, type Ficha } from "@/lib/api";
+import { atualizarCliente, clienteIdentidade, clientePreferencias, clientePreferenciaSet, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type ClienteIdentidade, type ClientePrefs, type Ficha } from "@/lib/api";
 
 const fmt1 = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -114,6 +114,61 @@ export default function FichaPage({ params }: { params: { id: string } }) {
   const ultimo = f && f.atendimentos.length ? f.atendimentos[0].criado_em : null;
   const situacao = f && f.atendimentos.length ? f.atendimentos[0].status : null;
 
+  // ── Edicao do cadastro (admin/escopo): colunas quentes + gaveta de atributos ──
+  const [editando, setEditando] = useState(false);
+  const [edForm, setEdForm] = useState<Record<string, string>>({});
+  const [edExtras, setEdExtras] = useState<{ chave: string; valor: string }[]>([]);
+  const [edNovaChave, setEdNovaChave] = useState("");
+  const [edSalvando, setEdSalvando] = useState(false);
+  const [edErro, setEdErro] = useState("");
+
+  const ED_FIXOS = ["endereco", "bairro", "cidade", "uf", "cep", "instagram", "esporte", "tamanho"];
+
+  function abrirEdicao() {
+    if (!f) return;
+    const m: Record<string, string> = {
+      nome: f.nome ?? "", email: f.email ?? "", telefone: f.telefone ?? "",
+      nascimento: f.nascimento ?? "", cpf: f.cpf ?? "",
+    };
+    for (const k of ED_FIXOS) m["attr:" + k] = av(k) ?? "";
+    // demais atributos texto viram linhas extras editaveis
+    const extras: { chave: string; valor: string }[] = [];
+    for (const [k, v] of Object.entries(atr)) {
+      if (ED_FIXOS.includes(k)) continue;
+      if (typeof v === "string" && v.trim() !== "") extras.push({ chave: k, valor: v });
+    }
+    setEdExtras(extras);
+    setEdForm(m);
+    setEdErro("");
+    setEditando(true);
+  }
+
+  async function salvarEdicao() {
+    setEdSalvando(true);
+    setEdErro("");
+    try {
+      const atributos: Record<string, string> = {};
+      for (const k of ED_FIXOS) atributos[k] = (edForm["attr:" + k] ?? "").trim();
+      for (const ex of edExtras) {
+        if (ex.chave.trim()) atributos[ex.chave.trim()] = ex.valor.trim();
+      }
+      await atualizarCliente(Number(params.id), {
+        nome: edForm.nome.trim() || null,
+        email: edForm.email.trim() || null,
+        telefone: edForm.telefone.trim() || null,
+        nascimento: edForm.nascimento.trim() || null,
+        cpf: edForm.cpf.trim() || null,
+        atributos,
+      });
+      setEditando(false);
+      setF(await ficha360(params.id));
+    } catch (e) {
+      setEdErro(String((e as Error).message || e));
+    } finally {
+      setEdSalvando(false);
+    }
+  }
+
   function permitidoPref(canal: string, tema: string): boolean {
     return !!prefs?.itens.find(
       (i) => i.canal === canal && i.tema === tema && i.marca_id == null && i.permitido,
@@ -198,6 +253,9 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                   </div>
                 </div>
                 <span className="badge-blue shrink-0">{f.total_atendimentos} atendimento(s)</span>
+                <button className="btn-secondary text-xs shrink-0" onClick={abrirEdicao}>
+                  ✏️ Editar cadastro
+                </button>
               </div>
 
               {/* mini-indicadores */}
@@ -418,6 +476,78 @@ export default function FichaPage({ params }: { params: { id: string } }) {
           </div>
         )}
       </div>
-    </Shell>
+          {editando && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setEditando(false); }}>
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[88vh] overflow-y-auto p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold">Editar cadastro do cliente</h2>
+              <button className="text-slate-400 hover:text-slate-700" onClick={() => setEditando(false)}>✕</button>
+            </div>
+            {edErro && <div className="card p-3 mb-3 border-red-200 bg-red-50 text-sm text-red-700">{edErro}</div>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="label">Nome</label>
+                <input className="input" value={edForm.nome ?? ""} onChange={(e) => setEdForm({ ...edForm, nome: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">E-mail</label>
+                <input className="input" value={edForm.email ?? ""} onChange={(e) => setEdForm({ ...edForm, email: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Telefone (DDD + número)</label>
+                <input className="input" value={edForm.telefone ?? ""} onChange={(e) => setEdForm({ ...edForm, telefone: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Nascimento (dd/mm/aaaa)</label>
+                <input className="input" value={edForm.nascimento ?? ""} onChange={(e) => setEdForm({ ...edForm, nascimento: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">CPF</label>
+                <input className="input" value={edForm.cpf ?? ""} onChange={(e) => setEdForm({ ...edForm, cpf: e.target.value })} />
+              </div>
+              {ED_FIXOS.map((k) => (
+                <div key={k}>
+                  <label className="label capitalize">{k === "uf" ? "UF" : k}</label>
+                  <input className="input" value={edForm["attr:" + k] ?? ""}
+                    onChange={(e) => setEdForm({ ...edForm, ["attr:" + k]: e.target.value })} />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 border-t border-slate-200 pt-3">
+              <div className="text-sm font-semibold text-slate-700 mb-2">Outros dados (enriquecimento)</div>
+              {edExtras.map((ex, i2) => (
+                <div key={i2} className="flex gap-2 mb-2">
+                  <input className="input w-44 font-mono text-xs" value={ex.chave}
+                    onChange={(e) => setEdExtras(edExtras.map((x, j) => j === i2 ? { ...x, chave: e.target.value } : x))} />
+                  <input className="input flex-1" value={ex.valor}
+                    onChange={(e) => setEdExtras(edExtras.map((x, j) => j === i2 ? { ...x, valor: e.target.value } : x))} />
+                  <button className="btn-ghost text-xs" onClick={() => setEdExtras(edExtras.filter((_, j) => j !== i2))}>✕</button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input className="input w-44 font-mono text-xs" placeholder="novo campo (ex.: tiktok)"
+                  value={edNovaChave} onChange={(e) => setEdNovaChave(e.target.value)} />
+                <button className="btn-ghost text-xs" disabled={!edNovaChave.trim()}
+                  onClick={() => { setEdExtras([...edExtras, { chave: edNovaChave.trim(), valor: "" }]); setEdNovaChave(""); }}>
+                  + Adicionar campo
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Ex.: instagram, tiktok, time, calçado… Vira dado pesquisável do cliente.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button className="btn-ghost" onClick={() => setEditando(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={salvarEdicao} disabled={edSalvando}>
+                {edSalvando ? "Salvando…" : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+</Shell>
   );
 }

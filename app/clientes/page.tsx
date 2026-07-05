@@ -8,12 +8,16 @@ import ColunasConfig from "@/components/ColunasConfig";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   buscarClientes,
+  equipeLojas,
+  listarMarcas,
   mergeClientes,
   clientesBulkAtributo,
   fmtTelefone,
   fmtCpf,
   obterPreferencia,
   type ClienteResumo,
+  type LojaEquipe,
+  type MarcaItem,
 } from "@/lib/api";
 
 const PAGE = 50;
@@ -72,6 +76,22 @@ export default function ClientesPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [cols, setCols] = useState<string[]>(COLS_CLI_DEFAULT);
+  // Filtro "clientes de cada loja" (pedido Renato 05/07): marca -> loja.
+  const [marcas, setMarcas] = useState<MarcaItem[]>([]);
+  const [marcaSel, setMarcaSel] = useState<number | null>(null);
+  const [lojas, setLojas] = useState<LojaEquipe[]>([]);
+  const [lojaSel, setLojaSel] = useState<number | null>(null);
+
+  useEffect(() => {
+    listarMarcas().then(setMarcas).catch(() => {});
+  }, []);
+  useEffect(() => {
+    setLojaSel(null);
+    setLojas([]);
+    if (marcaSel != null) {
+      equipeLojas(marcaSel, "", 200, 0).then((r) => setLojas(r.items)).catch(() => {});
+    }
+  }, [marcaSel]);
 
   useEffect(() => {
     obterPreferencia<{ cols?: string[] }>("cols_clientes")
@@ -83,14 +103,14 @@ export default function ClientesPage() {
   }, []);
 
   async function carregar(pg: number, size = pageSize) {
-    if (!q.trim()) return;
+    if (!q.trim() && lojaSel == null) return; // sem termo, precisa ao menos da loja
     setLoading(true);
     setErro("");
     setMsg("");
     setBuscou(true);
     selec.limpar();
     try {
-      const r = await buscarClientes(q.trim(), size, pg * size);
+      const r = await buscarClientes(q.trim(), size, pg * size, lojaSel);
       setRows(r.items);
       setTotal(r.total);
       setPage(pg);
@@ -194,17 +214,34 @@ export default function ClientesPage() {
             onChange={setCols}
           />
         </div>
-        <form onSubmit={buscar} className="flex gap-2 mb-5">
+        <form onSubmit={buscar} className="flex flex-wrap gap-2 mb-5">
           <input
-            className="input"
+            className="input flex-1 min-w-[220px]"
             placeholder="Buscar por nome, CPF, telefone ou e-mail…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             autoFocus
           />
+          <select className="input w-44" value={marcaSel ?? ""}
+            onChange={(e) => setMarcaSel(e.target.value === "" ? null : Number(e.target.value))}>
+            <option value="">Todas as marcas</option>
+            {marcas.map((m) => (
+              <option key={m.id} value={m.id}>{m.nome || m.slug}</option>
+            ))}
+          </select>
+          <select className="input w-56" value={lojaSel ?? ""} disabled={marcaSel == null}
+            onChange={(e) => setLojaSel(e.target.value === "" ? null : Number(e.target.value))}>
+            <option value="">{marcaSel == null ? "(escolha a marca)" : "Todas as lojas da marca"}</option>
+            {lojas.map((l2) => (
+              <option key={l2.id} value={l2.id}>{l2.nome}{l2.sigla ? ` · ${l2.sigla}` : ""}</option>
+            ))}
+          </select>
           <button className="btn-primary whitespace-nowrap" disabled={loading}>
             {loading ? "Buscando…" : "Buscar"}
           </button>
+          <p className="w-full text-[11px] text-slate-400 -mt-1">
+            Com uma <b>loja</b> escolhida, pode buscar sem termo — lista todos os clientes daquela loja.
+          </p>
         </form>
 
         {erro && (

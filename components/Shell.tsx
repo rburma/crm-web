@@ -15,7 +15,7 @@ import {
 // vis: "todos" (loja+franqueado+admin) | "franqueado" (franqueado+admin) | "admin" (só global)
 const NAV = [
   { href: "/", label: "Painel", icon: "📊", vis: "todos" },
-  { href: "/clientes", label: "Clientes", icon: "👥", vis: "admin" },
+  { href: "/clientes", label: "Clientes", icon: "👥", vis: "todos" }, // loja/franqueado veem SO os clientes do proprio escopo (backend)
   { href: "/atendimentos", label: "Atendimentos", icon: "💬", vis: "todos" },
   { href: "/obrigacoes", label: "Obrigações", icon: "📋", vis: "todos" },
   { href: "/avaliacoes", label: "Avaliações", icon: "⭐", vis: "todos" },

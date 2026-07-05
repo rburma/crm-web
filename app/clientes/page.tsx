@@ -11,6 +11,7 @@ import {
   equipeLojas,
   listarMarcas,
   mergeClientes,
+  usuarioLogado,
   clientesBulkAtributo,
   fmtTelefone,
   fmtCpf,
@@ -81,9 +82,13 @@ export default function ClientesPage() {
   const [marcaSel, setMarcaSel] = useState<number | null>(null);
   const [lojas, setLojas] = useState<LojaEquipe[]>([]);
   const [lojaSel, setLojaSel] = useState<number | null>(null);
+  // Filtros de marca/loja so p/ papeis globais (loja/franqueado ja veem so o escopo;
+  // e os endpoints de equipe usados nos selects sao admin-only).
+  const ehGlobal = ["admin", "rede", "matriz", "staff", "master"].includes(usuarioLogado()?.papel ?? "admin");
 
   useEffect(() => {
-    listarMarcas().then(setMarcas).catch(() => {});
+    if (ehGlobal) listarMarcas().then(setMarcas).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     setLojaSel(null);
@@ -222,6 +227,7 @@ export default function ClientesPage() {
             onChange={(e) => setQ(e.target.value)}
             autoFocus
           />
+          {ehGlobal && (<>
           <select className="input w-44" value={marcaSel ?? ""}
             onChange={(e) => setMarcaSel(e.target.value === "" ? null : Number(e.target.value))}>
             <option value="">Todas as marcas</option>
@@ -236,6 +242,7 @@ export default function ClientesPage() {
               <option key={l2.id} value={l2.id}>{l2.nome}{l2.sigla ? ` · ${l2.sigla}` : ""}</option>
             ))}
           </select>
+          </>)}
           <button className="btn-primary whitespace-nowrap" disabled={loading}>
             {loading ? "Buscando…" : "Buscar"}
           </button>

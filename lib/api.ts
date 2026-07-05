@@ -547,6 +547,11 @@ export function transferirAtendimento(
 }
 
 // Ação em lote sobre atendimentos: muda status ou define marca.
+// Exclui um atendimento (SO admin; p/ limpar testes). Irreversivel; auditado.
+export function excluirAtendimento(id: number): Promise<{ ok: boolean }> {
+  return req(`atendimentos/${id}`, { method: "DELETE" });
+}
+
 export function atendimentosEmLote(
   ids: number[], acao: "status" | "marca", valor: string,
 ): Promise<BulkResult> {

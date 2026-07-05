@@ -6,6 +6,7 @@ import Shell from "@/components/Shell";
 import SlaBadge from "@/components/SlaBadge";
 import {
   anexarFoto,
+  excluirAtendimento,
   detalheAtendimento,
   fmtDataHora,
   fmtTelefone,
@@ -16,6 +17,7 @@ import {
   responderAtendimento,
   statusBadge,
   transferirAtendimento,
+  usuarioLogado,
   type AtendimentoDetalhe,
   type LojaItem,
   type Mensagem,
@@ -254,6 +256,22 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
               </div>
               {/* controles de status */}
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+                {usuarioLogado()?.papel === "admin" && (
+                  <button
+                    className="btn bg-red-600 text-white hover:bg-red-700 text-xs px-3 py-1.5"
+                    title="Só admin. Apaga o atendimento e as mensagens (avaliações são preservadas)."
+                    onClick={async () => {
+                      if (!confirm("EXCLUIR este atendimento de vez? Apaga as mensagens também. Não tem volta.")) return;
+                      if (!confirm("Confirma mesmo a EXCLUSÃO definitiva?")) return;
+                      try {
+                        await excluirAtendimento(Number(params.id));
+                        window.location.href = "/atendimentos";
+                      } catch (err) { setRespMsg(err instanceof Error ? err.message : "Erro ao excluir"); }
+                    }}
+                  >
+                    🗑 Excluir (teste)
+                  </button>
+                )}
                 {d.status !== "encerrada" && (
                   <button
                     className="btn bg-emerald-600 text-white hover:bg-emerald-700 text-xs px-3 py-1.5"

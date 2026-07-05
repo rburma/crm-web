@@ -9,7 +9,7 @@ const SITE_BASE = (
   process.env.SITE_BASE ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://contactcenter.com.br"
 ).replace(/\/$/, "");
 
-export function GET() {
+export function GET(req: Request) {
   if (!CLIENT_ID) {
     return NextResponse.redirect(`${SITE_BASE}/login?erro=google-nao-configurado`);
   }
@@ -21,6 +21,11 @@ export function GET() {
   url.searchParams.set("scope", "openid email profile");
   url.searchParams.set("state", state);
   url.searchParams.set("prompt", "select_account");
+  // E-mail digitado na tela de login (opcional): o Google ja abre na conta certa.
+  try {
+    const email = new URL(req.url).searchParams.get("email");
+    if (email) url.searchParams.set("login_hint", email);
+  } catch { /* segue sem hint */ }
   const res = NextResponse.redirect(url.toString());
   // state anti-CSRF (conferido no callback).
   res.cookies.set("g_state", state, {

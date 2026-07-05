@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { login, salvarSessao } from "@/lib/api";
+// Login e 100% Google (decisao Renato 05/07): sem senha na tela. O e-mail digitado
+// (opcional) vira login_hint — o Google ja abre na conta certa.
 
 const MAPA_ERRO: Record<string, string> = {
   "sem-acesso": "Sua conta Google não tem acesso ao CRM. Peça ao administrador.",
@@ -13,74 +13,44 @@ const MAPA_ERRO: Record<string, string> = {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
-  const [carregando, setCarregando] = useState(false);
 
   useEffect(() => {
     const e = new URLSearchParams(window.location.search).get("erro");
     if (e) setErro(MAPA_ERRO[e] ?? "Não foi possível entrar. Tente de novo.");
   }, []);
 
-  async function entrar(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.trim() || !senha) return;
-    setCarregando(true);
-    setErro("");
-    try {
-      const r = await login(email.trim(), senha);
-      salvarSessao(r.token, r.usuario);
-      router.push("/clientes");
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : "Erro ao entrar");
-    } finally {
-      setCarregando(false);
-    }
-  }
+  const urlGoogle = "/api/auth/google/start" + (email.trim() ? "?email=" + encodeURIComponent(email.trim()) : "");
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] p-4">
-      <form onSubmit={entrar} className="card p-7 w-full max-w-sm">
+      <div className="card p-7 w-full max-w-sm">
         <h1 className="text-xl font-bold text-slate-800">CRM World Tennis</h1>
-        <p className="text-sm text-slate-500 mt-1 mb-5">Entre com seu e-mail e senha.</p>
+        <p className="text-sm text-slate-500 mt-1 mb-5">Entre com a sua conta Google.</p>
 
         {erro && (
           <div className="card border-red-200 bg-red-50 text-red-700 p-3 text-sm mb-4">{erro}</div>
         )}
 
-        <label className="block text-xs text-slate-500 mb-1">E-mail</label>
+        <label className="block text-xs text-slate-500 mb-1">Seu e-mail (opcional — agiliza a escolha da conta)</label>
         <input
-          className="input w-full mb-3"
+          className="input w-full mb-4"
           type="email"
+          placeholder="voce@franquia.email"
           autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoFocus
         />
 
-        <label className="block text-xs text-slate-500 mb-1">Senha</label>
-        <input
-          className="input w-full mb-5"
-          type="password"
-          autoComplete="current-password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-        />
-
-        <button className="btn-primary w-full" disabled={carregando}>
-          {carregando ? "Entrando…" : "Entrar"}
-        </button>
-
-        {/* Login por Google SEMPRE visivel (org loga por Google; a conta admin nao tem senha). */}
-        <a
-          href="/api/auth/google/start"
-          className="btn-primary w-full mt-3 flex items-center justify-center gap-2"
-        >
+        <a href={urlGoogle} className="btn-primary w-full flex items-center justify-center gap-2">
           Entrar com Google
         </a>
-      </form>
+        <p className="text-[11px] text-slate-400 mt-3 text-center">
+          Sem senha: a conta Google cadastrada no CRM é o seu acesso.
+        </p>
+      </div>
     </div>
   );
 }

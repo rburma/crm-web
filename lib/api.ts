@@ -789,6 +789,15 @@ export type MergeResult = {
 // Funde varios clientes num so (principal sobrevive). Admin-only no backend.
 // EXCLUSAO de clientes — SO papel admin (backend valida). Cliente com
 // atendimento e PULADO (o backend reporta) — exclua os atendimentos antes.
+// Recupera nomes cortados em 20 chars pelo legado (SO admin; previa/aplicar).
+export function recuperarNomesLegado(aplicar: boolean): Promise<{
+  aplicado: boolean; suspeitos_analisados: number;
+  corrigiveis?: number; corrigidos?: number;
+  amostra: { id: number; antes: string; depois: string }[];
+}> {
+  return req(`clientes/recuperar-nomes-legado?aplicar=${aplicar}`, { method: "POST" });
+}
+
 export function excluirCliente(id: number, comAtendimentos = false): Promise<{ ok: boolean }> {
   return req(`clientes/${id}${comAtendimentos ? "?com_atendimentos=true" : ""}`, { method: "DELETE" });
 }

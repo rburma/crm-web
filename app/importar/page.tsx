@@ -4,6 +4,7 @@ import { useState } from "react";
 import Shell from "@/components/Shell";
 import {
   CAMPOS_IMPORT,
+  recuperarNomesLegado,
   importAplicar,
   importColunas,
   importPreview,
@@ -138,6 +139,36 @@ export default function ImportarPage() {
   return (
     <Shell title="Importar clientes (planilha)">
       <div className="max-w-5xl space-y-5">
+        {/* Utilitario: nomes cortados pelo legado (20 chars) */}
+        <div className="card p-4 border-amber-200 bg-amber-50/50">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm">
+              <b>Nomes cortados pelo sistema antigo</b> — recupera o nome completo a partir
+              do histórico legado (só corrige quando o nome atual é o começo exato do completo).
+            </div>
+            <button
+              className="btn-secondary text-sm"
+              onClick={async () => {
+                try {
+                  const prev = await recuperarNomesLegado(false);
+                  const n = prev.corrigiveis ?? 0;
+                  if (!n) { alert("Nenhum nome recuperável encontrado."); return; }
+                  const exemplo = prev.amostra[0];
+                  if (!confirm(`${n} nome(s) podem ser completados.
+Ex.: "${exemplo?.antes}" → "${exemplo?.depois}"
+
+Aplicar agora?`)) return;
+                  const r = await recuperarNomesLegado(true);
+                  alert(`${r.corrigidos ?? 0} nome(s) completados.`);
+                } catch (e) {
+                  alert(String((e as Error).message || e));
+                }
+              }}
+            >
+              🔤 Recuperar nomes completos
+            </button>
+          </div>
+        </div>
         {/* Passo 1 — arquivo */}
         <div className="card p-4">
           <div className="label">1. Planilha (.xlsx) — a 1ª linha deve ser o cabeçalho</div>

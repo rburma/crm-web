@@ -247,6 +247,22 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                         ✉️ E-mail
                       </a>
                     )}
+                    {typeof av("instagram") === "string" && String(av("instagram")).trim() && (
+                      <a
+                        href={(() => {
+                          const h = String(av("instagram")).trim();
+                          if (/^https?:/i.test(h)) return h;
+                          const limpo = h.replace(/^@+/, "");
+                          return "https://instagram.com/" + (limpo.toLowerCase().startsWith("instagram.com/") ? limpo.slice(14) : limpo);
+                        })()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-ghost text-xs px-3 py-1.5"
+                        title="Abrir o Instagram do cliente (logado como a loja, interaja manualmente)"
+                      >
+                        📸 Instagram
+                      </a>
+                    )}
                     <button onClick={copiar} className="btn-ghost text-xs px-3 py-1.5">
                       📋 {copiado ? "Copiado!" : "Copiar dados"}
                     </button>

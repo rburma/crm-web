@@ -265,10 +265,7 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                       let comAtend = false;
                       if (f.total_atendimentos > 0) {
                         comAtend = confirm(
-                          `Ele tem ${f.total_atendimentos} atendimento(s).
-
-OK = excluir o cliente E os atendimentos dele.
-Cancelar = não excluir nada.`
+                          `Ele tem ${f.total_atendimentos} atendimento(s).\n\nOK = excluir o cliente E os atendimentos dele.\nCancelar = não excluir nada.`
                         );
                         if (!comAtend) return;
                       }

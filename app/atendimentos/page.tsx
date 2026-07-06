@@ -106,14 +106,9 @@ export default function AtendimentosPage() {
   async function excluirSelecionados() {
     const ids = selec.ids.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(`EXCLUIR ${ids.length} atendimento(s)?
-
-Apaga as mensagens junto (avaliações e logs são preservados). IRREVERSÍVEL.`)) return;
+    if (!window.confirm(`EXCLUIR ${ids.length} atendimento(s)?\n\nApaga as mensagens junto (avaliações e logs são preservados). IRREVERSÍVEL.`)) return;
     const comCliente = window.confirm(
-      "Excluir TAMBÉM os CLIENTES relacionados?
-
-OK = apaga cada cliente junto (com TODOS os atendimentos dele).
-Cancelar = só os atendimentos selecionados."
+      "Excluir TAMBÉM os CLIENTES relacionados?\n\nOK = apaga cada cliente junto (com TODOS os atendimentos dele).\nCancelar = só os atendimentos selecionados."
     );
     if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
     setBulkBusy(true); setErro(""); setMsg("");

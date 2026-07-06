@@ -91,10 +91,7 @@ export default function ClientesPage() {
     if (!ids.length) return;
     if (!window.confirm(`EXCLUIR ${ids.length} cliente(s)? IRREVERSÍVEL.`)) return;
     const comAtend = window.confirm(
-      "Excluir TAMBÉM os ATENDIMENTOS desses clientes?
-
-OK = apaga clientes + todos os atendimentos deles.
-Cancelar = só clientes SEM atendimento (os com atendimento são pulados)."
+      "Excluir TAMBÉM os ATENDIMENTOS desses clientes?\n\nOK = apaga clientes + todos os atendimentos deles.\nCancelar = só clientes SEM atendimento (os com atendimento são pulados)."
     );
     if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
     setBulkBusy(true); setErro(""); setMsg("");

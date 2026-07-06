@@ -264,10 +264,7 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                       if (!confirm("EXCLUIR este atendimento de vez? Apaga as mensagens também. Não tem volta.")) return;
                       const comCliente = d.cliente
                         ? confirm(
-                            `Excluir TAMBÉM o cliente "${d.cliente.nome ?? "relacionado"}"?
-
-OK = apaga o cliente junto (com TODOS os atendimentos dele).
-Cancelar = só este atendimento.`
+                            `Excluir TAMBÉM o cliente "${d.cliente.nome ?? "relacionado"}"?\n\nOK = apaga o cliente junto (com TODOS os atendimentos dele).\nCancelar = só este atendimento.`
                           )
                         : false;
                       if (!confirm("Confirma mesmo a EXCLUSÃO definitiva?")) return;

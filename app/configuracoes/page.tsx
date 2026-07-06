@@ -110,9 +110,7 @@ export default function ConfiguracoesPage() {
 
   async function apagarMarcaAtual() {
     if (!marca) return;
-    if (!confirm(`APAGAR a marca "${marca.nome ?? marca.slug}"?
-
-Só é possível quando ela está vazia (sem lojas e sem atendimentos). Isso é irreversível.`)) return;
+    if (!confirm(`APAGAR a marca "${marca.nome ?? marca.slug}"?\n\nSó é possível quando ela está vazia (sem lojas e sem atendimentos). Isso é irreversível.`)) return;
     setErro("");
     try {
       await configApagarMarca(marca.id);

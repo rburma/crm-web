@@ -154,10 +154,7 @@ export default function ImportarPage() {
                   const n = prev.corrigiveis ?? 0;
                   if (!n) { alert("Nenhum nome recuperável encontrado."); return; }
                   const exemplo = prev.amostra[0];
-                  if (!confirm(`${n} nome(s) podem ser completados.
-Ex.: "${exemplo?.antes}" → "${exemplo?.depois}"
-
-Aplicar agora?`)) return;
+                  if (!confirm(`${n} nome(s) podem ser completados.\nEx.: "${exemplo?.antes}" → "${exemplo?.depois}"\n\nAplicar agora?`)) return;
                   const r = await recuperarNomesLegado(true);
                   alert(`${r.corrigidos ?? 0} nome(s) completados.`);
                 } catch (e) {

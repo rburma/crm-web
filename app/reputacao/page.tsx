@@ -17,6 +17,7 @@ export default function ReputacaoPage() {
   const [marcaSel, setMarcaSel] = useState<number | "">("");
   const [sortCol, setSortCol] = useState("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [busca, setBusca] = useState("");
   // Cadastro da loja direto da matriz + selecao p/ e-mail (Renato 07/07)
   const [cadLoja, setCadLoja] = useState<{ id: number; nome: string } | null>(null);
   const [selLojas, setSelLojas] = useState<Set<number>>(new Set());
@@ -113,8 +114,29 @@ export default function ReputacaoPage() {
     }
   }
 
+  // Busca estilo cobranca: palavras soltas = OU; trecho "entre aspas" = frase
+  // exata OBRIGATORIA (E). Sem acento/caixa. Campos: sigla, nome, marca,
+  // cidade, UF, shopping, apelidos.
+  const semAcento = (t: string) =>
+    t.normalize("NFD").replace(new RegExp("[" + String.fromCharCode(0x300) + "-" + String.fromCharCode(0x36f) + "]", "g"), "").toLowerCase();
+
   const lojas = useMemo(() => {
-    const base = (data?.lojas ?? []).filter((l) => marcaSel === "" || l.marca_id === marcaSel);
+    let base = (data?.lojas ?? []).filter((l) => marcaSel === "" || l.marca_id === marcaSel);
+    const q = busca.trim();
+    if (q) {
+      const frases: string[] = [];
+      const resto = q.replace(/"([^"]+)"/g, (_m, fr) => { frases.push(fr); return " "; });
+      const palavras = resto.split(" ").map((w) => w.trim()).filter(Boolean);
+      const alvo = (l: (typeof base)[number]) =>
+        semAcento([l.sigla, l.nome, l.marca, l.cidade, l.uf, l.shopping, l.apelidos]
+          .filter(Boolean).join(" "));
+      base = base.filter((l) => {
+        const t = alvo(l);
+        if (frases.some((fr) => !t.includes(semAcento(fr)))) return false;
+        if (palavras.length && !palavras.some((w) => t.includes(semAcento(w)))) return false;
+        return true;
+      });
+    }
     const val = (l: (typeof base)[number]): number | string => {
       if (sortCol === "total") return l.total ?? -1;
       if (sortCol === "loja") return (l.nome || "").toLowerCase();
@@ -128,7 +150,7 @@ export default function ReputacaoPage() {
       if (va > vb) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [data, marcaSel, sortCol, sortDir]);
+  }, [data, marcaSel, sortCol, sortDir, busca]);
 
   const seta = (col: string) => (sortCol === col ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
@@ -139,6 +161,12 @@ export default function ReputacaoPage() {
         {msg && <div className="card border-green-200 bg-green-50 text-green-700 p-3 text-sm">{msg}</div>}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
+            <input
+              className="input py-1 text-sm w-64"
+              placeholder={'Buscar loja: sigla, cidade, shopping… ("aspas" = exato)'}
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
             <select
               className="input py-1 text-sm"
               value={marcaSel}

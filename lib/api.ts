@@ -1793,6 +1793,8 @@ export type ReputacaoMatriz = {
   lojas: {
     loja_id: number; nome: string | null; sigla: string | null;
     marca_id: number | null; marca: string | null;
+    cidade?: string | null; uf?: string | null;
+    shopping?: string | null; apelidos?: string | null;
     total: number | null; total_qtd: number;
     redes: Record<string, { nota?: number; qtd?: number; link: string | null; tipo?: string | null; seguidores?: number; ultimo_post?: string | null }>;
   }[];

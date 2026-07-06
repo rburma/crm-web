@@ -29,6 +29,44 @@ export default function AprovacoesPage() {
   const [propostas, setPropostas] = useState<Proposta[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
+  // Selecao p/ acoes EM LOTE (Renato 07/07): aprovar/reprovar varias de uma vez.
+  const [selIds, setSelIds] = useState<Set<number>>(new Set());
+  const [loteBusy, setLoteBusy] = useState(false);
+  const [loteMsg, setLoteMsg] = useState("");
+
+  function toggleSel(id: number) {
+    setSelIds((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+
+  async function aplicarLote(aprovar: boolean) {
+    const alvos = propostas.filter((p) => selIds.has(p.id));
+    if (!alvos.length) return;
+    const rotulo = aprovar ? "APROVAR" : "REPROVAR";
+    if (!confirm(`${rotulo} ${alvos.length} proposta(s) de uma vez?`)) return;
+    setLoteBusy(true); setErro(""); setLoteMsg("");
+    let ok = 0;
+    let falhas = 0;
+    for (const p of alvos) {
+      try {
+        await franqueadoAplicar(
+          p.id,
+          aprovar ? p.mudancas.map((m) => m.campo) : [],
+          aprovar ? "aprovada em lote" : "reprovada em lote",
+        );
+        ok++;
+      } catch {
+        falhas++;
+      }
+    }
+    setLoteMsg(`${ok} proposta(s) ${aprovar ? "aprovada(s)" : "reprovada(s)"}.` + (falhas ? ` ${falhas} falharam.` : ""));
+    setSelIds(new Set());
+    setLoteBusy(false);
+    carregar();
+  }
 
   const carregar = useCallback(() => {
     setCarregando(true);
@@ -47,6 +85,37 @@ export default function AprovacoesPage() {
           alguns campos, ou reprove. Só entra no cadastro o que você aprovar.
         </p>
         {erro && <div className="card p-3 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
+        {loteMsg && <div className="card p-3 border-green-200 bg-green-50 text-sm text-green-700">{loteMsg}</div>}
+        {!carregando && propostas.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={selIds.size === propostas.length && propostas.length > 0}
+                onChange={(e) =>
+                  setSelIds(e.target.checked ? new Set(propostas.map((p) => p.id)) : new Set())
+                }
+              />
+              marcar todas
+            </label>
+            <span className="text-blue-800 font-medium">{selIds.size} selecionada(s)</span>
+            <button
+              className="btn-primary text-sm"
+              disabled={loteBusy || selIds.size === 0}
+              onClick={() => aplicarLote(true)}
+            >
+              {loteBusy ? "…" : `✔ Aprovar selecionadas (${selIds.size})`}
+            </button>
+            <button
+              className="btn-ghost text-sm text-red-600"
+              disabled={loteBusy || selIds.size === 0}
+              onClick={() => aplicarLote(false)}
+            >
+              ✖ Reprovar selecionadas ({selIds.size})
+            </button>
+          </div>
+        )}
         {carregando ? (
           <p className="text-sm text-slate-400">Carregando…</p>
         ) : propostas.length === 0 ? (
@@ -54,14 +123,24 @@ export default function AprovacoesPage() {
             Nenhuma alteração aguardando aprovação. 🎉
           </div>
         ) : (
-          propostas.map((p) => <PropostaCard key={p.id} p={p} onFeito={carregar} />)
+          propostas.map((p) => (
+            <PropostaCard
+              key={p.id}
+              p={p}
+              onFeito={carregar}
+              selecionada={selIds.has(p.id)}
+              onToggleSel={() => toggleSel(p.id)}
+            />
+          ))
         )}
       </div>
     </Shell>
   );
 }
 
-function PropostaCard({ p, onFeito }: { p: Proposta; onFeito: () => void }) {
+function PropostaCard({ p, onFeito, selecionada, onToggleSel }: {
+  p: Proposta; onFeito: () => void; selecionada: boolean; onToggleSel: () => void;
+}) {
   const [sel, setSel] = useState<Set<string>>(new Set(p.mudancas.map((m) => m.campo)));
   const [motivo, setMotivo] = useState("");
   const [trabalhando, setTrabalhando] = useState(false);
@@ -89,11 +168,15 @@ function PropostaCard({ p, onFeito }: { p: Proposta; onFeito: () => void }) {
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-        <div>
+        <div className="flex items-start gap-2">
+          <input type="checkbox" className="h-4 w-4 mt-0.5" checked={selecionada} onChange={onToggleSel}
+            title="Selecionar p/ aprovar/reprovar em lote" />
+          <div>
           <div className="font-semibold text-sm">{p.loja_nome}</div>
           <div className="text-xs text-slate-400">
             por {p.autor_nome || p.autor_email || "franqueado"}
             {p.criado_em ? ` · ${new Date(p.criado_em).toLocaleString("pt-BR")}` : ""}
+          </div>
           </div>
         </div>
         <div className="flex gap-1 text-xs">

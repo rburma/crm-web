@@ -1839,6 +1839,18 @@ export function confirmarIfood(
 }
 
 // ── Atualizar reputacoes (background): redes vazio = tudo (Google + iFood) ──
+// Envia e-mail aos franqueados das lojas selecionadas na matriz de reputacao.
+export function reputacaoEnviarEmail(lojaIds: number[], assunto: string, corpo: string): Promise<{
+  lojas: number; enviados: number;
+  resultados: { loja_id: number; loja: string | null; enviados: number; motivo: string | null }[];
+}> {
+  return req("reputacao/enviar-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ loja_ids: lojaIds, assunto, corpo }),
+  });
+}
+
 export function reputacaoRefresh(
   redes?: string[],
 ): Promise<{ ok: boolean; iniciado?: string[]; msg?: string }> {

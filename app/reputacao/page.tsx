@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Shell from "@/components/Shell";
-import { me, reputacaoMatriz, reputacaoRefresh, type ReputacaoMatriz } from "@/lib/api";
+import LojaCadastro from "@/components/LojaCadastro";
+import { me, reputacaoEnviarEmail, reputacaoMatriz, reputacaoRefresh, type ReputacaoMatriz } from "@/lib/api";
 
 const GLOBAIS = ["admin", "rede", "matriz"];
 
@@ -16,6 +17,43 @@ export default function ReputacaoPage() {
   const [marcaSel, setMarcaSel] = useState<number | "">("");
   const [sortCol, setSortCol] = useState("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Cadastro da loja direto da matriz + selecao p/ e-mail (Renato 07/07)
+  const [cadLoja, setCadLoja] = useState<{ id: number; nome: string } | null>(null);
+  const [selLojas, setSelLojas] = useState<Set<number>>(new Set());
+  const [emailAberto, setEmailAberto] = useState(false);
+  const [emAssunto, setEmAssunto] = useState("Reputação da sua loja {sigla}");
+  const [emCorpo, setEmCorpo] = useState(
+    "Olá, franqueado da {loja}!\n\nA nota consolidada da sua loja está em {total} (de 0 a 5).\n\n"
+  );
+  const [emBusy, setEmBusy] = useState(false);
+
+  function toggleLoja(id: number) {
+    setSelLojas((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+
+  async function enviarEmails() {
+    const ids = [...selLojas];
+    if (!ids.length) return;
+    setEmBusy(true); setErro(""); setMsg("");
+    try {
+      const r = await reputacaoEnviarEmail(ids, emAssunto, emCorpo);
+      const sem = r.resultados.filter((x) => !x.enviados);
+      setMsg(
+        `${r.enviados} e-mail(s) enviados para ${r.lojas} loja(s).` +
+        (sem.length ? ` Sem envio: ${sem.map((x) => x.loja ?? x.loja_id).join(", ")}.` : "")
+      );
+      setEmailAberto(false);
+      setSelLojas(new Set());
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro no envio");
+    } finally {
+      setEmBusy(false);
+    }
+  }
 
   async function carregar() {
     setLoading(true);
@@ -131,10 +169,30 @@ export default function ReputacaoPage() {
             </div>
           )}
         </div>
+        {selLojas.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+            <span className="text-blue-800 font-medium">{selLojas.size} loja(s) selecionada(s)</span>
+            <button className="btn-primary text-sm" onClick={() => setEmailAberto(true)}>
+              ✉️ Enviar e-mail ({selLojas.size})
+            </button>
+            <button className="btn-ghost text-sm" onClick={() => setSelLojas(new Set())}>Limpar</button>
+          </div>
+        )}
         <div className="card overflow-x-auto">
           <table className="text-sm whitespace-nowrap">
             <thead className="bg-slate-50 border-b border-[var(--line)]">
               <tr>
+                <th className="th w-8">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={lojas.length > 0 && lojas.every((l) => selLojas.has(l.loja_id))}
+                    onChange={(e) =>
+                      setSelLojas(e.target.checked ? new Set(lojas.map((l) => l.loja_id)) : new Set())
+                    }
+                    title="Selecionar todas as lojas visíveis"
+                  />
+                </th>
                 <th
                   className="th sticky left-0 bg-slate-50 z-10 text-left cursor-pointer select-none"
                   onClick={() => ordenar("loja")}
@@ -161,7 +219,22 @@ export default function ReputacaoPage() {
             <tbody className="divide-y divide-[var(--line)]">
               {lojas.map((l) => (
                 <tr key={l.loja_id}>
+                  <td className="td">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={selLojas.has(l.loja_id)}
+                      onChange={() => toggleLoja(l.loja_id)}
+                    />
+                  </td>
                   <td className="td sticky left-0 bg-white z-10">
+                    <button
+                      className="mr-1 text-slate-400 hover:text-brand-700"
+                      title="Abrir/editar o cadastro desta loja"
+                      onClick={() => setCadLoja({ id: l.loja_id, nome: l.nome || `Loja ${l.loja_id}` })}
+                    >
+                      ✏️
+                    </button>
                     <span className="text-xs text-slate-400">{l.sigla || ""}</span> {l.nome || `Loja ${l.loja_id}`}
                   </td>
                   {redes.map((r) => {
@@ -202,7 +275,7 @@ export default function ReputacaoPage() {
               ))}
               {!loading && lojas.length === 0 && (
                 <tr>
-                  <td className="td text-slate-400" colSpan={redes.length + 2}>
+                  <td className="td text-slate-400" colSpan={redes.length + 3}>
                     Nenhuma reputação nesta seleção.
                   </td>
                 </tr>
@@ -211,6 +284,37 @@ export default function ReputacaoPage() {
           </table>
         </div>
       </div>
+
+      {cadLoja && (
+        <LojaCadastro
+          lojaId={cadLoja.id}
+          lojaNome={cadLoja.nome}
+          onClose={() => setCadLoja(null)}
+          onSalvo={() => { setCadLoja(null); carregar(); }}
+        />
+      )}
+
+      {emailAberto && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-auto">
+          <div className="card bg-white p-5 w-full max-w-xl">
+            <h2 className="font-bold text-sm mb-1">✉️ E-mail para {selLojas.size} loja(s)</h2>
+            <p className="text-xs text-slate-500 mb-3">
+              Vai para o e-mail da loja + usuários vinculados com aviso ligado.
+              Curingas: <code>{"{loja}"}</code> <code>{"{sigla}"}</code> <code>{"{total}"}</code> (nota consolidada).
+            </p>
+            <label className="label">Assunto</label>
+            <input className="input w-full mb-2" value={emAssunto} onChange={(e) => setEmAssunto(e.target.value)} />
+            <label className="label">Mensagem</label>
+            <textarea className="input w-full h-40" value={emCorpo} onChange={(e) => setEmCorpo(e.target.value)} />
+            <div className="flex justify-end gap-2 mt-3">
+              <button className="btn-ghost" onClick={() => setEmailAberto(false)} disabled={emBusy}>Cancelar</button>
+              <button className="btn-primary" onClick={enviarEmails} disabled={emBusy || !emAssunto.trim() || !emCorpo.trim()}>
+                {emBusy ? "Enviando…" : `Enviar (${selLojas.size})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }

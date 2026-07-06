@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { atualizarCliente, clienteIdentidade, clientePreferencias, clientePreferenciaSet, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, type ClienteIdentidade, type ClientePrefs, type Ficha } from "@/lib/api";
+import { atualizarCliente, clienteIdentidade, clientePreferencias, clientePreferenciaSet, excluirCliente, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, usuarioLogado, type ClienteIdentidade, type ClientePrefs, type Ficha } from "@/lib/api";
 
 const fmt1 = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -256,6 +256,26 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                 <button className="btn-secondary text-xs shrink-0" onClick={abrirEdicao}>
                   ✏️ Editar cadastro
                 </button>
+                {(usuarioLogado()?.papel ?? "admin") === "admin" && (
+                  <button
+                    className="text-red-600 hover:underline text-xs shrink-0"
+                    title="Excluir DEFINITIVAMENTE este cliente (só admin; bloqueado se tiver atendimentos)"
+                    onClick={async () => {
+                      if (!confirm(`EXCLUIR o cliente "${f.nome ?? f.id}"?
+
+Bloqueado se houver atendimentos. IRREVERSÍVEL.`)) return;
+                      if (!confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
+                      try {
+                        await excluirCliente(f.id);
+                        window.location.href = "/clientes";
+                      } catch (e) {
+                        alert(String((e as Error).message || e));
+                      }
+                    }}
+                  >
+                    🗑 Excluir
+                  </button>
+                )}
               </div>
 
               {/* mini-indicadores */}

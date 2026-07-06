@@ -9,6 +9,7 @@ import LojaPicker, { type LojaSel } from "@/components/LojaPicker";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   buscarClientes,
+  excluirClientesLote,
   listarMarcas,
   mergeClientes,
   usuarioLogado,
@@ -83,6 +84,29 @@ export default function ClientesPage() {
   // Filtros de marca/loja so p/ papeis globais (loja/franqueado ja veem so o escopo;
   // e os endpoints de equipe usados nos selects sao admin-only).
   const ehGlobal = ["admin", "rede", "matriz", "staff", "master"].includes(usuarioLogado()?.papel ?? "admin");
+  const ehAdmin = (usuarioLogado()?.papel ?? "admin") === "admin";
+
+  async function excluirSelecionados() {
+    const ids = selec.ids.map(Number);
+    if (!ids.length) return;
+    if (!window.confirm(`EXCLUIR ${ids.length} cliente(s)?
+
+Clientes COM atendimento são pulados (exclua os atendimentos antes). IRREVERSÍVEL.`)) return;
+    if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
+    setBulkBusy(true); setErro(""); setMsg("");
+    try {
+      const r = await excluirClientesLote(ids);
+      let m = `${r.ok} cliente(s) excluído(s).`;
+      if (r.pulados_com_atendimento.length) m += ` ${r.pulados_com_atendimento.length} pulado(s) por terem atendimentos.`;
+      setMsg(m);
+      selec.limpar();
+      await carregar(page);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao excluir");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (ehGlobal) listarMarcas().then(setMarcas).catch(() => {});
@@ -280,6 +304,15 @@ export default function ClientesPage() {
             <button className="btn-ghost" disabled={bulkBusy || selecionados.length === 0} onClick={exportarCsv}>
               Exportar CSV
             </button>
+            {ehAdmin && (
+              <>
+                <span className="text-slate-300">·</span>
+                <button className="text-red-600 hover:underline" disabled={bulkBusy} onClick={excluirSelecionados}
+                  title="Excluir DEFINITIVAMENTE os selecionados (só admin; com atendimento é pulado)">
+                  🗑 Excluir
+                </button>
+              </>
+            )}
             <span className="text-slate-300">·</span>
             <button className="btn-ghost" disabled={bulkBusy} onClick={selec.limpar}>
               Limpar

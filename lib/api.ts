@@ -576,7 +576,7 @@ export function excluirAtendimento(id: number): Promise<{ ok: boolean }> {
 }
 
 export function atendimentosEmLote(
-  ids: number[], acao: "status" | "marca", valor: string,
+  ids: number[], acao: "status" | "marca" | "excluir", valor: string,
 ): Promise<BulkResult> {
   return req<BulkResult>("atendimentos/bulk", {
     method: "POST",
@@ -787,6 +787,21 @@ export type MergeResult = {
 };
 
 // Funde varios clientes num so (principal sobrevive). Admin-only no backend.
+// EXCLUSAO de clientes — SO papel admin (backend valida). Cliente com
+// atendimento e PULADO (o backend reporta) — exclua os atendimentos antes.
+export function excluirCliente(id: number): Promise<{ ok: boolean }> {
+  return req(`clientes/${id}`, { method: "DELETE" });
+}
+export function excluirClientesLote(ids: number[]): Promise<{
+  ok: number; pulados_com_atendimento: number[]; inexistentes: number;
+}> {
+  return req("clientes/excluir-lote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export function mergeClientes(principalId: number, ids: number[]): Promise<MergeResult> {
   return req<MergeResult>("clientes/merge", {
     method: "POST",

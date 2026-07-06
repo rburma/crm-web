@@ -10,6 +10,7 @@ import LojaPicker, { type LojaSel } from "@/components/LojaPicker";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   atendimentosEmLote,
+  usuarioLogado,
   fmtDataHoraCurta,
   fmtDecorrido,
   listarAtendimentos,
@@ -100,6 +101,27 @@ export default function AtendimentosPage() {
   const [bulkStatus, setBulkStatus] = useState("encerrada");
   const [bulkMarca, setBulkMarca] = useState<string>("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const ehAdmin = (usuarioLogado()?.papel ?? "admin") === "admin";
+
+  async function excluirSelecionados() {
+    const ids = selec.ids.map(Number);
+    if (!ids.length) return;
+    if (!window.confirm(`EXCLUIR ${ids.length} atendimento(s)?
+
+Apaga as mensagens junto (avaliações e logs são preservados). IRREVERSÍVEL.`)) return;
+    if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
+    setBulkBusy(true); setErro(""); setMsg("");
+    try {
+      const r = await atendimentosEmLote(ids, "excluir", "");
+      setMsg(`${r.ok} atendimento(s) excluído(s).` + (r.falhas.length ? ` ${r.falhas.map((f) => f.motivo).join("; ")}.` : ""));
+      selec.limpar();
+      await carregar(page);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao excluir");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   async function aplicarBulk(acao: "status" | "marca", valor: string, rotulo: string) {
     const ids = selec.ids.map(Number);
@@ -296,6 +318,15 @@ export default function AtendimentosPage() {
             <button className="btn-ghost" disabled={bulkBusy || !bulkMarca} onClick={() => aplicarBulk("marca", bulkMarca, "Definir marca")}>
               Aplicar marca
             </button>
+            {ehAdmin && (
+              <>
+                <span className="text-slate-300">·</span>
+                <button className="text-red-600 hover:underline text-sm" disabled={bulkBusy} onClick={excluirSelecionados}
+                  title="Excluir DEFINITIVAMENTE os selecionados (só admin)">
+                  🗑 Excluir
+                </button>
+              </>
+            )}
             <span className="text-slate-300">·</span>
             <button className="btn-ghost" disabled={bulkBusy} onClick={selec.limpar}>Limpar</button>
             <span className="text-xs text-slate-400 ml-auto">dica: clique e Shift+clique para um intervalo</span>

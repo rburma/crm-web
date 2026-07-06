@@ -232,12 +232,25 @@ export type ClientesPagina = { items: ClienteResumo[]; total: number };
 
 export function buscarClientes(
   q: string, limit = 50, offset = 0,
-  lojaId?: number | null, lojaIds?: number[],
+  lojaId?: number | null, lojaIds?: number[], marcaId?: number | null,
 ): Promise<ClientesPagina> {
   const qs = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
   if (lojaId) qs.set("loja_id", String(lojaId));
   for (const id of lojaIds ?? []) qs.append("loja_ids", String(id));
+  if (marcaId != null) qs.set("marca_id", String(marcaId));
   return reqLista<ClienteResumo>(`clientes?${qs.toString()}`);
+}
+
+// dd/mm/aa HH:mm (curto com hora — listagens densas)
+export function fmtDataHoraCurta(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso).slice(0, 16);
+  return d.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit", month: "2-digit", year: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
 
 // Edita o cadastro do cliente (colunas quentes e/ou atributos — atributos fazem MERGE).

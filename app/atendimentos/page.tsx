@@ -10,7 +10,7 @@ import LojaPicker, { type LojaSel } from "@/components/LojaPicker";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   atendimentosEmLote,
-  fmtDataCurta,
+  fmtDataHoraCurta,
   fmtDecorrido,
   listarAtendimentos,
   listarMarcas,
@@ -74,7 +74,7 @@ const COLS_ATEND: {
       </span>
   ) },
   { key: "sla", label: "Prazo (SLA)", th: "th w-28", render: (a) => <SlaBadge venceEm={a.vence_em} alertaEm={a.alerta_em} /> },
-  { key: "data", label: "Aberto", th: "th w-20", render: (a) => <span className="text-slate-500">{fmtDataCurta(a.criado_em)}</span> },
+  { key: "data", label: "Aberto", th: "th w-28", render: (a) => <span className="text-slate-500">{fmtDataHoraCurta(a.criado_em)}</span> },
 ];
 const COLS_ATEND_DEFAULT = ["numero", "assunto", "cliente", "marca", "loja", "status", "tempo", "data"];
 const COLS_ATEND_KEYS = COLS_ATEND.map((c) => c.key);
@@ -158,7 +158,14 @@ export default function AtendimentosPage() {
     minhasObrigacoes().then((r) => setObrig(r.itens || [])).catch(() => {});
     obterPreferencia<{ cols?: string[] }>("cols_atendimentos")
       .then((v) => {
-        const ok = (v.cols || []).filter((k) => COLS_ATEND_KEYS.includes(k));
+        let ok = (v.cols || []).filter((k) => COLS_ATEND_KEYS.includes(k));
+        // MIGRACAO (06/07): preferencia salva antes da coluna "tempo" existir
+        // mantinha so o SLA — troca sla->tempo (o SLA continua opcional no ⚙).
+        if (ok.length && !ok.includes("tempo")) {
+          ok = ok.includes("sla")
+            ? ok.map((k) => (k === "sla" ? "tempo" : k))
+            : [...ok, "tempo"];
+        }
         if (ok.length) setCols(ok);
       })
       .catch(() => {});

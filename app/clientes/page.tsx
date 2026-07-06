@@ -93,6 +93,12 @@ export default function ClientesPage() {
     setLojasSel([]);
   }, [marcaSel]);
 
+  // Abre ja listando (todas as marcas) — Renato 06/07.
+  useEffect(() => {
+    carregar(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     obterPreferencia<{ cols?: string[] }>("cols_clientes")
       .then((v) => {
@@ -103,14 +109,15 @@ export default function ClientesPage() {
   }, []);
 
   async function carregar(pg: number, size = pageSize) {
-    if (!q.trim() && lojasSel.length === 0) return; // sem termo, precisa ao menos de 1 loja
+    // Sem termo E sem loja: lista a MARCA inteira (ou todas, se nem marca) —
+    // pedido Renato 06/07. Paginado no servidor, sem trava.
     setLoading(true);
     setErro("");
     setMsg("");
     setBuscou(true);
     selec.limpar();
     try {
-      const r = await buscarClientes(q.trim(), size, pg * size, null, lojasSel.map((l) => l.id));
+      const r = await buscarClientes(q.trim(), size, pg * size, null, lojasSel.map((l) => l.id), marcaSel);
       setRows(r.items);
       setTotal(r.total);
       setPage(pg);
@@ -205,7 +212,7 @@ export default function ClientesPage() {
 
   return (
     <Shell title="Clientes">
-      <div className="max-w-5xl">
+      <div className="w-full text-[13px]">
         <div className="flex justify-end mb-2">
           <ColunasConfig
             chave="cols_clientes"

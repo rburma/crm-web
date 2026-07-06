@@ -366,7 +366,39 @@ export default function FichaPage({ params }: { params: { id: string } }) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Campo rotulo="Esporte" valor={av("esporte")} />
                 <Campo rotulo="Tamanho do tênis" valor={av("tamanho")} />
+                <Campo rotulo="Instagram" valor={av("instagram")} />
               </div>
+              {/* TODOS os demais campos da gaveta (Renato 07/07: dado cadastrado
+                  tem que APARECER na ficha, nao so na edicao). */}
+              {(() => {
+                const CONHECIDOS = new Set([
+                  "endereco", "bairro", "cidade", "uf", "estado", "cep",
+                  "loja_proxima", "esporte", "tamanho", "instagram",
+                  "tel_residencial", "tel_comercial", "tel_fixo",
+                  "periodo_contato", "tags",
+                ]);
+                const extras = Object.entries(atr).filter(
+                  ([k, v]) => !CONHECIDOS.has(k) && v !== null && v !== "" && typeof v !== "object"
+                );
+                if (!extras.length) return null;
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-3 border-t border-slate-100">
+                    {extras.map(([k, v]) => (
+                      <Campo key={k} rotulo={k.replace(/_/g, " ")} valor={String(v)} />
+                    ))}
+                  </div>
+                );
+              })()}
+              {Array.isArray(atr.tags) && atr.tags.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-xs text-slate-400 mb-1">Tags</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(atr.tags as string[]).map((t) => (
+                      <span key={t} className="badge-gray">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {f.clubes.length > 0 && (
                 <div className="mt-4">
                   <div className="text-xs text-slate-400 mb-1">Clubes</div>

@@ -1170,6 +1170,18 @@ export type PerguntaConfig = {
 export function configMarcas(): Promise<MarcaConfig[]> {
   return req("config/marcas");
 }
+// Criar/apagar MARCA — so papel admin (backend valida; apagar exige marca vazia).
+export function configCriarMarca(body: { nome: string; slug: string; sigla?: string }): Promise<MarcaConfig> {
+  return req("config/marcas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+export function configApagarMarca(id: number): Promise<{ ok: boolean }> {
+  return req(`config/marcas/${id}`, { method: "DELETE" });
+}
+
 export function configEditarMarca(
   id: number,
   body: {

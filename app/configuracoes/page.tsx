@@ -12,6 +12,8 @@ import {
   configDesativarTodosCampos,
   configCriarPergunta,
   configEditarCampo,
+  configApagarMarca,
+  configCriarMarca,
   configEditarMarca,
   configEditarPergunta,
   configExcluirCampo,
@@ -31,6 +33,7 @@ import {
   configSubirLogo,
   configSubirLogoQuadrado,
   criarResposta,
+  usuarioLogado,
   excluirResposta,
   listarLojas,
   listarRespostas,
@@ -79,6 +82,46 @@ export default function ConfiguracoesPage() {
   const [secao, setSecao] = useState<Secao>("aparencia");
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
+  // Criar/apagar marca: SO papel admin (Renato 06/07).
+  const ehAdmin = (usuarioLogado()?.papel ?? "admin") === "admin";
+  const [novaMarcaAberta, setNovaMarcaAberta] = useState(false);
+  const [nmNome, setNmNome] = useState("");
+  const [nmSigla, setNmSigla] = useState("");
+  const [nmSlug, setNmSlug] = useState("");
+  const [nmBusy, setNmBusy] = useState(false);
+
+  async function criarMarcaNova() {
+    if (!nmNome.trim() || !nmSlug.trim()) { setErro("Nome e endereço (slug) são obrigatórios."); return; }
+    setNmBusy(true); setErro("");
+    try {
+      const m = await configCriarMarca({
+        nome: nmNome.trim(), slug: nmSlug.trim().toLowerCase(),
+        sigla: nmSigla.trim().toUpperCase() || undefined,
+      });
+      setNovaMarcaAberta(false); setNmNome(""); setNmSigla(""); setNmSlug("");
+      await recarregarMarcas(m.id);
+      flash(`Marca "${m.nome}" criada.`);
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setNmBusy(false);
+    }
+  }
+
+  async function apagarMarcaAtual() {
+    if (!marca) return;
+    if (!confirm(`APAGAR a marca "${marca.nome ?? marca.slug}"?
+
+Só é possível quando ela está vazia (sem lojas e sem atendimentos). Isso é irreversível.`)) return;
+    setErro("");
+    try {
+      await configApagarMarca(marca.id);
+      await recarregarMarcas();
+      flash("Marca apagada.");
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    }
+  }
 
   const recarregarMarcas = useCallback(async (manterId?: number) => {
     try {
@@ -111,10 +154,50 @@ export default function ConfiguracoesPage() {
             setMarca(m);
             if (m) lembrarMarca(m.id);
           }}>
-          {marcas.map((m) => <option key={m.id} value={m.id}>{m.nome ?? m.slug}</option>)}
+          {marcas.map((m) => <option key={m.id} value={m.id}>{m.sigla ? `${m.sigla} — ` : ""}{m.nome ?? m.slug}</option>)}
         </select>
+        {ehAdmin && (
+          <>
+            <button className="btn-ghost text-sm" onClick={() => setNovaMarcaAberta(true)}>
+              ＋ Nova marca
+            </button>
+            <button
+              className="text-sm text-red-600 hover:underline"
+              title="Apagar a marca selecionada (só quando vazia: sem lojas e sem atendimentos)"
+              onClick={apagarMarcaAtual}
+            >
+              🗑 Apagar
+            </button>
+          </>
+        )}
         {aviso && <span className="text-sm text-emerald-700">✅ {aviso}</span>}
       </div>
+
+      {novaMarcaAberta && (
+        <div className="card p-4 mb-4 border-brand-200 bg-brand-50/40">
+          <div className="font-semibold text-sm mb-2">Nova marca</div>
+          <div className="flex flex-wrap gap-2 items-end">
+            <div>
+              <label className="label">Nome</label>
+              <input className="input w-56" value={nmNome} onChange={(e) => setNmNome(e.target.value)} placeholder="Ex.: Vahrcav" />
+            </div>
+            <div>
+              <label className="label">Sigla</label>
+              <input className="input w-24 uppercase" maxLength={8} value={nmSigla}
+                onChange={(e) => setNmSigla(e.target.value.toUpperCase())} placeholder="VV" />
+            </div>
+            <div>
+              <label className="label">Endereço público (/f/…)</label>
+              <input className="input w-40" value={nmSlug}
+                onChange={(e) => setNmSlug(e.target.value.toLowerCase())} placeholder="vahrcav" />
+            </div>
+            <button className="btn-primary" disabled={nmBusy} onClick={criarMarcaNova}>
+              {nmBusy ? "Criando…" : "Criar marca"}
+            </button>
+            <button className="btn-ghost" onClick={() => setNovaMarcaAberta(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
 
       {erro && <div className="card p-3 mb-3 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
 

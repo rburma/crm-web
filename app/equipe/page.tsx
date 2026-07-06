@@ -15,7 +15,10 @@ import {
   equipeResumo,
   equipeUsuariosDaLoja,
   equipeVincular,
+  listarMarcas,
+  siglaLoja,
   type EquipeResumo,
+  type MarcaItem,
   type LojaDoUsuario,
   type LojaEquipe,
   type MembroLoja,
@@ -27,6 +30,14 @@ export default function EquipePage() {
 
   const [marcaSel, setMarcaSel] = useState<number | null>(null);
   const [lojas, setLojas] = useState<LojaEquipe[]>([]);
+  const [marcasSigla, setMarcasSigla] = useState<Record<number, string>>({});
+  useEffect(() => {
+    listarMarcas().then((ms: MarcaItem[]) => {
+      const m: Record<number, string> = {};
+      for (const x of ms) if (x.sigla) m[x.id] = x.sigla;
+      setMarcasSigla(m);
+    }).catch(() => {});
+  }, []);
   const [totalLojas, setTotalLojas] = useState(0);
   const [qLoja, setQLoja] = useState("");
 
@@ -248,10 +259,11 @@ export default function EquipePage() {
                   lojaSel?.id === l.id ? "bg-brand-50 text-brand-700 font-semibold" : "hover:bg-slate-50"
                 }`}>
                 <span className="truncate block">
-                  {l.nome}
+                  <span className="font-mono font-semibold" title="Sigla — liga com o cobrança">
+                    {siglaLoja(l.sigla, marcaSel != null ? marcasSigla[marcaSel] : undefined, l.nome)}
+                  </span>
                   {l.sigla && (
-                    <span className="ml-1.5 text-[11px] font-mono px-1 py-0.5 rounded bg-slate-100 text-slate-500"
-                      title="Sigla — liga com o cobrança">{l.sigla}</span>
+                    <span className="ml-1.5 text-xs text-slate-400">{l.nome}</span>
                   )}
                 </span>
                 <span className="text-xs text-slate-400">

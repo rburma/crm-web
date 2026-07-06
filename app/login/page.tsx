@@ -50,6 +50,9 @@ export default function LoginPage() {
         <p className="text-[11px] text-slate-400 mt-3 text-center">
           Sem senha: a conta Google cadastrada no CRM é o seu acesso.
         </p>
+        <p className="text-[10px] text-slate-300 mt-2 text-center" title="Versão do frontend (commit)">
+          v{process.env.NEXT_PUBLIC_VERSION ?? "dev"}
+        </p>
       </div>
     </div>
   );

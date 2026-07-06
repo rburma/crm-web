@@ -789,6 +789,25 @@ export type MergeResult = {
 // Funde varios clientes num so (principal sobrevive). Admin-only no backend.
 // EXCLUSAO de clientes — SO papel admin (backend valida). Cliente com
 // atendimento e PULADO (o backend reporta) — exclua os atendimentos antes.
+// Importacao de CANDIDATOS a emprego (planilha Breezy) — previa + aplicar async.
+export type CandidatosPreview = {
+  total: number; sem_loja: number;
+  siglas_nao_encontradas: Record<string, number>;
+  linhas_de_siglas_nao_encontradas: number;
+  ja_importados: number;
+  amostra: { nome: string | null; loja: string | null; stage: string | null; source: string | null; added: string | null }[];
+};
+export function candidatosPreview(file: File): Promise<CandidatosPreview> {
+  const fd = new FormData();
+  fd.append("arquivo", file);
+  return req("importacoes/candidatos/preview", { method: "POST", body: fd });
+}
+export function candidatosAplicarAsync(file: File): Promise<{ importacao_id: number; status: string; total_linhas: number }> {
+  const fd = new FormData();
+  fd.append("arquivo", file);
+  return req("importacoes/candidatos/aplicar-async", { method: "POST", body: fd });
+}
+
 // Recupera nomes cortados em 20 chars pelo legado (SO admin; previa/aplicar).
 export function recuperarNomesLegado(aplicar: boolean): Promise<{
   aplicado: boolean; suspeitos_analisados: number;

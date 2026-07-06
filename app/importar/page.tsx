@@ -4,7 +4,10 @@ import { useState } from "react";
 import Shell from "@/components/Shell";
 import {
   CAMPOS_IMPORT,
+  candidatosAplicarAsync,
+  candidatosPreview,
   recuperarNomesLegado,
+  type CandidatosPreview,
   importAplicar,
   importColunas,
   importPreview,
@@ -40,6 +43,50 @@ function adivinhar(coluna: string): string {
 
 export default function ImportarPage() {
   const [arquivo, setArquivo] = useState<File | null>(null);
+  // Candidatos (Breezy): previa -> aplicar async (acompanha pelo lote)
+  const [candFile, setCandFile] = useState<File | null>(null);
+  const [candPrev, setCandPrev] = useState<CandidatosPreview | null>(null);
+  const [candBusy, setCandBusy] = useState(false);
+  const [candMsg, setCandMsg] = useState("");
+  const [candLote, setCandLote] = useState<number | null>(null);
+  const [candStatus, setCandStatus] = useState<{ processadas: number; total: number; status: string } | null>(null);
+
+  async function candEscolher(f: File | null) {
+    setCandFile(f); setCandPrev(null); setCandMsg(""); setCandLote(null); setCandStatus(null);
+    if (!f) return;
+    setCandBusy(true);
+    try {
+      setCandPrev(await candidatosPreview(f));
+    } catch (e) {
+      setCandMsg(String((e as Error).message || e));
+    } finally {
+      setCandBusy(false);
+    }
+  }
+  async function candAplicar() {
+    if (!candFile || !candPrev) return;
+    if (!confirm(`Importar ${candPrev.total} candidato(s)?` + (candPrev.ja_importados ? ` ${candPrev.ja_importados} já importados serão pulados.` : ""))) return;
+    setCandBusy(true); setCandMsg("");
+    try {
+      const r = await candidatosAplicarAsync(candFile);
+      setCandLote(r.importacao_id);
+      const acompanhar = async () => {
+        try {
+          const st = await importLoteStatus(r.importacao_id);
+          setCandStatus({ processadas: st.processadas, total: st.total_linhas, status: st.status });
+          if (st.status === "processando") setTimeout(acompanhar, 3000);
+          else setCandMsg(st.status === "concluido"
+            ? `Concluído: ${st.novos} novo(s), ${st.enriquecidos} enriquecido(s), ${st.erros} erro(s).`
+            : `Falhou: ${st.erro ?? "erro"}`);
+        } catch { setTimeout(acompanhar, 5000); }
+      };
+      acompanhar();
+    } catch (e) {
+      setCandMsg(String((e as Error).message || e));
+    } finally {
+      setCandBusy(false);
+    }
+  }
   const [cols, setCols] = useState<ImportColunas | null>(null);
   const [mapa, setMapa] = useState<Record<string, string>>({});
   const [origem, setOrigem] = useState("evento");
@@ -166,6 +213,60 @@ export default function ImportarPage() {
             </button>
           </div>
         </div>
+        {/* Candidatos a emprego (Breezy) */}
+        <div className="card p-4 border-sky-200 bg-sky-50/50">
+          <div className="text-sm mb-2">
+            <b>🧑‍💼 Candidatos a emprego (Breezy)</b> — cada candidato vira cliente + um
+            atendimento encerrado na data da candidatura, com nota interna (vaga, origem e fase).
+            Loja = sigla na coluna <code>position</code>. Reimportar não duplica.
+          </div>
+          <input
+            type="file"
+            accept=".xlsx"
+            className="input"
+            disabled={candBusy}
+            onChange={(e) => candEscolher(e.target.files?.[0] ?? null)}
+          />
+          {candBusy && !candPrev && <p className="text-xs text-slate-500 mt-2">Analisando…</p>}
+          {candMsg && <p className="text-sm mt-2">{candMsg}</p>}
+          {candPrev && candLote == null && (
+            <div className="text-sm mt-3 space-y-1">
+              <div>
+                <b>{candPrev.total.toLocaleString("pt-BR")}</b> candidato(s) ·{" "}
+                {candPrev.ja_importados > 0 && <><b>{candPrev.ja_importados}</b> já importados (pulam) · </>}
+                {candPrev.sem_loja > 0 && <><b className="text-red-600">{candPrev.sem_loja}</b> sem loja (viram erro) · </>}
+                {candPrev.linhas_de_siglas_nao_encontradas > 0 && (
+                  <><b className="text-red-600">{candPrev.linhas_de_siglas_nao_encontradas}</b> com sigla não encontrada</>
+                )}
+              </div>
+              {Object.keys(candPrev.siglas_nao_encontradas).length > 0 && (
+                <div className="text-xs text-red-700">
+                  Siglas sem loja no CRM:{" "}
+                  {Object.entries(candPrev.siglas_nao_encontradas).map(([k, v]) => `${k} (${v})`).join(", ")}
+                </div>
+              )}
+              <button className="btn-primary text-sm mt-1" disabled={candBusy} onClick={candAplicar}>
+                Importar candidatos
+              </button>
+            </div>
+          )}
+          {candStatus && (
+            <div className="mt-3">
+              <div className="h-2 rounded bg-slate-200 overflow-hidden">
+                <div
+                  className="h-2 bg-sky-500 transition-all"
+                  style={{ width: `${Math.min(100, Math.round((candStatus.processadas / Math.max(1, candStatus.total)) * 100))}%` }}
+                />
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                {candStatus.status === "processando"
+                  ? `Processando… ${candStatus.processadas.toLocaleString("pt-BR")} de ${candStatus.total.toLocaleString("pt-BR")}`
+                  : `Status: ${candStatus.status}`}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Passo 1 — arquivo */}
         <div className="card p-4">
           <div className="label">1. Planilha (.xlsx) — a 1ª linha deve ser o cabeçalho</div>

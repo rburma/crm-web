@@ -229,8 +229,8 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                   {iniciais(f.nome)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl font-bold text-slate-800 truncate">{f.nome || "(sem nome)"}</h2>
-                  <div className="text-sm text-slate-500 mt-0.5 truncate">{f.email || "sem e-mail"}</div>
+                  <h2 className="text-xl font-bold text-slate-800 break-words">{f.nome || "(sem nome)"}</h2>
+                  <div className="text-sm text-slate-500 mt-0.5 break-all" title={f.email || undefined}>{f.email || "sem e-mail"}</div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {f.telefone && (
                       <a

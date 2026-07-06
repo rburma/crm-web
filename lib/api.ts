@@ -571,8 +571,8 @@ export function transferirAtendimento(
 
 // Ação em lote sobre atendimentos: muda status ou define marca.
 // Exclui um atendimento (SO admin; p/ limpar testes). Irreversivel; auditado.
-export function excluirAtendimento(id: number): Promise<{ ok: boolean }> {
-  return req(`atendimentos/${id}`, { method: "DELETE" });
+export function excluirAtendimento(id: number, comCliente = false): Promise<{ ok: boolean; cliente_excluido?: boolean }> {
+  return req(`atendimentos/${id}${comCliente ? "?com_cliente=true" : ""}`, { method: "DELETE" });
 }
 
 export function atendimentosEmLote(
@@ -789,16 +789,16 @@ export type MergeResult = {
 // Funde varios clientes num so (principal sobrevive). Admin-only no backend.
 // EXCLUSAO de clientes — SO papel admin (backend valida). Cliente com
 // atendimento e PULADO (o backend reporta) — exclua os atendimentos antes.
-export function excluirCliente(id: number): Promise<{ ok: boolean }> {
-  return req(`clientes/${id}`, { method: "DELETE" });
+export function excluirCliente(id: number, comAtendimentos = false): Promise<{ ok: boolean }> {
+  return req(`clientes/${id}${comAtendimentos ? "?com_atendimentos=true" : ""}`, { method: "DELETE" });
 }
-export function excluirClientesLote(ids: number[]): Promise<{
+export function excluirClientesLote(ids: number[], comAtendimentos = false): Promise<{
   ok: number; pulados_com_atendimento: number[]; inexistentes: number;
 }> {
   return req("clientes/excluir-lote", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids }),
+    body: JSON.stringify({ ids, com_atendimentos: comAtendimentos }),
   });
 }
 

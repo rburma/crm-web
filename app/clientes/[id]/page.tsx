@@ -261,12 +261,20 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                     className="text-red-600 hover:underline text-xs shrink-0"
                     title="Excluir DEFINITIVAMENTE este cliente (só admin; bloqueado se tiver atendimentos)"
                     onClick={async () => {
-                      if (!confirm(`EXCLUIR o cliente "${f.nome ?? f.id}"?
+                      if (!confirm(`EXCLUIR o cliente "${f.nome ?? f.id}"? IRREVERSÍVEL.`)) return;
+                      let comAtend = false;
+                      if (f.total_atendimentos > 0) {
+                        comAtend = confirm(
+                          `Ele tem ${f.total_atendimentos} atendimento(s).
 
-Bloqueado se houver atendimentos. IRREVERSÍVEL.`)) return;
+OK = excluir o cliente E os atendimentos dele.
+Cancelar = não excluir nada.`
+                        );
+                        if (!comAtend) return;
+                      }
                       if (!confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
                       try {
-                        await excluirCliente(f.id);
+                        await excluirCliente(f.id, comAtend);
                         window.location.href = "/clientes";
                       } catch (e) {
                         alert(String((e as Error).message || e));

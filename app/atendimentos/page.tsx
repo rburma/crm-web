@@ -109,11 +109,18 @@ export default function AtendimentosPage() {
     if (!window.confirm(`EXCLUIR ${ids.length} atendimento(s)?
 
 Apaga as mensagens junto (avaliações e logs são preservados). IRREVERSÍVEL.`)) return;
+    const comCliente = window.confirm(
+      "Excluir TAMBÉM os CLIENTES relacionados?
+
+OK = apaga cada cliente junto (com TODOS os atendimentos dele).
+Cancelar = só os atendimentos selecionados."
+    );
     if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
     setBulkBusy(true); setErro(""); setMsg("");
     try {
-      const r = await atendimentosEmLote(ids, "excluir", "");
-      setMsg(`${r.ok} atendimento(s) excluído(s).` + (r.falhas.length ? ` ${r.falhas.map((f) => f.motivo).join("; ")}.` : ""));
+      const r = await atendimentosEmLote(ids, "excluir", comCliente ? "com_cliente" : "");
+      const extra = (r as { clientes_excluidos?: number }).clientes_excluidos;
+      setMsg(`${r.ok} atendimento(s) excluído(s).` + (extra ? ` ${extra} cliente(s) excluído(s) junto.` : "") + (r.falhas.length ? ` ${r.falhas.map((f) => f.motivo).join("; ")}.` : ""));
       selec.limpar();
       await carregar(page);
     } catch (err) {

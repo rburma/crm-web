@@ -262,14 +262,22 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                     title="Só admin. Apaga o atendimento e as mensagens (avaliações são preservadas)."
                     onClick={async () => {
                       if (!confirm("EXCLUIR este atendimento de vez? Apaga as mensagens também. Não tem volta.")) return;
+                      const comCliente = d.cliente
+                        ? confirm(
+                            `Excluir TAMBÉM o cliente "${d.cliente.nome ?? "relacionado"}"?
+
+OK = apaga o cliente junto (com TODOS os atendimentos dele).
+Cancelar = só este atendimento.`
+                          )
+                        : false;
                       if (!confirm("Confirma mesmo a EXCLUSÃO definitiva?")) return;
                       try {
-                        await excluirAtendimento(Number(params.id));
+                        await excluirAtendimento(Number(params.id), comCliente);
                         window.location.href = "/atendimentos";
                       } catch (err) { setRespMsg(err instanceof Error ? err.message : "Erro ao excluir"); }
                     }}
                   >
-                    🗑 Excluir (teste)
+                    🗑 Excluir
                   </button>
                 )}
                 {d.status !== "encerrada" && (

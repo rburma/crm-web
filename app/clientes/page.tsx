@@ -89,13 +89,17 @@ export default function ClientesPage() {
   async function excluirSelecionados() {
     const ids = selec.ids.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(`EXCLUIR ${ids.length} cliente(s)?
+    if (!window.confirm(`EXCLUIR ${ids.length} cliente(s)? IRREVERSÍVEL.`)) return;
+    const comAtend = window.confirm(
+      "Excluir TAMBÉM os ATENDIMENTOS desses clientes?
 
-Clientes COM atendimento são pulados (exclua os atendimentos antes). IRREVERSÍVEL.`)) return;
+OK = apaga clientes + todos os atendimentos deles.
+Cancelar = só clientes SEM atendimento (os com atendimento são pulados)."
+    );
     if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
     setBulkBusy(true); setErro(""); setMsg("");
     try {
-      const r = await excluirClientesLote(ids);
+      const r = await excluirClientesLote(ids, comAtend);
       let m = `${r.ok} cliente(s) excluído(s).`;
       if (r.pulados_com_atendimento.length) m += ` ${r.pulados_com_atendimento.length} pulado(s) por terem atendimentos.`;
       setMsg(m);

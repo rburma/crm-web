@@ -357,6 +357,7 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
   marca: MarcaConfig; onSalvo: (m: MarcaConfig) => void; onErro: (e: string) => void;
 }) {
   const [nome, setNome] = useState(marca.nome ?? "");
+  const [sigla, setSigla] = useState(marca.sigla ?? "");
   const [slug, setSlug] = useState(marca.slug);
   const [cor, setCor] = useState(marca.tema?.cor ?? "#0f6bd7");
   const [titulo, setTitulo] = useState(marca.tema?.titulo ?? "");
@@ -369,7 +370,7 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
   const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
-    setNome(marca.nome ?? ""); setSlug(marca.slug);
+    setNome(marca.nome ?? ""); setSigla(marca.sigla ?? ""); setSlug(marca.slug);
     setCor(marca.tema?.cor ?? "#0f6bd7");
     setTitulo(marca.tema?.titulo ?? "");
     setBoasVindas(marca.tema?.boas_vindas ?? "");
@@ -385,6 +386,7 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
     try {
       const m = await configEditarMarca(marca.id, {
         nome: nome.trim() || undefined,
+        sigla: sigla.trim().toUpperCase(),
         slug: slug.trim() || undefined,
         tema: {
           cor, titulo, boas_vindas: boasVindas, rodape,
@@ -438,6 +440,9 @@ function SecaoAparencia({ marca, onSalvo, onErro }: {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div><label className="label">Nome da marca</label>
           <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></div>
+        <div><label className="label">Sigla (WT, T1, VV…) — prefixa as lojas</label>
+          <input className="input uppercase" maxLength={8} value={sigla}
+            onChange={(e) => setSigla(e.target.value.toUpperCase())} /></div>
         <div><label className="label">Endereço público (/f/…)</label>
           <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} /></div>
       </div>

@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
 import ColunasConfig from "@/components/ColunasConfig";
+import LojaPicker, { type LojaSel } from "@/components/LojaPicker";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   buscarClientes,
-  equipeLojas,
   listarMarcas,
   mergeClientes,
   usuarioLogado,
@@ -17,7 +17,6 @@ import {
   fmtCpf,
   obterPreferencia,
   type ClienteResumo,
-  type LojaEquipe,
   type MarcaItem,
 } from "@/lib/api";
 
@@ -80,8 +79,7 @@ export default function ClientesPage() {
   // Filtro "clientes de cada loja" (pedido Renato 05/07): marca -> loja.
   const [marcas, setMarcas] = useState<MarcaItem[]>([]);
   const [marcaSel, setMarcaSel] = useState<number | null>(null);
-  const [lojas, setLojas] = useState<LojaEquipe[]>([]);
-  const [lojaSel, setLojaSel] = useState<number | null>(null);
+  const [lojasSel, setLojasSel] = useState<LojaSel[]>([]);
   // Filtros de marca/loja so p/ papeis globais (loja/franqueado ja veem so o escopo;
   // e os endpoints de equipe usados nos selects sao admin-only).
   const ehGlobal = ["admin", "rede", "matriz", "staff", "master"].includes(usuarioLogado()?.papel ?? "admin");
@@ -90,12 +88,9 @@ export default function ClientesPage() {
     if (ehGlobal) listarMarcas().then(setMarcas).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Trocou a marca: limpa as lojas escolhidas (o picker ja filtra pela marca).
   useEffect(() => {
-    setLojaSel(null);
-    setLojas([]);
-    if (marcaSel != null) {
-      equipeLojas(marcaSel, "", 200, 0).then((r) => setLojas(r.items)).catch(() => {});
-    }
+    setLojasSel([]);
   }, [marcaSel]);
 
   useEffect(() => {
@@ -108,14 +103,14 @@ export default function ClientesPage() {
   }, []);
 
   async function carregar(pg: number, size = pageSize) {
-    if (!q.trim() && lojaSel == null) return; // sem termo, precisa ao menos da loja
+    if (!q.trim() && lojasSel.length === 0) return; // sem termo, precisa ao menos de 1 loja
     setLoading(true);
     setErro("");
     setMsg("");
     setBuscou(true);
     selec.limpar();
     try {
-      const r = await buscarClientes(q.trim(), size, pg * size, lojaSel);
+      const r = await buscarClientes(q.trim(), size, pg * size, null, lojasSel.map((l) => l.id));
       setRows(r.items);
       setTotal(r.total);
       setPage(pg);
@@ -228,26 +223,27 @@ export default function ClientesPage() {
             autoFocus
           />
           {ehGlobal && (<>
-          <select className="input w-44" value={marcaSel ?? ""}
+          <select className="input w-40" value={marcaSel ?? ""}
             onChange={(e) => setMarcaSel(e.target.value === "" ? null : Number(e.target.value))}>
             <option value="">Todas as marcas</option>
             {marcas.map((m) => (
-              <option key={m.id} value={m.id}>{m.nome || m.slug}</option>
+              <option key={m.id} value={m.id}>
+                {m.sigla ? `${m.sigla} — ${m.nome || m.slug}` : (m.nome || m.slug)}
+              </option>
             ))}
           </select>
-          <select className="input w-56" value={lojaSel ?? ""} disabled={marcaSel == null}
-            onChange={(e) => setLojaSel(e.target.value === "" ? null : Number(e.target.value))}>
-            <option value="">{marcaSel == null ? "(escolha a marca)" : "Todas as lojas da marca"}</option>
-            {lojas.map((l2) => (
-              <option key={l2.id} value={l2.id}>{l2.nome}{l2.sigla ? ` · ${l2.sigla}` : ""}</option>
-            ))}
-          </select>
+          <LojaPicker
+            marcaId={marcaSel}
+            marcas={marcas}
+            value={lojasSel}
+            onChange={setLojasSel}
+          />
           </>)}
           <button className="btn-primary whitespace-nowrap" disabled={loading}>
             {loading ? "Buscando…" : "Buscar"}
           </button>
           <p className="w-full text-[11px] text-slate-400 -mt-1">
-            Com uma <b>loja</b> escolhida, pode buscar sem termo — lista todos os clientes daquela loja.
+            Com <b>loja(s)</b> escolhida(s), pode buscar sem termo — lista todos os clientes delas.
           </p>
         </form>
 

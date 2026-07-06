@@ -6,14 +6,18 @@ import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
 import ColunasConfig from "@/components/ColunasConfig";
 import SlaBadge from "@/components/SlaBadge";
+import LojaPicker, { type LojaSel } from "@/components/LojaPicker";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   atendimentosEmLote,
-  fmtData,
+  fmtDataCurta,
+  fmtDecorrido,
   listarAtendimentos,
   listarMarcas,
   minhasObrigacoes,
   obterPreferencia,
+  siglaLoja,
+  statusAbrev,
   statusBadge,
   type AtendimentoItem,
   type MarcaItem,
@@ -29,24 +33,50 @@ const COLS_ATEND: {
   th?: string;
   render: (a: AtendimentoItem) => React.ReactNode;
 }[] = [
-  { key: "numero", label: "Nº", th: "th w-20", render: (a) => <span className="text-slate-500">#{a.numero}</span> },
+  { key: "numero", label: "Nº", th: "th w-16", render: (a) => <span className="text-slate-500">#{a.numero}</span> },
   {
     key: "assunto",
     label: "Assunto",
+    // LARGO e em UMA linha (Renato 06/07): reticencias + title com o texto todo.
     render: (a) => (
-      <Link href={`/atendimentos/${a.id}`} className="font-medium text-brand-700 hover:underline">
+      <Link
+        href={`/atendimentos/${a.id}`}
+        title={a.assunto || undefined}
+        className="font-medium text-brand-700 hover:underline block max-w-[520px] truncate"
+      >
         {a.assunto || `Atendimento ${a.numero}`}
       </Link>
     ),
   },
-  { key: "cliente", label: "Cliente", render: (a) => <span className="text-slate-600">{a.cliente || "—"}</span> },
-  { key: "marca", label: "Marca", render: (a) => <span className="text-slate-600">{a.marca || "—"}</span> },
-  { key: "loja", label: "Loja", render: (a) => <span className="text-slate-600">{a.loja || "—"}</span> },
-  { key: "status", label: "Status", th: "th w-28", render: (a) => <span className={statusBadge(a.status)}>{a.status}</span> },
-  { key: "sla", label: "Prazo (SLA)", th: "th w-32", render: (a) => <SlaBadge venceEm={a.vence_em} alertaEm={a.alerta_em} /> },
-  { key: "data", label: "Aberto em", th: "th w-28", render: (a) => <span className="text-slate-500">{fmtData(a.criado_em)}</span> },
+  {
+    key: "cliente",
+    label: "Cliente",
+    render: (a) => (
+      <span className="text-slate-600 block max-w-[220px] truncate" title={a.cliente || undefined}>
+        {a.cliente || "—"}
+      </span>
+    ),
+  },
+  { key: "marca", label: "Marca", th: "th w-14", render: (a) => (
+      <span className="text-slate-600" title={a.marca || undefined}>{a.marca_sigla || a.marca || "—"}</span>
+  ) },
+  { key: "loja", label: "Loja", th: "th w-24", render: (a) => (
+      <span className="text-slate-600 font-mono block max-w-[110px] truncate" title={a.loja || undefined}>
+        {siglaLoja(a.loja_sigla, a.marca_sigla, a.loja)}
+      </span>
+  ) },
+  { key: "status", label: "St.", th: "th w-14", render: (a) => (
+      <span className={statusBadge(a.status)} title={a.status}>{statusAbrev(a.status)}</span>
+  ) },
+  { key: "tempo", label: "Tempo", th: "th w-24", render: (a) => (
+      <span className="text-slate-600" title={a.status === "encerrada" ? "da abertura ao encerramento" : "desde a abertura (em andamento)"}>
+        {fmtDecorrido(a.criado_em, a.encerrado_em)}
+      </span>
+  ) },
+  { key: "sla", label: "Prazo (SLA)", th: "th w-28", render: (a) => <SlaBadge venceEm={a.vence_em} alertaEm={a.alerta_em} /> },
+  { key: "data", label: "Aberto", th: "th w-20", render: (a) => <span className="text-slate-500">{fmtDataCurta(a.criado_em)}</span> },
 ];
-const COLS_ATEND_DEFAULT = ["assunto", "cliente", "status", "sla", "data"];
+const COLS_ATEND_DEFAULT = ["numero", "assunto", "cliente", "marca", "loja", "status", "tempo", "data"];
 const COLS_ATEND_KEYS = COLS_ATEND.map((c) => c.key);
 
 export default function AtendimentosPage() {
@@ -54,6 +84,7 @@ export default function AtendimentosPage() {
   const [status, setStatus] = useState("");
   const [marcaId, setMarcaId] = useState<number | null>(null);
   const [marcas, setMarcas] = useState<MarcaItem[]>([]);
+  const [lojasSel, setLojasSel] = useState<LojaSel[]>([]);
   const [items, setItems] = useState<AtendimentoItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -100,6 +131,7 @@ export default function AtendimentosPage() {
         q: q.trim() || undefined,
         status: status || undefined,
         marcaId,
+        lojaIds: lojasSel.map((l) => l.id),
         limit: size,
         offset: pg * size,
       });
@@ -136,7 +168,7 @@ export default function AtendimentosPage() {
 
   return (
     <Shell title="Atendimentos">
-      <div className="max-w-5xl">
+      <div className="w-full text-[13px]">
         {obrig.length > 0 && (
           <div className="card border-amber-300 bg-amber-50 p-3 mb-4">
             <div className="flex items-center justify-between mb-2">
@@ -187,23 +219,29 @@ export default function AtendimentosPage() {
           className="flex flex-wrap gap-2 mb-5"
         >
           <input
-            className="input flex-1 min-w-[220px]"
-            placeholder="Buscar por assunto ou nome do cliente…"
+            className="input flex-1 min-w-[260px]"
+            placeholder={'Buscar: assunto, cliente, CPF, e-mail, nº, loja, cidade… ("aspas" = exato)'}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <select
-            className="input w-44"
+            className="input w-36"
             value={marcaId ?? ""}
             onChange={(e) => setMarcaId(e.target.value === "" ? null : Number(e.target.value))}
           >
-            <option value="">Todas as marcas</option>
+            <option value="">Marcas</option>
             {marcas.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.nome || m.slug}
+                {m.sigla ? `${m.sigla} — ${m.nome || m.slug}` : (m.nome || m.slug)}
               </option>
             ))}
           </select>
+          <LojaPicker
+            marcaId={marcaId}
+            marcas={marcas}
+            value={lojasSel}
+            onChange={setLojasSel}
+          />
           <select
             className="input w-44"
             value={status}

@@ -163,6 +163,9 @@ export type AtendimentoItem = {
   prioridade: string;
   canal_origem: string | null;
   criado_em: string | null;
+  encerrado_em?: string | null;  // p/ tempo decorrido (aberto -> encerrado)
+  loja_sigla?: string | null;
+  marca_sigla?: string | null;
   vence_em?: string | null;   // SLA: prazo (vermelho ao passar)
   alerta_em?: string | null;  // SLA: a partir daqui fica amarelo
 };
@@ -227,9 +230,13 @@ export type EmailEvento = {
 // ── Endpoints ──────────────────────────────────────────────────────
 export type ClientesPagina = { items: ClienteResumo[]; total: number };
 
-export function buscarClientes(q: string, limit = 50, offset = 0, lojaId?: number | null): Promise<ClientesPagina> {
+export function buscarClientes(
+  q: string, limit = 50, offset = 0,
+  lojaId?: number | null, lojaIds?: number[],
+): Promise<ClientesPagina> {
   const qs = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
   if (lojaId) qs.set("loja_id", String(lojaId));
+  for (const id of lojaIds ?? []) qs.append("loja_ids", String(id));
   return reqLista<ClienteResumo>(`clientes?${qs.toString()}`);
 }
 
@@ -254,6 +261,7 @@ export function listarAtendimentos(opts: {
   q?: string;
   status?: string;
   marcaId?: number | null;
+  lojaIds?: number[];
   limit?: number;
   offset?: number;
 } = {}): Promise<AtendimentosLista> {
@@ -261,12 +269,13 @@ export function listarAtendimentos(opts: {
   if (opts.q) qs.set("q", opts.q);
   if (opts.status) qs.set("status", opts.status);
   if (opts.marcaId != null) qs.set("marca_id", String(opts.marcaId));
+  for (const id of opts.lojaIds ?? []) qs.append("loja_ids", String(id));
   qs.set("limit", String(opts.limit ?? 50));
   qs.set("offset", String(opts.offset ?? 0));
   return req<AtendimentosLista>(`atendimentos?${qs.toString()}`);
 }
 
-export type MarcaItem = { id: number; slug: string; nome: string | null; ativo: boolean };
+export type MarcaItem = { id: number; slug: string; nome: string | null; sigla?: string | null; ativo: boolean };
 
 export function listarMarcas(): Promise<MarcaItem[]> {
   return req<MarcaItem[]>("marcas");
@@ -274,6 +283,7 @@ export function listarMarcas(): Promise<MarcaItem[]> {
 
 export type LojaItem = {
   id: number; marca_id: number | null; nome: string;
+  sigla?: string | null;
   cidade: string | null; uf: string | null; ativo: boolean;
 };
 
@@ -1140,7 +1150,7 @@ export function definirVitrine(id: number, publicar: boolean): Promise<{ id: num
 
 // ── ⚙️ Configurações (admin) ─────────────────────────────────────────
 export type MarcaConfig = {
-  id: number; slug: string; nome: string | null; tema: TemaMarca;
+  id: number; slug: string; nome: string | null; sigla?: string | null; tema: TemaMarca;
   envio: Record<string, string>;
   ativo: boolean; tem_logo: boolean; logo_path: string | null;
   tem_logo_quadrado: boolean; logo_quadrado_path: string | null;
@@ -1164,6 +1174,7 @@ export function configEditarMarca(
   id: number,
   body: {
     nome?: string;
+    sigla?: string;
     slug?: string;
     tema?: Record<string, string>;
     envio?: Record<string, string>;
@@ -1463,6 +1474,59 @@ export function fmtDataHora(iso: string | null | undefined): string {
     day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
+}
+
+// SIGLA DE EXIBICAO da loja (padrao Renato 06/07): MAIUSCULA e com o prefixo
+// da marca quando o dado nao tem (World Tennis legado: "sben" -> WTSBEN).
+// O DADO nao muda — a sigla gravada e a chave da ponte com a cobranca.
+export function siglaLoja(
+  sigla: string | null | undefined,
+  marcaSigla?: string | null,
+  fallback?: string | null,
+): string {
+  const s = (sigla || "").trim().toUpperCase();
+  if (!s) return fallback || "—";
+  const pref = (marcaSigla || "").trim().toUpperCase();
+  if (pref && !s.startsWith(pref)) return pref + s;
+  return s;
+}
+
+// dd/mm/aa (curto, p/ listagens densas)
+export function fmtDataCurta(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+  return d.toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit",
+  });
+}
+
+// Tempo decorrido em DIAS, HORAS e MINUTOS (Renato 06/07): da abertura ate o
+// encerramento — ou ate AGORA se ainda aberto. Ex.: "2d 4h 13m", "6h 2m", "14m".
+export function fmtDecorrido(
+  criadoEm: string | null | undefined,
+  encerradoEm?: string | null,
+): string {
+  if (!criadoEm) return "—";
+  const ini = new Date(criadoEm).getTime();
+  const fim = encerradoEm ? new Date(encerradoEm).getTime() : Date.now();
+  if (isNaN(ini) || isNaN(fim)) return "—";
+  let min = Math.max(0, Math.floor((fim - ini) / 60000));
+  const d = Math.floor(min / 1440);
+  min -= d * 1440;
+  const h = Math.floor(min / 60);
+  const m = min - h * 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+// Status ABREVIADO (como na cobranca): AB / ESP / ENC.
+export function statusAbrev(status: string): string {
+  if (status === "encerrada") return "ENC";
+  if (status === "em_espera") return "ESP";
+  if (status === "aberta") return "AB";
+  return (status || "?").slice(0, 3).toUpperCase();
 }
 
 export function statusBadge(status: string): string {

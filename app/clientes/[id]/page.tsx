@@ -268,20 +268,20 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                     </button>
                   </div>
                 </div>
-                <span className="badge-blue shrink-0">{f.total_atendimentos} atendimento(s)</span>
+                <span className="badge-blue shrink-0">{f.total_atendimentos} oportunidade(s)</span>
                 <button className="btn-secondary text-xs shrink-0" onClick={abrirEdicao}>
                   ✏️ Editar cadastro
                 </button>
                 {(usuarioLogado()?.papel ?? "admin") === "admin" && (
                   <button
                     className="text-red-600 hover:underline text-xs shrink-0"
-                    title="Excluir DEFINITIVAMENTE este cliente (só admin; bloqueado se tiver atendimentos)"
+                    title="Excluir DEFINITIVAMENTE este cliente (só admin; bloqueado se tiver oportunidades)"
                     onClick={async () => {
                       if (!confirm(`EXCLUIR o cliente "${f.nome ?? f.id}"? IRREVERSÍVEL.`)) return;
                       let comAtend = false;
                       if (f.total_atendimentos > 0) {
                         comAtend = confirm(
-                          `Ele tem ${f.total_atendimentos} atendimento(s).\n\nOK = excluir o cliente E os atendimentos dele.\nCancelar = não excluir nada.`
+                          `Ele tem ${f.total_atendimentos} oportunidade(s).\n\nOK = excluir o cliente E as oportunidades dele.\nCancelar = não excluir nada.`
                         );
                         if (!comAtend) return;
                       }
@@ -339,7 +339,7 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                 />
                 <Campo rotulo="Nascimento" valor={f.nascimento} />
                 <Campo rotulo="Idade" valor={calcIdade(f.nascimento)} />
-                <Campo rotulo="Primeiro atendimento" valor={fmtData(primeiro)} />
+                <Campo rotulo="Primeira oportunidade" valor={fmtData(primeiro)} />
                 {av("tel_residencial") && <Campo rotulo="Tel. residencial" valor={fmtTelefone(av("tel_residencial"))} />}
                 {av("tel_comercial") && <Campo rotulo="Tel. comercial" valor={fmtTelefone(av("tel_comercial"))} />}
                 {av("tel_fixo") && <Campo rotulo="Tel. fixo" valor={fmtTelefone(av("tel_fixo"))} />}
@@ -513,7 +513,7 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                 Atendimentos
               </div>
               {f.atendimentos.length === 0 ? (
-                <div className="px-5 py-4 text-sm text-slate-400">Nenhum atendimento.</div>
+                <div className="px-5 py-4 text-sm text-slate-400">Nenhuma oportunidade.</div>
               ) : (
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-[var(--line)]">
@@ -532,7 +532,7 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                             href={`/atendimentos/${a.id}`}
                             className="font-medium text-brand-700 hover:underline"
                           >
-                            {a.assunto || `Atendimento ${a.numero}`}
+                            {a.assunto || `Oportunidade ${a.numero}`}
                           </Link>
                         </td>
                         <td className="td">

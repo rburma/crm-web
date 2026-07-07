@@ -43,7 +43,7 @@ export default function SlaBadge({
   }
   return (
     <span className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 whitespace-nowrap ${cor} ${className}`}
-      title="Prazo de atendimento (SLA)">
+      title="Prazo de resposta (SLA)">
       {icone} {label}
     </span>
   );

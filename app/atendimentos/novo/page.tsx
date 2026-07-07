@@ -101,7 +101,7 @@ export default function NovoAtendimentoPage() {
       });
       if (novoCliente && r.cliente_status === "existente") {
         alert(
-          `Este contato já existia na base: o atendimento foi vinculado a ` +
+          `Este contato já existia na base: a oportunidade foi vinculada a ` +
           `"${r.cliente_nome ?? "cliente existente"}" (não duplicamos o cadastro).` +
           (r.nome_divergente
             ? `\n\n⚠️ ATENÇÃO: o nome digitado difere do cadastro — o conflito foi registrado para revisão.`
@@ -116,7 +116,7 @@ export default function NovoAtendimentoPage() {
   }
 
   return (
-    <Shell title="Novo atendimento (interno)">
+    <Shell title="Nova oportunidade (interna)">
       <div className="max-w-3xl space-y-4">
         {erro && <div className="card p-3 border-red-200 bg-red-50 text-sm text-red-700">{erro}</div>}
 
@@ -240,13 +240,13 @@ export default function NovoAtendimentoPage() {
               placeholder="O que foi respondido/resolvido na hora…" />
             <label className="flex items-center gap-1.5 text-xs text-slate-600 mt-1">
               <input type="checkbox" checked={encerrar} onChange={(e) => setEncerrar(e.target.checked)} />
-              resolvido na hora — já encerrar o atendimento
+              resolvido na hora — já encerrar a oportunidade
             </label>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <button className="btn-ghost" onClick={() => router.push("/atendimentos")}>Cancelar</button>
             <button className="btn-primary" onClick={salvar} disabled={salvando}>
-              {salvando ? "Criando…" : "Criar atendimento"}
+              {salvando ? "Criando…" : "Criar oportunidade"}
             </button>
           </div>
         </div>

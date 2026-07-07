@@ -186,7 +186,7 @@ export default function EquipePage() {
   async function comoUsuario(id: number, nome: string | null) {
     if (!confirm(
       `Entrar como "${nome ?? `#${id}`}"?\n\nUma nova janela vai abrir mostrando o sistema ` +
-      `exatamente como ELE vê (lojas/atendimentos do escopo dele).\n\nPara voltar, ` +
+      `exatamente como ELE vê (lojas/oportunidades do escopo dele).\n\nPara voltar, ` +
       `clique em "voltar a ser admin" na faixa amarela.`
     )) return;
     setErro("");

@@ -161,12 +161,12 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
   }, [transfOpen, transfQ, d?.marca_id]);
 
   async function transferir(loja: LojaItem) {
-    if (!confirm(`Transferir este atendimento para:\n\n${loja.nome}?`)) return;
+    if (!confirm(`Transferir esta oportunidade para:\n\n${loja.nome}?`)) return;
     try {
       await transferirAtendimento(params.id, loja.id);
       setTransfOpen(false); setTransfQ("");
       await carregar();
-      setRespMsg("✓ Atendimento transferido.");
+      setRespMsg("✓ Oportunidade transferida.");
     } catch (err) {
       setRespMsg(err instanceof Error ? err.message : "Erro ao transferir");
     }
@@ -209,10 +209,10 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
   }
 
   return (
-    <Shell title="Atendimento">
+    <Shell title="Oportunidade">
       <div className="max-w-3xl">
         <Link href="/atendimentos" className="text-sm text-slate-500 hover:underline">
-          ← Voltar para atendimentos
+          ← Voltar para oportunidades
         </Link>
 
         {loading && <div className="text-slate-400 mt-6">Carregando…</div>}
@@ -229,7 +229,7 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">
-                    {d.assunto || `Atendimento ${d.numero}`}
+                    {d.assunto || `Oportunidade ${d.numero}`}
                   </h2>
                   <div className="text-sm text-slate-500 mt-0.5">
                     {d.cliente ? (
@@ -259,12 +259,12 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                 {usuarioLogado()?.papel === "admin" && (
                   <button
                     className="btn bg-red-600 text-white hover:bg-red-700 text-xs px-3 py-1.5"
-                    title="Só admin. Apaga o atendimento e as mensagens (avaliações são preservadas)."
+                    title="Só admin. Apaga a oportunidade e as mensagens (avaliações são preservadas)."
                     onClick={async () => {
-                      if (!confirm("EXCLUIR este atendimento de vez? Apaga as mensagens também. Não tem volta.")) return;
+                      if (!confirm("EXCLUIR esta oportunidade de vez? Apaga as mensagens também. Não tem volta.")) return;
                       const comCliente = d.cliente
                         ? confirm(
-                            `Excluir TAMBÉM o cliente "${d.cliente.nome ?? "relacionado"}"?\n\nOK = apaga o cliente junto (com TODOS os atendimentos dele).\nCancelar = só este atendimento.`
+                            `Excluir TAMBÉM o cliente "${d.cliente.nome ?? "relacionado"}"?\n\nOK = apaga o cliente junto (com TODAS as oportunidades dele).\nCancelar = só este atendimento.`
                           )
                         : false;
                       if (!confirm("Confirma mesmo a EXCLUSÃO definitiva?")) return;
@@ -281,12 +281,12 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                   <button
                     className="btn bg-emerald-600 text-white hover:bg-emerald-700 text-xs px-3 py-1.5"
                     onClick={async () => {
-                      if (!confirm("Encerrar este atendimento? (O cliente poderá avaliar e, se responder, ele reabre.)")) return;
+                      if (!confirm("Encerrar esta oportunidade? (O cliente poderá avaliar e, se responder, ela reabre.)")) return;
                       try { await mudarStatusAtendimento(params.id, "encerrada"); await carregar(); }
                       catch (err) { setRespMsg(err instanceof Error ? err.message : "Erro"); }
                     }}
                   >
-                    ✅ Encerrar atendimento
+                    ✅ Encerrar oportunidade
                   </button>
                 )}
                 {d.status === "aberta" && (

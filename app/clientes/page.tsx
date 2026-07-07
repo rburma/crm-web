@@ -96,14 +96,14 @@ export default function ClientesPage() {
     if (!ids.length) return;
     if (!window.confirm(`EXCLUIR ${ids.length} cliente(s)? IRREVERSÍVEL.`)) return;
     const comAtend = window.confirm(
-      "Excluir TAMBÉM os ATENDIMENTOS desses clientes?\n\nOK = apaga clientes + todos os atendimentos deles.\nCancelar = só clientes SEM atendimento (os com atendimento são pulados)."
+      "Excluir TAMBÉM as OPORTUNIDADES desses clientes?\n\nOK = apaga clientes + todas as oportunidades deles.\nCancelar = só clientes SEM atendimento (os com atendimento são pulados)."
     );
     if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
     setBulkBusy(true); setErro(""); setMsg("");
     try {
       const r = await excluirClientesLote(ids, comAtend);
       let m = `${r.ok} cliente(s) excluído(s).`;
-      if (r.pulados_com_atendimento.length) m += ` ${r.pulados_com_atendimento.length} pulado(s) por terem atendimentos.`;
+      if (r.pulados_com_atendimento.length) m += ` ${r.pulados_com_atendimento.length} pulado(s) por terem oportunidades.`;
       setMsg(m);
       selec.limpar();
       await carregar(page);
@@ -322,7 +322,7 @@ export default function ClientesPage() {
               <>
                 <span className="text-slate-300">·</span>
                 <button className="text-red-600 hover:underline" disabled={bulkBusy} onClick={excluirSelecionados}
-                  title="Excluir DEFINITIVAMENTE os selecionados (só admin; com atendimento é pulado)">
+                  title="Excluir DEFINITIVAMENTE os selecionados (só admin; com oportunidade é pulado)">
                   🗑 Excluir
                 </button>
               </>
@@ -419,7 +419,7 @@ export default function ClientesPage() {
             <h3 className="text-lg font-bold text-slate-800 mb-1">Fundir clientes</h3>
             <p className="text-sm text-slate-500 mb-4">
               Escolha qual cadastro <b>sobrevive</b>. Os campos vazios dele serão preenchidos
-              pelos demais (repetidos ignorados), e <b>todo o histórico</b> (atendimentos,
+              pelos demais (repetidos ignorados), e <b>todo o histórico</b> (oportunidades,
               mensagens) vai para ele. Os outros são marcados como mesclados.
             </p>
 

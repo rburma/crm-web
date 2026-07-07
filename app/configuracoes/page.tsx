@@ -110,7 +110,7 @@ export default function ConfiguracoesPage() {
 
   async function apagarMarcaAtual() {
     if (!marca) return;
-    if (!confirm(`APAGAR a marca "${marca.nome ?? marca.slug}"?\n\nSó é possível quando ela está vazia (sem lojas e sem atendimentos). Isso é irreversível.`)) return;
+    if (!confirm(`APAGAR a marca "${marca.nome ?? marca.slug}"?\n\nSó é possível quando ela está vazia (sem lojas e sem oportunidades). Isso é irreversível.`)) return;
     setErro("");
     try {
       await configApagarMarca(marca.id);
@@ -161,7 +161,7 @@ export default function ConfiguracoesPage() {
             </button>
             <button
               className="text-sm text-red-600 hover:underline"
-              title="Apagar a marca selecionada (só quando vazia: sem lojas e sem atendimentos)"
+              title="Apagar a marca selecionada (só quando vazia: sem lojas e sem oportunidades)"
               onClick={apagarMarcaAtual}
             >
               🗑 Apagar
@@ -1464,9 +1464,9 @@ function SecaoGeral({ marca, onSalvo, onErro }: {
       </div>
 
       <hr className="border-slate-200" />
-      <h3 className="font-semibold text-sm">Gestão automática de atendimentos</h3>
+      <h3 className="font-semibold text-sm">Gestão automática de oportunidades</h3>
       <div className="flex items-center gap-2 flex-wrap">
-        <label className="label mb-0">Encerrar atendimentos inativos após</label>
+        <label className="label mb-0">Encerrar oportunidades inativas após</label>
         <input type="number" min={0} className="input w-24" value={autoclose} onChange={(e) => setAutoclose(e.target.value)} />
         <span className="text-sm text-slate-500">dias (0 = nunca)</span>
       </div>

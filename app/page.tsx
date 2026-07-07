@@ -31,7 +31,7 @@ function fmtDur(min: number | null): string {
 
 // ── Catálogo do que é configurável ───────────────────────────────────
 const CARDS: { key: string; label: string }[] = [
-  { key: "abertos", label: "Atendimentos abertos" },
+  { key: "abertos", label: "Oportunidades abertas" },
   { key: "em_espera", label: "Em espera" },
   { key: "encerrados_hoje", label: "Encerrados hoje" },
   { key: "novos_hoje", label: "Novos hoje" },
@@ -42,8 +42,8 @@ const CARDS: { key: string; label: string }[] = [
 ];
 
 const SECOES: { key: string; label: string }[] = [
-  { key: "volume", label: "Volume de atendimentos" },
-  { key: "por_marca", label: "Atendimentos por marca" },
+  { key: "volume", label: "Volume de oportunidades" },
+  { key: "por_marca", label: "Oportunidades por marca" },
   { key: "satisfacao_marca", label: "Satisfação por marca" },
   { key: "ranking", label: "Ranking de lojas por avaliações" },
   { key: "top_lojas", label: "Top lojas (abertos)" },
@@ -117,7 +117,7 @@ function VolumeChart({ dados }: { dados: { dia: string; qtd: number }[] }) {
   const gap = n > 30 ? 2 : 6;
   const bw = (W - gap * (n - 1)) / n;
   return (
-    <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full" role="img" aria-label="Volume de atendimentos por dia">
+    <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full" role="img" aria-label="Volume de oportunidades por dia">
       {dados.map((x, i) => {
         const h = Math.round((x.qtd / max) * H);
         const px = i * (bw + gap);
@@ -165,7 +165,7 @@ function Secao({ titulo, children }: { titulo: string; children: React.ReactNode
 function renderKpi(key: string, d: DashboardResumo) {
   switch (key) {
     case "abertos":
-      return <Kpi rotulo="Atendimentos abertos" valor={nf(d.abertos)} tom="text-brand-700" />;
+      return <Kpi rotulo="Oportunidades abertas" valor={nf(d.abertos)} tom="text-brand-700" />;
     case "em_espera":
       return <Kpi rotulo="Em espera" valor={nf(d.em_espera)} tom="text-amber-600" />;
     case "encerrados_hoje":
@@ -210,13 +210,13 @@ function renderSecao(key: string, d: DashboardResumo) {
   switch (key) {
     case "volume":
       return (
-        <Secao titulo={`Volume de atendimentos — últimos ${d.periodo_dias} dias`}>
+        <Secao titulo={`Volume de oportunidades — últimos ${d.periodo_dias} dias`}>
           <VolumeChart dados={d.volume} />
         </Secao>
       );
     case "por_marca":
       return (
-        <Secao titulo="Atendimentos por marca">
+        <Secao titulo="Oportunidades por marca">
           {d.por_marca.length === 0 ? (
             <div className="text-sm text-slate-400">Sem dados ainda.</div>
           ) : (
@@ -244,7 +244,7 @@ function renderSecao(key: string, d: DashboardResumo) {
       );
     case "top_lojas":
       return (
-        <Secao titulo="Lojas com mais atendimentos abertos">
+        <Secao titulo="Lojas com mais oportunidades abertas">
           {d.top_lojas.length === 0 ? (
             <div className="text-sm text-slate-400">Sem dados ainda.</div>
           ) : (
@@ -565,7 +565,7 @@ export default function PainelPage() {
           ) : null}
 
           <div className="text-center text-xs text-slate-400 pt-1">
-            {nf(d.total_atendimentos)} atendimentos no total · base de {nf(d.total_clientes)} clientes
+            {nf(d.total_atendimentos)} oportunidades no total · base de {nf(d.total_clientes)} clientes
           </div>
         </div>
       ) : null}

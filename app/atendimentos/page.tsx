@@ -46,7 +46,7 @@ const COLS_ATEND: {
         title={a.assunto || undefined}
         className="font-medium text-brand-700 hover:underline block max-w-[520px] truncate"
       >
-        {a.assunto || `Atendimento ${a.numero}`}
+        {a.assunto || `Oportunidade ${a.numero}`}
       </Link>
     ),
   },
@@ -114,16 +114,16 @@ export default function AtendimentosPage() {
   async function excluirSelecionados() {
     const ids = selec.ids.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(`EXCLUIR ${ids.length} atendimento(s)?\n\nApaga as mensagens junto (avaliações e logs são preservados). IRREVERSÍVEL.`)) return;
+    if (!window.confirm(`EXCLUIR ${ids.length} oportunidade(s)?\n\nApaga as mensagens junto (avaliações e logs são preservados). IRREVERSÍVEL.`)) return;
     const comCliente = window.confirm(
-      "Excluir TAMBÉM os CLIENTES relacionados?\n\nOK = apaga cada cliente junto (com TODOS os atendimentos dele).\nCancelar = só os atendimentos selecionados."
+      "Excluir TAMBÉM os CLIENTES relacionados?\n\nOK = apaga cada cliente junto (com TODAS as oportunidades dele).\nCancelar = só as oportunidades selecionadas."
     );
     if (!window.confirm("Confirma de novo: excluir DEFINITIVAMENTE?")) return;
     setBulkBusy(true); setErro(""); setMsg("");
     try {
       const r = await atendimentosEmLote(ids, "excluir", comCliente ? "com_cliente" : "");
       const extra = (r as { clientes_excluidos?: number }).clientes_excluidos;
-      setMsg(`${r.ok} atendimento(s) excluído(s).` + (extra ? ` ${extra} cliente(s) excluído(s) junto.` : "") + (r.falhas.length ? ` ${r.falhas.map((f) => f.motivo).join("; ")}.` : ""));
+      setMsg(`${r.ok} oportunidade(s) excluída(s).` + (extra ? ` ${extra} cliente(s) excluído(s) junto.` : "") + (r.falhas.length ? ` ${r.falhas.map((f) => f.motivo).join("; ")}.` : ""));
       selec.limpar();
       await carregar(page);
     } catch (err) {
@@ -136,13 +136,13 @@ export default function AtendimentosPage() {
   async function aplicarBulk(acao: "status" | "marca", valor: string, rotulo: string) {
     const ids = selec.ids.map(Number);
     if (!ids.length) return;
-    if (!window.confirm(`${rotulo} em ${ids.length} atendimento(s)?`)) return;
+    if (!window.confirm(`${rotulo} em ${ids.length} oportunidade(s)?`)) return;
     setBulkBusy(true);
     setErro("");
     setMsg("");
     try {
       const r = await atendimentosEmLote(ids, acao, valor);
-      let m = `${r.ok} atendimento(s) atualizado(s).`;
+      let m = `${r.ok} oportunidade(s) atualizada(s).`;
       if (r.convites_avaliacao) m += ` ${r.convites_avaliacao} convite(s) de avaliação enviado(s).`;
       if (r.falhas.length) m += ` ${r.falhas.map((f) => f.motivo).join("; ")}.`;
       setMsg(m);
@@ -211,7 +211,7 @@ useEffect(() => {
   }, []);
 
   return (
-    <Shell title="Atendimentos">
+    <Shell title="Oportunidades">
       <div className="w-full text-[13px]">
         {obrig.length > 0 && (
           <div className="card border-amber-300 bg-amber-50 p-3 mb-4">
@@ -252,7 +252,7 @@ useEffect(() => {
             onChange={setCols}
           />
           <Link href="/atendimentos/novo" className="btn-primary text-sm">
-            ＋ Novo atendimento
+            ＋ Nova oportunidade
           </Link>
         </div>
         <form
@@ -383,7 +383,7 @@ useEffect(() => {
               {!loading && items.length === 0 && (
                 <tr>
                   <td className="td text-slate-400" colSpan={cols.length + 1}>
-                    Nenhum atendimento.
+                    Nenhuma oportunidade.
                   </td>
                 </tr>
               )}

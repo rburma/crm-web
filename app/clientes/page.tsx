@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import Pager from "@/components/Pager";
 import ColunasConfig from "@/components/ColunasConfig";
 import LojaPicker, { type LojaSel } from "@/components/LojaPicker";
+import { lerEstadoLista, salvarEstadoLista } from "@/lib/estadoLista";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   buscarClientes,
@@ -61,13 +62,17 @@ function previa(principal: ClienteResumo, outros: ClienteResumo[]): ClienteResum
 }
 
 export default function ClientesPage() {
-  const [q, setQ] = useState("");
+  // Restaura busca/filtros/paginacao salvos na aba (volta da ficha no MESMO lugar).
+  const salvo = lerEstadoLista<{
+    q: string; marcaSel: number | null; lojasSel: LojaSel[]; page: number; pageSize: number;
+  }>("clientes");
+  const [q, setQ] = useState(salvo.q ?? "");
   const [rows, setRows] = useState<ClienteResumo[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
   const [buscou, setBuscou] = useState(false);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(PAGE);
+  const [page, setPage] = useState(salvo.page ?? 0);
+  const [pageSize, setPageSize] = useState(salvo.pageSize ?? PAGE);
   const [total, setTotal] = useState(0);
 
   const selec = useSelecao(rows, (c) => String(c.id));
@@ -79,8 +84,8 @@ export default function ClientesPage() {
   const [cols, setCols] = useState<string[]>(COLS_CLI_DEFAULT);
   // Filtro "clientes de cada loja" (pedido Renato 05/07): marca -> loja.
   const [marcas, setMarcas] = useState<MarcaItem[]>([]);
-  const [marcaSel, setMarcaSel] = useState<number | null>(null);
-  const [lojasSel, setLojasSel] = useState<LojaSel[]>([]);
+  const [marcaSel, setMarcaSel] = useState<number | null>(salvo.marcaSel ?? null);
+  const [lojasSel, setLojasSel] = useState<LojaSel[]>(salvo.lojasSel ?? []);
   // Filtros de marca/loja so p/ papeis globais (loja/franqueado ja veem so o escopo;
   // e os endpoints de equipe usados nos selects sao admin-only).
   const ehGlobal = ["admin", "rede", "matriz", "staff", "master"].includes(usuarioLogado()?.papel ?? "admin");
@@ -114,13 +119,21 @@ export default function ClientesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Trocou a marca: limpa as lojas escolhidas (o picker ja filtra pela marca).
+  // (pula a PRIMEIRA execucao — senao apagaria as lojas restauradas da aba)
+  const _priMarca = useRef(true);
   useEffect(() => {
+    if (_priMarca.current) { _priMarca.current = false; return; }
     setLojasSel([]);
   }, [marcaSel]);
 
-  // Abre ja listando (todas as marcas) — Renato 06/07.
+  // Persiste o estado da lista na aba (sessionStorage) a cada mudanca.
   useEffect(() => {
-    carregar(0);
+    salvarEstadoLista("clientes", { q, marcaSel, lojasSel, page, pageSize });
+  }, [q, marcaSel, lojasSel, page, pageSize]);
+
+  // Abre ja listando (todas as marcas) — Renato 06/07 — na pagina salva da aba.
+  useEffect(() => {
+    carregar(salvo.page ?? 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

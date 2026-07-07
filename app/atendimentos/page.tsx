@@ -7,6 +7,7 @@ import Pager from "@/components/Pager";
 import ColunasConfig from "@/components/ColunasConfig";
 import SlaBadge from "@/components/SlaBadge";
 import LojaPicker, { type LojaSel } from "@/components/LojaPicker";
+import { lerEstadoLista, salvarEstadoLista } from "@/lib/estadoLista";
 import { useSelecao } from "@/lib/useSelecao";
 import {
   atendimentosEmLote,
@@ -80,16 +81,23 @@ const COLS_ATEND: {
 const COLS_ATEND_DEFAULT = ["numero", "assunto", "cliente", "marca", "loja", "status", "tempo", "data"];
 const COLS_ATEND_KEYS = COLS_ATEND.map((c) => c.key);
 
+type EstadoAtend = {
+  q: string; status: string; marcaId: number | null;
+  lojasSel: LojaSel[]; page: number; pageSize: number;
+};
+
 export default function AtendimentosPage() {
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("");
-  const [marcaId, setMarcaId] = useState<number | null>(null);
+  // Restaura a busca/paginacao salvas na aba (volta do atendimento no MESMO lugar).
+  const salvo = lerEstadoLista<EstadoAtend>("atendimentos");
+  const [q, setQ] = useState(salvo.q ?? "");
+  const [status, setStatus] = useState(salvo.status ?? "");
+  const [marcaId, setMarcaId] = useState<number | null>(salvo.marcaId ?? null);
   const [marcas, setMarcas] = useState<MarcaItem[]>([]);
-  const [lojasSel, setLojasSel] = useState<LojaSel[]>([]);
+  const [lojasSel, setLojasSel] = useState<LojaSel[]>(salvo.lojasSel ?? []);
   const [items, setItems] = useState<AtendimentoItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(PAGE);
+  const [page, setPage] = useState(salvo.page ?? 0);
+  const [pageSize, setPageSize] = useState(salvo.pageSize ?? PAGE);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
@@ -177,7 +185,12 @@ export default function AtendimentosPage() {
   }
 
   // Carrega marcas (filtro) + os atendimentos mais recentes na 1a abertura.
+    // Persiste o estado da lista na aba (sessionStorage) a cada mudanca.
   useEffect(() => {
+    salvarEstadoLista("atendimentos", { q, status, marcaId, lojasSel, page, pageSize });
+  }, [q, status, marcaId, lojasSel, page, pageSize]);
+
+useEffect(() => {
     listarMarcas().then(setMarcas).catch(() => {});
     minhasObrigacoes().then((r) => setObrig(r.itens || [])).catch(() => {});
     obterPreferencia<{ cols?: string[] }>("cols_atendimentos")
@@ -193,7 +206,7 @@ export default function AtendimentosPage() {
         if (ok.length) setCols(ok);
       })
       .catch(() => {});
-    carregar(0);
+    carregar(salvo.page ?? 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

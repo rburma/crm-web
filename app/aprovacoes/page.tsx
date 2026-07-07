@@ -16,6 +16,13 @@ const ROTULOS: Record<string, string> = {
   shopping_loja: "Nº no shopping", apelidos: "Apelidos", email: "E-mail",
   tipo: "Tipo (física/virtual)", ativo: "Ativa/inativa",
 };
+
+const QUEBRA = String.fromCharCode(10);
+function avisarAjustes(ajustes?: { campo: string; de: string; para: string }[]) {
+  if (!ajustes || !ajustes.length) return;
+  const linhas = ajustes.map((a) => `- ${ROTULOS[a.campo] ?? a.campo}: "${a.de}" virou "${a.para}"`);
+  alert(["Aprovado! O sistema ajustou automaticamente para caber no padrão:", ...linhas].join(QUEBRA));
+}
 function rotuloCampo(c: string): string {
   if (c.startsWith("attr:")) return c.slice(5);
   return ROTULOS[c] ?? c;
@@ -49,20 +56,24 @@ export default function AprovacoesPage() {
     if (!confirm(`${rotulo} ${alvos.length} proposta(s) de uma vez?`)) return;
     setLoteBusy(true); setErro(""); setLoteMsg("");
     let ok = 0;
-    let falhas = 0;
+    const falhas: string[] = [];
+    const ajustesTodos: { campo: string; de: string; para: string }[] = [];
     for (const p of alvos) {
       try {
-        await franqueadoAplicar(
+        const r = await franqueadoAplicar(
           p.id,
           aprovar ? p.mudancas.map((m) => m.campo) : [],
           aprovar ? "aprovada em lote" : "reprovada em lote",
         );
+        if (r.ajustes) ajustesTodos.push(...r.ajustes.map((a) => ({ ...a, campo: `${p.loja_nome} — ${ROTULOS[a.campo] ?? a.campo}` })));
         ok++;
-      } catch {
-        falhas++;
+      } catch (e) {
+        falhas.push(`${p.loja_nome}: ${String((e as Error).message || e)}`);
       }
     }
-    setLoteMsg(`${ok} proposta(s) ${aprovar ? "aprovada(s)" : "reprovada(s)"}.` + (falhas ? ` ${falhas} falharam.` : ""));
+    avisarAjustes(ajustesTodos);
+    setLoteMsg(`${ok} proposta(s) ${aprovar ? "aprovada(s)" : "reprovada(s)"}.` + (falhas.length ? ` ${falhas.length} falharam.` : ""));
+    if (falhas.length) setErro(falhas.join(" · "));
     setSelIds(new Set());
     setLoteBusy(false);
     carregar();
@@ -157,7 +168,8 @@ function PropostaCard({ p, onFeito, selecionada, onToggleSel }: {
   async function aplicar(campos: string[]) {
     setTrabalhando(true); setErro("");
     try {
-      await franqueadoAplicar(p.id, campos, motivo.trim() || undefined);
+      const r = await franqueadoAplicar(p.id, campos, motivo.trim() || undefined);
+      avisarAjustes(r.ajustes);
       onFeito();
     } catch (e) {
       setErro(String((e as Error).message || e));

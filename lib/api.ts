@@ -421,9 +421,10 @@ export type Proposta = {
 export function franqueadoPropostas(status = "pendente"): Promise<Proposta[]> {
   return req(`franqueado/admin/propostas?status=${encodeURIComponent(status)}`);
 }
+export type AjusteCampo = { campo: string; de: string; para: string };
 export function franqueadoAplicar(
   propId: number, campos: string[], motivo?: string,
-): Promise<{ ok: boolean; aprovados: number; reprovados: number }> {
+): Promise<{ ok: boolean; aprovados: number; reprovados: number; ajustes?: AjusteCampo[] }> {
   return req(`franqueado/admin/propostas/${propId}/aplicar`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ campos, motivo }),

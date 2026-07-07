@@ -891,6 +891,10 @@ export const CAMPOS_IMPORT: { campo: string; rotulo: string }[] = [
   { campo: "pais", rotulo: "País (dado do cliente)" },
   { campo: "sobrenome", rotulo: "Sobrenome (dado do cliente)" },
   { campo: "origem_id", rotulo: "ID no sistema de origem (dado do cliente)" },
+  // Contatos corporativos (Vahrcav/expansão — 07/07): empresa, cargo e 2º telefone.
+  { campo: "empresa", rotulo: "Empresa (dado do cliente)" },
+  { campo: "cargo", rotulo: "Cargo (dado do cliente)" },
+  { campo: "telefone2", rotulo: "Telefone 2 (dado do cliente)" },
 ];
 
 export type ImportColunas = { colunas: string[]; amostra: string[][] };

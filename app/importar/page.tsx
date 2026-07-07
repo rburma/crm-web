@@ -28,6 +28,9 @@ function adivinhar(coluna: string): string {
   if (c.includes("nome")) return "nome";
   if (/(loja|franquia|unidade|apelido)/.test(c)) return "loja_ref";
   if (c.includes("tag")) return "tags";
+  if (/(company|empresa)/.test(c)) return "empresa";
+  if (/(jobtitle|cargo|job_title)/.test(c)) return "cargo";
+  if (/(mobilephone|telefone2|celular2)/.test(c)) return "telefone2";
   // Cabeçalhos comuns de exportação (HubSpot/planilhas em inglês):
   if (/(city|cidade)/.test(c)) return "cidade";
   if (/^(state|uf|estado)$/.test(c)) return "uf";

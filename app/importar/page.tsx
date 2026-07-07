@@ -358,11 +358,34 @@ export default function ImportarPage() {
         {preview && (
           <div className="card p-4 space-y-3">
             <div className="label">3. Prévia (nada foi gravado ainda)</div>
+            {preview.parcial && (
+              <p className="text-xs text-slate-500">
+                Para responder rápido, a prévia analisa só as primeiras{" "}
+                <b>{preview.total}</b> linhas de{" "}
+                <b>{(preview.total_arquivo ?? 0).toLocaleString("pt-BR")}</b> — ao aplicar,
+                a planilha INTEIRA é processada e o resultado final aparece no fim.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
-              <span className="badge-gray">Total: {preview.total}{preview.parcial ? ` (amostra de ${(preview.total_arquivo ?? 0).toLocaleString("pt-BR")})` : ""}</span>
-              <span className="badge-green">Novos: {preview.novos}</span>
-              <span className="badge-blue">Enriquece: {preview.enriquece}</span>
-              <span className={preview.erros.length ? "badge-amber" : "badge-gray"}>Erros: {preview.erros.length}</span>
+              <span className="badge-gray">
+                Analisadas: {preview.total}
+                {preview.parcial ? ` de ${(preview.total_arquivo ?? 0).toLocaleString("pt-BR")}` : ""}
+              </span>
+              <span className="badge-green" title="Clientes que ainda não existem — serão criados">
+                Serão criados: {preview.novos}
+              </span>
+              <span
+                className="badge-blue"
+                title="Já existem no CRM (mesmo e-mail/telefone). Não duplicam: só ganham os dados que faltam, sem sobrescrever nada"
+              >
+                Já existem (completar dados): {preview.enriquece}
+              </span>
+              <span
+                className={preview.erros.length ? "badge-amber" : "badge-gray"}
+                title="Linhas que não entram: sem nenhum contato ou com loja não encontrada"
+              >
+                Com problema (ficam fora): {preview.erros.length}
+              </span>
             </div>
             {preview.erros.length > 0 && (
               <div className="text-sm">

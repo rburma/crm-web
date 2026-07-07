@@ -8,20 +8,25 @@ import {
   criarLoja,
   entrarComo,
   equipeAlterarAdmin,
+  equipeApagarLoja,
   equipeBuscarUsuarios,
+  equipeDesativarLoja,
   equipeDesvincular,
   equipeLojas,
+  equipeReativarLoja,
   equipeLojasDoUsuario,
   equipeResumo,
   equipeUsuariosDaLoja,
   equipeVincular,
   listarMarcas,
   siglaLoja,
+  usuarioLogado,
   type EquipeResumo,
   type MarcaItem,
   type LojaDoUsuario,
   type LojaEquipe,
   type MembroLoja,
+  type VinculosLoja,
 } from "@/lib/api";
 
 export default function EquipePage() {
@@ -66,6 +71,17 @@ export default function EquipePage() {
   const [ndSalvando, setNdSalvando] = useState(false);
   // modal "dispositivos da loja" (app de balcão: online/offline + revogar)
   const [dispLoja, setDispLoja] = useState<LojaEquipe | null>(null);
+  // apagar/desativar loja com transferência anotada (SÓ admin)
+  const [ehAdmin, setEhAdmin] = useState(false);
+  useEffect(() => {
+    const u = usuarioLogado();
+    setEhAdmin(!u || u.papel === "admin"); // sem login = piloto (backend valida)
+  }, []);
+  const [lojaAcao, setLojaAcao] = useState<{
+    loja: LojaEquipe; acao: "apagar" | "desativar"; vinculos: VinculosLoja;
+  } | null>(null);
+  const [destinoId, setDestinoId] = useState<number | "">("");
+  const [acaoBusy, setAcaoBusy] = useState(false);
 
   const carregarResumo = useCallback(async () => {
     try {
@@ -112,6 +128,82 @@ export default function EquipePage() {
     setLojaSel(l);
     setQUser(""); setSugestoes([]);
     await carregarMembros(l);
+  }
+
+  async function depoisAcaoLoja(id: number, resultado: "apagada" | "inativa" | "ativa") {
+    if (lojaSel && lojaSel.id === id) {
+      if (resultado === "apagada") { setLojaSel(null); setMembros([]); }
+      else setLojaSel({ ...lojaSel, ativo: resultado === "ativa" });
+    }
+    await carregarLojas();
+    carregarResumo();
+  }
+
+  async function iniciarAcaoLoja(l: LojaEquipe, acao: "apagar" | "desativar") {
+    setErro("");
+    const rotulo = l.sigla || l.nome;
+    const pergunta = acao === "apagar"
+      ? `Apagar a loja/departamento ${rotulo}? Essa ação NÃO pode ser desfeita.`
+      : l.ativo === false
+        ? `Transferir os vínculos da loja inativa ${rotulo} para outra loja?`
+        : `Desativar a loja/departamento ${rotulo}?`;
+    if (!confirm(pergunta)) return;
+    try {
+      const r = acao === "apagar"
+        ? await equipeApagarLoja(l.id)
+        : await equipeDesativarLoja(l.id);
+      if (r.ok) { await depoisAcaoLoja(l.id, acao === "apagar" ? "apagada" : "inativa"); return; }
+      setDestinoId("");
+      setLojaAcao({ loja: l, acao, vinculos: r.vinculos });
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    }
+  }
+
+  async function confirmarAcaoLoja() {
+    if (!lojaAcao || destinoId === "") return;
+    setAcaoBusy(true); setErro("");
+    try {
+      const r = lojaAcao.acao === "apagar"
+        ? await equipeApagarLoja(lojaAcao.loja.id, Number(destinoId))
+        : await equipeDesativarLoja(lojaAcao.loja.id, { transferirPara: Number(destinoId) });
+      if (r.ok) {
+        const id = lojaAcao.loja.id;
+        setLojaAcao(null);
+        await depoisAcaoLoja(id, lojaAcao.acao === "apagar" ? "apagada" : "inativa");
+      }
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setAcaoBusy(false);
+    }
+  }
+
+  async function desativarMantendo() {
+    if (!lojaAcao) return;
+    setAcaoBusy(true); setErro("");
+    try {
+      const r = await equipeDesativarLoja(lojaAcao.loja.id, { manter: true });
+      if (r.ok) {
+        const id = lojaAcao.loja.id;
+        setLojaAcao(null);
+        await depoisAcaoLoja(id, "inativa");
+      }
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setAcaoBusy(false);
+    }
+  }
+
+  async function reativarLoja(l: LojaEquipe) {
+    setErro("");
+    try {
+      await equipeReativarLoja(l.id);
+      await depoisAcaoLoja(l.id, "ativa");
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    }
   }
 
   async function adicionar(usuarioId: number, admin: boolean) {
@@ -265,6 +357,9 @@ export default function EquipePage() {
                   {l.sigla && (
                     <span className="ml-1.5 text-xs text-slate-400">{l.nome}</span>
                   )}
+                  {l.ativo === false && (
+                    <span className="ml-1.5 badge-gray" title="Loja inativa — reative ou transfira os vínculos na coluna Equipe">inativa</span>
+                  )}
                 </span>
                 <span className="text-xs text-slate-400">
                   {l.usuarios} usuário(s){l.admins ? ` · ${l.admins} admin` : ""}
@@ -297,6 +392,42 @@ export default function EquipePage() {
                 >
                   ⚙ Cadastro da loja
                 </button>
+                {ehAdmin && lojaSel.ativo !== false && (
+                  <button
+                    onClick={() => iniciarAcaoLoja(lojaSel, "desativar")}
+                    className="text-xs text-amber-700 hover:underline"
+                    title="Desativa a loja; se tiver oportunidades/clientes, pergunta se transfere para outra loja (com anotação) ou mantém o histórico"
+                  >
+                    🚫 Desativar
+                  </button>
+                )}
+                {ehAdmin && lojaSel.ativo === false && (
+                  <>
+                    <button
+                      onClick={() => reativarLoja(lojaSel)}
+                      className="text-xs text-emerald-700 hover:underline"
+                      title="Volta a loja para ativa"
+                    >
+                      ♻ Reativar
+                    </button>
+                    <button
+                      onClick={() => iniciarAcaoLoja(lojaSel, "desativar")}
+                      className="text-xs text-amber-700 hover:underline"
+                      title="Transfere oportunidades/clientes/avaliações desta loja inativa para outra loja, com anotação"
+                    >
+                      ↪ Transferir vínculos
+                    </button>
+                  </>
+                )}
+                {ehAdmin && (
+                  <button
+                    onClick={() => iniciarAcaoLoja(lojaSel, "apagar")}
+                    className="text-xs text-red-600 hover:underline"
+                    title="Apaga a loja/departamento; se tiver vínculos, exige transferir para outra loja antes (com anotação)"
+                  >
+                    🗑 Apagar
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -425,6 +556,54 @@ export default function EquipePage() {
           lojaNome={dispLoja.nome}
           onClose={() => setDispLoja(null)}
         />
+      )}
+
+      {/* modal: apagar/desativar loja com transferência */}
+      {lojaAcao && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+          onClick={() => setLojaAcao(null)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-5"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold">
+                {lojaAcao.acao === "apagar" ? "Apagar" : "Desativar"} {lojaAcao.loja.sigla || lojaAcao.loja.nome}
+              </h2>
+              <button onClick={() => setLojaAcao(null)} className="text-slate-400 hover:text-slate-700">✕</button>
+            </div>
+            <p className="text-sm text-slate-600 mb-2">Esta loja/departamento ainda tem vínculos:</p>
+            <ul className="text-sm mb-3 list-disc pl-5">
+              <li>{lojaAcao.vinculos.oportunidades} oportunidade(s)</li>
+              <li>{lojaAcao.vinculos.clientes} cliente(s)</li>
+              <li>{lojaAcao.vinculos.avaliacoes} avaliação(ões)</li>
+            </ul>
+            <p className="text-sm text-slate-600 mb-2">
+              Escolha a loja de <b>destino</b>: tudo será transferido com anotação
+              (mensagem interna na oportunidade e nota na ficha do cliente).
+            </p>
+            <select className="input mb-3" value={destinoId}
+              onChange={(e) => setDestinoId(e.target.value === "" ? "" : Number(e.target.value))}>
+              <option value="">— escolher a loja de destino —</option>
+              {lojas.filter((x) => x.id !== lojaAcao.loja.id && x.ativo !== false).map((x) => (
+                <option key={x.id} value={x.id}>
+                  {siglaLoja(x.sigla, marcaSel != null ? marcasSigla[marcaSel] : undefined, x.nome)} — {x.nome}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center justify-end gap-2 mt-2">
+              <button className="btn-ghost" onClick={() => setLojaAcao(null)}>Cancelar</button>
+              {lojaAcao.acao === "desativar" && lojaAcao.loja.ativo !== false && (
+                <button className="btn-ghost" onClick={desativarMantendo} disabled={acaoBusy}
+                  title="A loja fica inativa e as oportunidades/clientes permanecem nela (histórico preservado)">
+                  Desativar mantendo histórico
+                </button>
+              )}
+              <button className="btn-primary" onClick={confirmarAcaoLoja}
+                disabled={acaoBusy || destinoId === ""}>
+                {acaoBusy ? "Executando…" : lojaAcao.acao === "apagar" ? "Transferir e apagar" : "Transferir e desativar"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* modal: lojas do usuário */}

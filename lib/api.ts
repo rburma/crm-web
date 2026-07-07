@@ -970,7 +970,7 @@ export type EquipeResumo = {
   totais: { vinculos: number; usuarios_vinculados: number; admins_globais: number };
   marcas: { id: number; nome: string; lojas: number; usuarios: number }[];
 };
-export type LojaEquipe = { id: number; nome: string; sigla?: string | null; usuarios: number; admins: number };
+export type LojaEquipe = { id: number; nome: string; sigla?: string | null; ativo?: boolean; usuarios: number; admins: number };
 export type MembroLoja = {
   usuario_id: number; nome: string | null; email: string | null;
   papel: string; ativo: boolean; admin_loja: boolean;
@@ -1890,4 +1890,60 @@ export function reputacaoRefresh(
 export type MinhaLoja = { loja_id: number; nome: string | null; sigla: string | null; token: string };
 export function minhasLojas(): Promise<MinhaLoja[]> {
   return req("franqueado/minhas-lojas");
+}
+
+// ── 🗑/🚫 Apagar ou desativar loja com transferência anotada (SÓ admin) ──
+// O backend devolve 409 com as CONTAGENS quando a loja tem vínculos e nenhum
+// destino foi informado — a tela usa isso para abrir o modal de transferência.
+export type VinculosLoja = { oportunidades: number; clientes: number; avaliacoes: number };
+export type ResultadoAcaoLoja =
+  | ({ ok: true } & Record<string, unknown>)
+  | { ok: false; precisaDestino: true; motivo: string; vinculos: VinculosLoja };
+
+async function acaoLoja(path: string, method: string): Promise<ResultadoAcaoLoja> {
+  const r = await fetch(`${BASE}/${path}`, { method, cache: "no-store" });
+  if (r.status === 409) {
+    const j = (await r.json().catch(() => ({}))) as { detail?: unknown };
+    const d = j.detail;
+    if (d && typeof d === "object") {
+      const dd = d as { motivo?: string; oportunidades?: number; clientes?: number; avaliacoes?: number };
+      return {
+        ok: false, precisaDestino: true,
+        motivo: dd.motivo ?? "A loja tem vínculos.",
+        vinculos: {
+          oportunidades: dd.oportunidades ?? 0,
+          clientes: dd.clientes ?? 0,
+          avaliacoes: dd.avaliacoes ?? 0,
+        },
+      };
+    }
+    throw new Error(typeof d === "string" ? d : "Conflito ao executar a ação.");
+  }
+  if (!r.ok) {
+    let detail = `Erro ${r.status}`;
+    try {
+      const j = (await r.json()) as { detail?: unknown };
+      if (typeof j.detail === "string") detail = j.detail;
+    } catch {
+      /* mantem o detail padrao */
+    }
+    throw new Error(detail);
+  }
+  return { ok: true, ...((await r.json()) as Record<string, unknown>) };
+}
+export function equipeApagarLoja(lojaId: number, transferirPara?: number): Promise<ResultadoAcaoLoja> {
+  const qs = transferirPara ? `?transferir_para=${transferirPara}` : "";
+  return acaoLoja(`equipe/lojas/${lojaId}${qs}`, "DELETE");
+}
+export function equipeDesativarLoja(
+  lojaId: number, opts?: { transferirPara?: number; manter?: boolean },
+): Promise<ResultadoAcaoLoja> {
+  const p = new URLSearchParams();
+  if (opts?.transferirPara) p.set("transferir_para", String(opts.transferirPara));
+  if (opts?.manter) p.set("manter", "true");
+  const qs = p.toString();
+  return acaoLoja(`equipe/lojas/${lojaId}/desativar${qs ? `?${qs}` : ""}`, "POST");
+}
+export function equipeReativarLoja(lojaId: number): Promise<ResultadoAcaoLoja> {
+  return acaoLoja(`equipe/lojas/${lojaId}/reativar`, "POST");
 }

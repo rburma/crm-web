@@ -1976,7 +1976,7 @@ export async function precosSerie(produto: string, dias = 365): Promise<{ produt
 export async function precosAlertas(dias = 7): Promise<{ alertas: PrecoAlertaItem[] }> {
   return req(`precos/alertas?dias=${dias}`);
 }
-export async function precosPainel(termos?: string[], dias = 180): Promise<{ destaques: PrecoDestaque[] }> {
+export async function precosPainel(termos?: string[], dias = 365): Promise<{ destaques: PrecoDestaque[] }> {
   const q = new URLSearchParams();
   if (termos && termos.length) q.set("termos", termos.join(","));
   q.set("dias", String(dias));

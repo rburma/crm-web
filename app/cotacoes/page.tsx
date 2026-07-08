@@ -371,6 +371,12 @@ export default function CotacoesPage() {
                       <td className="p-2">
                         <button className="text-left font-medium text-slate-700 hover:text-brand-600" onClick={() => abrirSerie(p.produto)}
                                 title="Ver histórico (gráfico)">{p.produto} 📉</button>
+                        {p.equiv ? (
+                          <span className="ml-1 inline-flex cursor-help items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
+                                title={p.equiv}>
+                            ⚠️ ≈ {p.insumo}
+                          </span>
+                        ) : null}
                       </td>
                       {colunas.map((cid) => {
                         const cel = p.precos.find((x) => x.cidade === cid);

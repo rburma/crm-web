@@ -380,7 +380,7 @@ export default function CotacoesPage() {
                               <a href={cel.fonte_url ?? undefined} target="_blank" rel="noreferrer" className="hover:underline"
                                  title={"Publicado em " + fmtDia(cel.data) + (cel.embalagem ? " · " + cel.embalagem + " = R$ " + fmtBR(cel.preco_bruto) : "") + " · clique p/ ver a fonte"}>
                                 <span className="font-semibold text-slate-800">{cel.preco_kg != null ? fmtBR(cel.preco_kg) : "R$ " + fmtBR(cel.preco_bruto) + (cel.embalagem ? "/" + cel.embalagem : "")}</span>
-                                <span className="block text-[10px] text-slate-400">cotação de {fmtDia(cel.data)}/{cel.data.slice(0, 4)}</span>
+                                <span className="block text-[10px] text-slate-400">{fmtDia(cel.data)}/{cel.data.slice(2, 4)}</span>
                               </a>
                             ) : <span className="text-slate-300">—</span>}
                           </td>

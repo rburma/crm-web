@@ -370,24 +370,21 @@ export default function CotacoesPage() {
                     <tr key={p.produto} className={"border-t border-slate-100 hover:bg-amber-50 " + (produtos.indexOf(p) % 2 ? "bg-slate-50" : "bg-white")}>
                       <td className="p-2">
                         <button className="text-left font-medium text-slate-700 hover:text-brand-600" onClick={() => abrirSerie(p.produto)}
-                                title="Ver histórico (gráfico)">{p.produto} 📉</button>
-                        {p.equiv ? (
-                          <span className="ml-1 inline-flex cursor-help items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800"
-                                title={p.equiv}>
-                            ⚠️ ≈ {p.insumo}
-                          </span>
-                        ) : null}
+                                title="Ver histórico (gráfico)">{p.equiv && p.insumo ? p.insumo : p.produto} 📉</button>
                       </td>
                       {colunas.map((cid) => {
                         const cel = p.precos.find((x) => x.cidade === cid);
                         return (
                           <td key={cid} className="p-2 text-right">
                             {cel ? (
-                              <a href={cel.fonte_url ?? undefined} target="_blank" rel="noreferrer" className="hover:underline"
-                                 title={"Publicado em " + fmtDia(cel.data) + (cel.embalagem ? " · " + cel.embalagem + " = R$ " + fmtBR(cel.preco_bruto) : "") + " · clique p/ ver a fonte"}>
-                                <span className="font-semibold text-slate-800">{cel.preco_kg != null ? fmtBR(cel.preco_kg) : "R$ " + fmtBR(cel.preco_bruto) + (cel.embalagem ? "/" + cel.embalagem : "")}</span>
-                                <span className="block text-[10px] text-slate-400">{fmtDia(cel.data)}/{cel.data.slice(2, 4)}</span>
-                              </a>
+                              <span className="inline-flex items-start gap-1">
+                                <a href={cel.fonte_url ?? undefined} target="_blank" rel="noreferrer" className="hover:underline"
+                                   title={"Publicado em " + fmtDia(cel.data) + (cel.embalagem ? " · " + cel.embalagem + " = R$ " + fmtBR(cel.preco_bruto) : "") + " · clique p/ ver a fonte"}>
+                                  <span className="font-semibold text-slate-800">{cel.preco_kg != null ? fmtBR(cel.preco_kg) : "R$ " + fmtBR(cel.preco_bruto) + (cel.embalagem ? "/" + cel.embalagem : "")}</span>
+                                  <span className="block text-[10px] text-slate-400">{fmtDia(cel.data)}/{cel.data.slice(2, 4)}</span>
+                                </a>
+                                {p.equiv ? <span className="cursor-help text-amber-500" title={p.equiv}>❗</span> : null}
+                              </span>
                             ) : <span className="text-slate-300">—</span>}
                           </td>
                         );
@@ -402,7 +399,10 @@ export default function CotacoesPage() {
 
         {serieDe ? (
           <div className="card p-4">
-            <div className="mb-2 text-sm font-semibold text-slate-700">📉 Histórico: {serieDe}</div>
+            <div className="mb-2 text-sm font-semibold text-slate-700">
+              📉 Histórico: {(() => { const pr = produtos.find((x) => x.produto === serieDe); return pr && pr.equiv && pr.insumo ? pr.insumo : serieDe; })()}
+              {(() => { const pr = produtos.find((x) => x.produto === serieDe); return pr && pr.equiv ? <span className="ml-1 cursor-help text-amber-500" title={pr.equiv}>❗</span> : null; })()}
+            </div>
             <SerieChart pontos={seriePts.filter((p) => !cidadesSel.length || cidadesSel.includes(p.cidade))} altura={160} />
             <div className="mt-1 text-[11px] text-slate-400">Cada ponto = preço publicado pela fonte no dia (R$/kg). A sazonalidade aparece conforme o histórico cresce (a carga histórica do admin puxa os últimos 12 meses).</div>
           </div>

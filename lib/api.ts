@@ -1948,3 +1948,40 @@ export function equipeDesativarLoja(
 export function equipeReativarLoja(lojaId: number): Promise<ResultadoAcaoLoja> {
   return acaoLoja(`equipe/lojas/${lojaId}/reativar`, "POST");
 }
+
+// ── Monitor de Precos de Atacado (pagina Cotacoes) ─────────────────────────
+export type PrecoCentral = { id: number; cidade: string; central: string; ativo: boolean; metodo: string; dias_publicacao?: string | null };
+export type PrecoCelula = { central_id: number; cidade: string; data: string; preco_bruto: number; preco_kg: number | null; embalagem?: string | null; fonte_url?: string | null };
+export type PrecoProduto = { produto: string; precos: PrecoCelula[] };
+export type PrecoAlertaItem = { data: string; cidade: string; produto: string; tipo: "alta" | "queda"; variacao_pct: number; preco_anterior: number; preco_novo: number; data_anterior?: string | null };
+export type PrecoSeriePonto = { data: string; central_id: number; cidade: string; preco_bruto: number; preco_kg: number | null };
+export type PrecoDestaque = { termo: string; pontos: { data: string; cidade: string; preco_kg: number }[] };
+export type PrecoStatus = { ultima_coleta_em: string | null; ultima_data_cotacao: string | null; total_registros: number; rodou_hoje: boolean; pode_atualizar: boolean };
+
+export async function precosStatus(): Promise<PrecoStatus> {
+  return req<PrecoStatus>("precos/status");
+}
+export async function precosCentrais(): Promise<{ centrais: PrecoCentral[] }> {
+  return req<{ centrais: PrecoCentral[] }>("precos/centrais");
+}
+export async function precosBusca(q: string): Promise<{ itens: { produto: string; n_centrais: number }[] }> {
+  return req(`precos/busca?q=${encodeURIComponent(q)}`);
+}
+export async function precosComparativo(q: string): Promise<{ produtos: PrecoProduto[] }> {
+  return req(`precos/comparativo?q=${encodeURIComponent(q)}`);
+}
+export async function precosSerie(produto: string, dias = 365): Promise<{ produto: string; pontos: PrecoSeriePonto[] }> {
+  return req(`precos/serie?produto=${encodeURIComponent(produto)}&dias=${dias}`);
+}
+export async function precosAlertas(dias = 7): Promise<{ alertas: PrecoAlertaItem[] }> {
+  return req(`precos/alertas?dias=${dias}`);
+}
+export async function precosPainel(termos?: string[], dias = 180): Promise<{ destaques: PrecoDestaque[] }> {
+  const q = new URLSearchParams();
+  if (termos && termos.length) q.set("termos", termos.join(","));
+  q.set("dias", String(dias));
+  return req(`precos/painel?${q.toString()}`);
+}
+export async function precosAtualizar(backfillDias = 0): Promise<{ ok: boolean; msg: string }> {
+  return req(`precos/atualizar?backfill_dias=${backfillDias}`, { method: "POST" });
+}

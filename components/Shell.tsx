@@ -20,6 +20,7 @@ const NAV = [
   { href: "/obrigacoes", label: "Obrigações", icon: "📋", vis: "todos" },
   { href: "/avaliacoes", label: "Avaliações", icon: "⭐", vis: "todos" },
   { href: "/reputacao", label: "Reputação", icon: "🏆", vis: "todos" },
+  { href: "/cotacoes", label: "Cotações", icon: "📈", vis: "todos" },
   { href: "/minhas-lojas", label: "Minha Loja", icon: "🏬", vis: "franqueado" },
   { href: "/importar", label: "Importar", icon: "📥", vis: "admin" },
   { href: "/equipe", label: "Equipe", icon: "🏪", vis: "admin" },

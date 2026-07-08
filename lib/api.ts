@@ -1950,7 +1950,7 @@ export function equipeReativarLoja(lojaId: number): Promise<ResultadoAcaoLoja> {
 }
 
 // ── Monitor de Precos de Atacado (pagina Cotacoes) ─────────────────────────
-export type PrecoCentral = { id: number; cidade: string; central: string; ativo: boolean; metodo: string; dias_publicacao?: string | null };
+export type PrecoCentral = { id: number; cidade: string; estado?: string | null; central: string; ativo: boolean; metodo: string; dias_publicacao?: string | null };
 export type PrecoCelula = { central_id: number; cidade: string; data: string; preco_bruto: number; preco_kg: number | null; embalagem?: string | null; fonte_url?: string | null };
 export type PrecoProduto = { produto: string; precos: PrecoCelula[] };
 export type PrecoAlertaItem = { data: string; cidade: string; produto: string; tipo: "alta" | "queda"; variacao_pct: number; preco_anterior: number; preco_novo: number; data_anterior?: string | null };

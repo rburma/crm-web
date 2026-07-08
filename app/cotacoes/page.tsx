@@ -241,7 +241,7 @@ export default function CotacoesPage() {
                   className={"rounded-full px-2.5 py-1 text-xs " + (!cidadesSel.length ? "bg-slate-800 text-white" : "border hover:bg-slate-50")}>
             Todas
           </button>
-          {[...new Set(centrais.map((c) => c.estado).filter(Boolean))].map((uf) => {
+          {[...new Set(centrais.map((c) => c.estado).filter((x): x is string => !!x))].map((uf) => {
             const doUf = centrais.filter((c) => c.estado === uf).map((c) => c.cidade);
             const ligado = doUf.length > 0 && doUf.every((c) => cidadesSel.includes(c));
             return (

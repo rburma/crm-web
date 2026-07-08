@@ -36,7 +36,7 @@ const GRUPOS = [
   { rotulo: "Bananas", termo: "banana" },
   { rotulo: "Ovos", termo: "ovos" },
 ];
-const DESTAQUES_PADRAO = ["batata", "laranja", "tomate", "cebola", "banana"];
+const DESTAQUES_PADRAO = ["batata florão", "batata asterix", "laranja pêra", "tomate italiano", "cebola"];
 
 function fmtBR(v: number | null | undefined, dec = 2): string {
   if (v == null || isNaN(v)) return "—";
@@ -289,7 +289,7 @@ export default function CotacoesPage() {
 
         <div className="card p-4">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <div className="grow text-sm font-semibold text-slate-700">📊 Destaques (gráfico R$/kg — média diária por cidade)</div>
+            <div className="grow text-sm font-semibold text-slate-700">📊 Destaques (R$/kg — mediana semanal por praça)</div>
             <input value={novoDestaque} onChange={(e) => setNovoDestaque(e.target.value)}
                    placeholder="adicionar produto ao painel…" className="input w-48 text-xs"
                    onKeyDown={(e) => {
@@ -314,6 +314,7 @@ export default function CotacoesPage() {
                 <button className="mb-1 text-xs font-semibold uppercase text-slate-600 hover:text-brand-600"
                         onClick={() => abrirTermo(d.termo)}>{d.termo} →</button>
                 <SerieChart pontos={d.pontos.filter((p) => !cidadesSel.length || cidadesSel.includes(p.cidade)).map((p) => ({ data: p.data, cidade: p.cidade, v: p.preco_kg }))} />
+                {d.ocultados ? <div className="text-[10px] text-slate-400">{d.ocultados} ponto(s) improvável(is) da fonte ocultado(s) do gráfico</div> : null}
               </div>
             ))}
           </div>

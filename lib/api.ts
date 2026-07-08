@@ -1955,7 +1955,7 @@ export type PrecoCelula = { central_id: number; cidade: string; data: string; pr
 export type PrecoProduto = { produto: string; equiv?: string | null; insumo?: string | null; precos: PrecoCelula[] };
 export type PrecoAlertaItem = { data: string; cidade: string; produto: string; tipo: "alta" | "queda"; variacao_pct: number; preco_anterior: number; preco_novo: number; data_anterior?: string | null };
 export type PrecoSeriePonto = { data: string; central_id: number; cidade: string; preco_bruto: number; preco_kg: number | null };
-export type PrecoDestaque = { termo: string; pontos: { data: string; cidade: string; preco_kg: number }[] };
+export type PrecoDestaque = { termo: string; ocultados?: number; pontos: { data: string; cidade: string; preco_kg: number }[] };
 export type PrecoStatus = { ultima_coleta_em: string | null; ultima_data_cotacao: string | null; total_registros: number; rodou_hoje: boolean; pode_atualizar: boolean };
 
 export async function precosStatus(): Promise<PrecoStatus> {

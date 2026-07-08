@@ -384,7 +384,10 @@ export default function CotacoesPage() {
                                   <span className="font-semibold text-slate-800">{cel.preco_kg != null ? fmtBR(cel.preco_kg) : "R$ " + fmtBR(cel.preco_bruto) + (cel.embalagem ? "/" + cel.embalagem : "")}</span>
                                   <span className="block text-[10px] text-slate-400">{fmtDia(cel.data)}/{cel.data.slice(2, 4)}</span>
                                 </a>
-                                {p.equiv ? <span className="cursor-help text-amber-500" title={p.equiv}>❗</span> : null}
+                                {p.equiv ? (
+                                  <span className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full bg-amber-400 text-[11px] font-black leading-none text-white"
+                                        title={"Preço publicado pela fonte como: " + p.produto + ". " + p.equiv}>!</span>
+                                ) : null}
                               </span>
                             ) : <span className="text-slate-300">—</span>}
                           </td>
@@ -402,7 +405,13 @@ export default function CotacoesPage() {
           <div className="card p-4">
             <div className="mb-2 text-sm font-semibold text-slate-700">
               📉 Histórico: {(() => { const pr = produtos.find((x) => x.produto === serieDe); return pr && pr.equiv && pr.insumo ? pr.insumo : serieDe; })()}
-              {(() => { const pr = produtos.find((x) => x.produto === serieDe); return pr && pr.equiv ? <span className="ml-1 cursor-help text-amber-500" title={pr.equiv}>❗</span> : null; })()}
+              {(() => {
+                const pr = produtos.find((x) => x.produto === serieDe);
+                return pr && pr.equiv ? (
+                  <span className="ml-1 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-amber-400 align-middle text-[11px] font-black leading-none text-white"
+                        title={"Preço publicado pela fonte como: " + pr.produto + ". " + pr.equiv}>!</span>
+                ) : null;
+              })()}
             </div>
             <SerieChart pontos={seriePts.filter((p) => !cidadesSel.length || cidadesSel.includes(p.cidade))} altura={160} />
             <div className="mt-1 text-[11px] text-slate-400">Cada ponto = preço publicado pela fonte no dia (R$/kg). A sazonalidade aparece conforme o histórico cresce (a carga histórica do admin puxa os últimos 12 meses).</div>

@@ -1311,6 +1311,15 @@ function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
           url={`${base}/f/${marca.slug}`} arquivo={`qr-atendimento-${marca.slug}`} />
         <LinkComQr rotulo="Acompanhamento de atendimento"
           url={`${base}/acompanhar`} arquivo="qr-acompanhar" />
+        <LinkComQr rotulo="💬 Chat da marca (página inteira)"
+          url={`${base}/chat/${marca.slug}`} arquivo={`qr-chat-${marca.slug}`} />
+        <div>
+          <p className="text-xs font-semibold text-slate-500 mb-1">💬 Widget de chat p/ o SITE da marca (WordPress: colar num bloco HTML)</p>
+          <textarea readOnly rows={2} className="input w-full text-[11px] font-mono"
+            value={`<script src="${base}/chat-widget.js" data-marca="${marca.slug}" data-cor="${marca.tema?.cor ?? "#0f172a"}"></script>`}
+            onFocus={(e) => e.currentTarget.select()} />
+          <p className="text-[11px] text-slate-400">Copie e cole antes do <b>&lt;/body&gt;</b> do site (ou num bloco HTML do WordPress). O balão 💬 aparece no canto e abre o chat só desta marca.</p>
+        </div>
         <div>
           <p className="text-xs font-semibold text-slate-500 mb-1">⭐ Avaliação do SITE (marca, com ou sem compra)</p>
           <QrAvaliacao url={`${base}/avaliar-site/${marca.slug}`} nome={marca.nome ?? marca.slug}

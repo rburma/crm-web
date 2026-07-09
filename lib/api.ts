@@ -1064,7 +1064,7 @@ export function publicoAbrir(body: {
   marca_slug: string; loja_id?: number; virtual?: boolean; canal_compra?: string;
   nome: string; email: string;
   telefone?: string; cpf?: string; assunto: string; mensagem: string;
-  campos?: Record<string, string>; aceita_contato?: boolean;
+  campos?: Record<string, string>; aceita_contato?: boolean; canal?: string;
 }): Promise<{ numero: string; id: number; repetido: boolean; mensagem: string }> {
   return req("publico/atendimentos", {
     method: "POST",

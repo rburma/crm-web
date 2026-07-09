@@ -20,7 +20,7 @@ const PUBLICO_ABERTO = process.env.PUBLICO_ABERTO === "1";
 
 // Prefixos das paginas do cliente final. startsWith cobre /avaliar, /avaliar-loja,
 // /avaliar-site, /f/<slug>, /acompanhar e o proxy das rotas publicas do motor.
-const PUBLICAS = ["/f/", "/acompanhar", "/avaliar", "/vitrine", "/embed", "/api/render/publico/"];
+const PUBLICAS = ["/f/", "/acompanhar", "/avaliar", "/vitrine", "/embed", "/chat/", "/chat-widget.js", "/api/render/publico/"];
 // Entradas de AUTENTICAÇÃO sempre acessíveis (login por pessoa / Google) — senão o
 // fluxo OAuth (Google -> /api/auth/google/callback) bateria no portão do piloto.
 const AUTH_LIVRE = ["/login", "/entrar", "/api/auth/"];

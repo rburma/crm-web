@@ -1025,6 +1025,8 @@ export function equipeLojasDoUsuario(usuarioId: number): Promise<LojaDoUsuario[]
 // ── Páginas PÚBLICAS (formulário de abertura + acompanhamento) ──────
 export type TemaMarca = {
   cor?: string; titulo?: string; boas_vindas?: string; rodape?: string;
+  // Chat da marca (widget): horário de atendimento + mensagem fora do horário.
+  chat_abre?: string; chat_fecha?: string; chat_fechado_msg?: string;
   // Textos editáveis da página pública de atendimento (todos com fallback no código).
   subtitulo?: string; consent?: string; ph_assunto?: string; ph_loja?: string;
   // Texto do checkbox de consentimento na AVALIAÇÃO (publicar na vitrine/redes).

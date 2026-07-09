@@ -10,6 +10,7 @@ import {
   me,
   obterPreferencia,
   precosAlertas,
+  precosAnalise,
   precosAtualizar,
   precosBusca,
   precosCentrais,
@@ -61,6 +62,8 @@ function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number;
   const vMax = Math.max(...vals, vMin + 0.01);
   const x = (d: string) => (datas.indexOf(d) / Math.max(1, datas.length - 1)) * (W - 76) + 10;
   const y = (v: number) => H - 14 - ((v - vMin) / (vMax - vMin)) * (H - 34);
+  // linhas horizontais de faixa de preco (pedido Renato 09/07)
+  const faixas = [0, 0.25, 0.5, 0.75, 1].map((f) => vMin + f * (vMax - vMin));
   // marcas de mes no eixo (1a data de cada mes presente)
   const ticks: string[] = [];
   let mesVisto = "";
@@ -70,6 +73,12 @@ function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number;
   return (
     <div>
       <svg viewBox={"0 0 " + W + " " + (H + 16)} className="w-full" role="img" aria-label="Serie de precos">
+        {faixas.map((v) => (
+          <g key={"f" + v.toFixed(3)}>
+            <line x1={10} x2={W - 66} y1={y(v)} y2={y(v)} stroke="#e2e8f0" strokeWidth={0.7} strokeDasharray="3 3" />
+            <text x={W - 62} y={y(v) + 3} className="fill-slate-400" style={{ fontSize: 8.5 }}>R$ {fmtBR(v)}</text>
+          </g>
+        ))}
         {ticks.map((d) => (
           <g key={"t" + d}>
             <line x1={x(d)} x2={x(d)} y1={16} y2={H - 12} stroke="#e2e8f0" strokeWidth={0.6} />
@@ -85,7 +94,7 @@ function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number;
             <g key={cid}>
               <polyline points={pts} fill="none" stroke={CORES[ci % CORES.length]} strokeWidth={1.6} />
               {meus.map((p) => (
-                <circle key={p.data} cx={x(p.data)} cy={y(p.v)} r={meus.length > 80 ? 2.2 : 3.2}
+                <circle key={p.data} cx={x(p.data)} cy={y(p.v)} r={meus.length > 40 ? 1.5 : 2.2}
                         fill={CORES[ci % CORES.length]} fillOpacity={0.85} className="cursor-pointer"
                         onClick={() => pick(p)}>
                   <title>{p.cidade + " · " + p.data.slice(8, 10) + "/" + p.data.slice(5, 7) + "/" + p.data.slice(0, 4) + " · R$ " + fmtBR(p.v) + "/kg"}</title>
@@ -94,8 +103,6 @@ function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number;
             </g>
           );
         })}
-        <text x={W - 64} y={y(vMax) + 8} className="fill-slate-500" style={{ fontSize: 9 }}>R$ {fmtBR(vMax)}</text>
-        <text x={W - 64} y={y(vMin) - 2} className="fill-slate-500" style={{ fontSize: 9 }}>R$ {fmtBR(vMin)}</text>
         {cidades.map((cid, ci) => (
           <text key={cid} x={10 + ci * 90} y={10} className="font-medium" fill={CORES[ci % CORES.length]} style={{ fontSize: 9 }}>{cid}</text>
         ))}
@@ -122,6 +129,10 @@ export default function CotacoesPage() {
   const [serieDe, setSerieDe] = useState("");
   const [serie, setSerie] = useState<PrecoSeriePonto[]>([]);
   const [cidadesSel, setCidadesSel] = useState<string[]>([]);
+  const [periodo, setPeriodo] = useState(365);
+  const [analiseTxt, setAnaliseTxt] = useState<string | null>(null);
+  const [analiseEm, setAnaliseEm] = useState<string | null>(null);
+  const [analiseAberta, setAnaliseAberta] = useState(true);
   const [centrais, setCentrais] = useState<PrecoCentral[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -129,12 +140,20 @@ export default function CotacoesPage() {
   const [loading, setLoading] = useState(true);
   const buscaRef = useRef<number | null>(null);
 
-  async function carregarBase(termos?: string[]) {
-    const [st, al, pn, ct] = await Promise.all([
-      precosStatus(), precosAlertas(7), precosPainel(termos), precosCentrais(),
+  async function carregarBase(termos?: string[], dias?: number) {
+    const [st, al, pn, ct, an] = await Promise.all([
+      precosStatus(), precosAlertas(7), precosPainel(termos, dias ?? periodo), precosCentrais(),
+      precosAnalise().catch(() => ({ texto: null, criado_em: null })),
     ]);
     setStatus(st); setAlertas(al.alertas); setDestaques(pn.destaques);
     setCentrais(ct.centrais.filter((c) => c.ativo));
+    setAnaliseTxt(an.texto); setAnaliseEm(an.criado_em);
+  }
+
+  async function mudarPeriodo(dias: number) {
+    setPeriodo(dias);
+    try { setDestaques((await precosPainel(termosDestaque, dias)).destaques); } catch { /* ok */ }
+    if (serieDe) { try { setSerie((await precosSerie(serieDe, dias)).pontos); } catch { /* ok */ } }
   }
 
   useEffect(() => {
@@ -171,7 +190,7 @@ export default function CotacoesPage() {
 
   async function abrirSerie(produto: string) {
     setSerieDe(produto);
-    try { setSerie((await precosSerie(produto)).pontos); } catch { setSerie([]); }
+    try { setSerie((await precosSerie(produto, periodo)).pontos); } catch { setSerie([]); }
   }
 
   async function atualizar(backfill = 0) {
@@ -186,7 +205,7 @@ export default function CotacoesPage() {
   async function salvarDestaques(lista: string[]) {
     setTermosDestaque(lista);
     try { await salvarPreferencia("cotacoes", { destaques: lista, cidades: cidadesSel }); } catch { /* ok */ }
-    try { setDestaques((await precosPainel(lista)).destaques); } catch { /* ok */ }
+    try { setDestaques((await precosPainel(lista, periodo)).destaques); } catch { /* ok */ }
   }
 
   // Cidades presentes nos resultados (colunas da tabela); filtro do franqueado.
@@ -235,6 +254,36 @@ export default function CotacoesPage() {
         {msg ? <div className="rounded border border-emerald-200 bg-emerald-50 p-2 text-sm text-emerald-700">{msg}</div> : null}
         {erro ? <div className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{erro}</div> : null}
 
+        {analiseTxt ? (
+          <div className="card border-l-4 border-violet-400 p-4">
+            <button className="flex w-full items-center gap-2 text-left" onClick={() => setAnaliseAberta(!analiseAberta)}>
+              <span className="text-sm font-semibold text-slate-800">🔮 Tendências e análise de preços (IA)</span>
+              <span className="text-[11px] text-slate-400">
+                {analiseEm ? "gerada em " + new Date(analiseEm).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : ""}
+              </span>
+              <span className="ml-auto text-slate-400">{analiseAberta ? "▾" : "▸"}</span>
+            </button>
+            {analiseAberta ? (
+              <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-slate-700">
+                {analiseTxt.split(String.fromCharCode(10)).filter((l) => l.trim()).map((l, i) => {
+                  let cls = "";
+                  if (l.includes("[FORTE ALTA]")) cls = "text-red-700";
+                  else if (l.includes("[ALTA]")) cls = "text-red-600";
+                  else if (l.includes("[FORTE QUEDA]")) cls = "text-emerald-700";
+                  else if (l.includes("[QUEDA]")) cls = "text-emerald-600";
+                  const partes = l.split("**");
+                  return (
+                    <p key={i} className={cls}>
+                      {partes.map((seg, j) => (j % 2 ? <b key={j}>{seg}</b> : <span key={j}>{seg}</span>))}
+                    </p>
+                  );
+                })}
+                <p className="pt-1 text-[10px] text-slate-400">⚠️ Análise gerada por inteligência artificial com base nas nossas cotações + notícias de mercado (safra, clima, economia). É orientação, não garantia — os preços das tabelas continuam vindo só das fontes oficiais. Atualiza a cada "Atualizar agora".</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="card flex flex-wrap items-center gap-1.5 p-3">
           <span className="text-xs font-semibold text-slate-600">Praças:</span>
           <button onClick={() => { setCidadesSel([]); salvarPreferencia("cotacoes", { destaques: termosDestaque, cidades: [] }).catch(() => undefined); }}
@@ -275,12 +324,19 @@ export default function CotacoesPage() {
               {alertas.map((al, i) => (
                 <button key={i} onClick={() => abrirTermo(al.produto)}
                         className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-slate-50">
-                  <span className={al.tipo === "alta" ? "font-semibold text-red-600" : "font-semibold text-emerald-600"}>
-                    {al.tipo === "alta" ? "🔴 +" : "🟢 "}{fmtBR(al.variacao_pct, 1)}%
+                  <span className={al.tipo.startsWith("alta") || al.tipo === "acima_sazonal" ? "font-semibold text-red-600" : "font-semibold text-emerald-600"}>
+                    {al.tipo === "alta_rapida" ? "🔺🔺" : al.tipo === "queda_rapida" ? "🟢🟢" : al.tipo === "acima_sazonal" ? "📈" : al.tipo === "abaixo_sazonal" ? "📉" : al.tipo === "alta" ? "🔴" : "🟢"}
+                    {al.variacao_pct > 0 ? " +" : " "}{fmtBR(al.variacao_pct, 1)}%
                   </span>{" "}
                   <span className="font-medium text-slate-700">{al.produto}</span>
-                  <span className="text-slate-500"> em {al.cidade}: R$ {fmtBR(al.preco_anterior)} → R$ {fmtBR(al.preco_novo)} ({fmtDia(al.data)})</span>
-                  {al.tipo === "queda" ? <span className="ml-1 rounded bg-emerald-100 px-1 text-emerald-700">★ oportunidade de estocagem</span> : null}
+                  <span className="text-slate-500">
+                    {al.tipo === "acima_sazonal" ? " em " + al.cidade + ": R$ " + fmtBR(al.preco_novo) + "/kg — ACIMA do padrão desta época do ano (histórico R$ " + fmtBR(al.preco_anterior) + ")"
+                     : al.tipo === "abaixo_sazonal" ? " em " + al.cidade + ": R$ " + fmtBR(al.preco_novo) + "/kg — ABAIXO do padrão desta época do ano (histórico R$ " + fmtBR(al.preco_anterior) + ")"
+                     : al.tipo === "alta_rapida" ? " em " + al.cidade + ": subindo RÁPIDO — R$ " + fmtBR(al.preco_anterior) + " → R$ " + fmtBR(al.preco_novo) + " em 1 semana"
+                     : al.tipo === "queda_rapida" ? " em " + al.cidade + ": caindo RÁPIDO — R$ " + fmtBR(al.preco_anterior) + " → R$ " + fmtBR(al.preco_novo) + " em 1 semana"
+                     : " em " + al.cidade + ": R$ " + fmtBR(al.preco_anterior) + " → R$ " + fmtBR(al.preco_novo) + " (" + fmtDia(al.data) + ")"}
+                  </span>
+                  {al.tipo === "queda" || al.tipo === "queda_rapida" || al.tipo === "abaixo_sazonal" ? <span className="ml-1 rounded bg-emerald-100 px-1 text-emerald-700">★ oportunidade de estocagem</span> : null}
                 </button>
               ))}
             </div>
@@ -290,6 +346,12 @@ export default function CotacoesPage() {
         <div className="card p-4">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <div className="grow text-sm font-semibold text-slate-700">📊 Destaques (R$/kg — mediana semanal por praça)</div>
+            {[{ d: 7, r: "7 dias" }, { d: 30, r: "30 dias" }, { d: 90, r: "3 meses" }, { d: 365, r: "12 meses" }].map((o) => (
+              <button key={o.d} onClick={() => mudarPeriodo(o.d)}
+                      className={"rounded-full px-2 py-0.5 text-[11px] " + (periodo === o.d ? "bg-slate-800 text-white" : "border hover:bg-slate-50")}>
+                {o.r}
+              </button>
+            ))}
             <input value={novoDestaque} onChange={(e) => setNovoDestaque(e.target.value)}
                    placeholder="adicionar produto ao painel…" className="input w-48 text-xs"
                    onKeyDown={(e) => {

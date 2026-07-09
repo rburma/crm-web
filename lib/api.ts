@@ -1953,7 +1953,7 @@ export function equipeReativarLoja(lojaId: number): Promise<ResultadoAcaoLoja> {
 export type PrecoCentral = { id: number; cidade: string; estado?: string | null; central: string; ativo: boolean; metodo: string; dias_publicacao?: string | null };
 export type PrecoCelula = { central_id: number; cidade: string; data: string; preco_bruto: number; preco_kg: number | null; embalagem?: string | null; fonte_url?: string | null };
 export type PrecoProduto = { produto: string; equiv?: string | null; insumo?: string | null; precos: PrecoCelula[] };
-export type PrecoAlertaItem = { data: string; cidade: string; produto: string; tipo: "alta" | "queda"; variacao_pct: number; preco_anterior: number; preco_novo: number; data_anterior?: string | null };
+export type PrecoAlertaItem = { data: string; cidade: string; produto: string; tipo: string; variacao_pct: number; preco_anterior: number; preco_novo: number; data_anterior?: string | null };
 export type PrecoSeriePonto = { data: string; central_id: number; cidade: string; preco_bruto: number; preco_kg: number | null };
 export type PrecoDestaque = { termo: string; ocultados?: number; pontos: { data: string; cidade: string; preco_kg: number }[] };
 export type PrecoStatus = { ultima_coleta_em: string | null; ultima_data_cotacao: string | null; total_registros: number; rodou_hoje: boolean; pode_atualizar: boolean };
@@ -1981,6 +1981,9 @@ export async function precosPainel(termos?: string[], dias = 365): Promise<{ des
   if (termos && termos.length) q.set("termos", termos.join(","));
   q.set("dias", String(dias));
   return req(`precos/painel?${q.toString()}`);
+}
+export async function precosAnalise(): Promise<{ texto: string | null; criado_em: string | null }> {
+  return req("precos/analise");
 }
 export async function precosAtualizar(backfillDias = 0): Promise<{ ok: boolean; msg: string }> {
   return req(`precos/atualizar?backfill_dias=${backfillDias}`, { method: "POST" });

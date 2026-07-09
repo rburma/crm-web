@@ -47,7 +47,17 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
   const etapa = roteiro[passo] || "conversa";
   const extras: { rotulo: string; obrigatorio?: boolean }[] = box?.extras ?? [];
 
-  function bot(texto: string) { setBaloes((b) => [...b, { autor: "bot", texto, hora: agora() }]); }
+  const [digitandoBot, setDigitandoBot] = useState(false);
+  // Bot "pensa" antes de responder (pedido Renato 10/07): mostra os 3 pontinhos
+  // balançando por ~1-2s (proporcional ao tamanho da resposta) e só então fala.
+  function bot(texto: string) {
+    setDigitandoBot(true);
+    const espera = Math.min(900 + texto.length * 18, 2200);
+    window.setTimeout(() => {
+      setBaloes((b) => [...b, { autor: "bot", texto, hora: agora() }]);
+      setDigitandoBot(false);
+    }, espera);
+  }
   function eu(texto: string) { setBaloes((b) => [...b, { autor: "cliente", texto, hora: agora() }]); }
 
   useEffect(() => {
@@ -77,7 +87,7 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, cb]);
 
-  useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [balões, lojas]);
+  useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [balões, lojas, digitandoBot]);
 
   // autocomplete de lojas (etapa loja)
   useEffect(() => {
@@ -269,6 +279,18 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
         ) : null}
         {etapa === "conversa" && !balões.some((m) => m.autor === "loja") ? (
           <div className="text-center text-[11px] text-slate-400">Sua mensagem chegou na loja 🛎 — se você sair, a resposta também vai para o seu e-mail.</div>
+        ) : null}
+        {digitandoBot ? (
+          <div className="flex justify-start">
+            <div className="rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-3 py-2 shadow-sm">
+              <span className="inline-flex items-center gap-[4px]">
+                {[0, 1, 2].map((d) => (
+                  <i key={d} className="inline-block h-[7px] w-[7px] animate-bounce rounded-full bg-slate-400"
+                     style={{ animationDelay: d * 0.15 + "s", animationDuration: "1.1s" }} />
+                ))}
+              </span>
+            </div>
+          </div>
         ) : null}
         <div ref={fimRef} />
       </div>

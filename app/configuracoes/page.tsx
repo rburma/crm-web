@@ -1320,6 +1320,7 @@ function SecaoPaginas({ marca }: { marca: MarcaConfig }) {
             onFocus={(e) => e.currentTarget.select()} />
           <p className="text-[11px] text-slate-400">Copie e cole antes do <b>&lt;/body&gt;</b> do site (ou num bloco HTML do WordPress). O balão 💬 aparece no canto e abre o chat só desta marca.</p>
         </div>
+        <GeradorBotaoChat base={base} slug={marca.slug} corPadrao={marca.tema?.cor ?? "#0f172a"} />
         <div>
           <p className="text-xs font-semibold text-slate-500 mb-1">⭐ Avaliação do SITE (marca, com ou sem compra)</p>
           <QrAvaliacao url={`${base}/avaliar-site/${marca.slug}`} nome={marca.nome ?? marca.slug}
@@ -1676,6 +1677,39 @@ function SecaoAutoresposta({ marca, onSalvo, onErro, onOk }: {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Gerador do BOTÃO de chat personalizável (CTA/cor/tamanho — pedido 09/07) ──
+function GeradorBotaoChat({ base, slug, corPadrao }: { base: string; slug: string; corPadrao: string }) {
+  const [texto, setTexto] = useState("Fale com a sua loja 💬");
+  const [cor, setCor] = useState(corPadrao);
+  const [tamanho, setTamanho] = useState<"p" | "m" | "g">("m");
+  const snippet = `<script src="${base}/chat-widget.js" data-marca="${slug}" data-texto="${texto.replace(/"/g, "")}" data-cor="${cor}" data-tamanho="${tamanho}"></script>`;
+  const tamCss = tamanho === "p" ? "8px 16px" : tamanho === "g" ? "16px 32px" : "12px 24px";
+  const fonte = tamanho === "p" ? 13 : tamanho === "g" ? 18 : 15;
+  return (
+    <div>
+      <p className="text-xs font-semibold text-slate-500 mb-1">💬 BOTÃO de chat p/ colocar em qualquer lugar da página (personalizável)</p>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <input value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={40}
+               className="input w-56 text-xs" placeholder="texto do botão (call to action)" />
+        <input type="color" value={cor} onChange={(e) => setCor(e.target.value)}
+               className="h-8 w-10 cursor-pointer rounded border border-slate-300" title="Cor do botão" />
+        <select value={tamanho} onChange={(e) => setTamanho(e.target.value as "p" | "m" | "g")} className="input w-28 text-xs">
+          <option value="p">Pequeno</option>
+          <option value="m">Médio</option>
+          <option value="g">Grande</option>
+        </select>
+        <button type="button" className="rounded-full font-bold text-white shadow"
+                style={{ background: cor, padding: tamCss, fontSize: fonte }}>
+          {texto || "Fale com a sua loja 💬"}
+        </button>
+      </div>
+      <textarea readOnly rows={2} className="input w-full text-[11px] font-mono" value={snippet}
+                onFocus={(e) => e.currentTarget.select()} />
+      <p className="text-[11px] text-slate-400">O botão aparece exatamente ONDE o código for colado (página de contato, rodapé, um post…). A prévia acima mostra como ele fica.</p>
     </div>
   );
 }

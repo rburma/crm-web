@@ -2017,3 +2017,10 @@ export function chatboxApagar(id: number): Promise<void> {
 export function publicoChatbox(slug: string, id: number): Promise<{ id: number; nome: string; config: ChatboxConfig }> {
   return req(`publico/chat/${encodeURIComponent(slug)}/chatbox/${id}`);
 }
+
+export function avaliacoesExcluirLote(ids: number[]): Promise<{ excluidas: number }> {
+  return req("avaliacoes/excluir-lote", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}

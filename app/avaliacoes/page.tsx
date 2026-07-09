@@ -15,6 +15,8 @@ import {
   type AvaliacaoLinha,
   type LojaItem,
   type MarcaItem,
+  me,
+  avaliacoesExcluirLote,
 } from "@/lib/api";
 
 const PAGE = 50;
@@ -43,7 +45,32 @@ export default function AvaliacoesPage() {
   const [marcas, setMarcas] = useState<MarcaItem[]>([]);
   const [marcaId, setMarcaId] = useState<number | null>(null);
   const [status, setStatus] = useState("pendente");
+  const [ehAdmin, setEhAdmin] = useState(false);
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [excluindo, setExcluindo] = useState(false);
   const [aberto, setAberto] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    me().then((eu) => setEhAdmin(eu.papel === "admin")).catch(() => setEhAdmin(false));
+  }, []);
+
+  function toggleSel(id: number) {
+    setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+
+  async function excluirSelecionadas() {
+    if (!sel.size) return;
+    if (!confirm(sel.size + " avaliação(ões) serão EXCLUÍDAS de vez (testes/duplicadas). Confirma?")) return;
+    if (!confirm("Tem certeza? Não dá para desfazer.")) return;
+    setExcluindo(true);
+    try {
+      const r = await avaliacoesExcluirLote([...sel]);
+      setSel(new Set());
+      alert(r.excluidas + " excluída(s).");
+      window.location.reload();
+    } catch (e) { alert("Erro: " + (e instanceof Error ? e.message : "não excluiu")); }
+    setExcluindo(false);
+  }
   const [busy, setBusy] = useState<number | null>(null);
   const [resp, setResp] = useState<Record<number, string>>({});
   // Atribuir avaliação do site (sem loja) a uma loja.
@@ -163,6 +190,19 @@ export default function AvaliacoesPage() {
             <option value="todas">Todas</option>
           </select>
           <span className="ml-auto self-center text-xs text-slate-400">{total} avaliação(ões)</span>
+          {ehAdmin && sel.size > 0 ? (
+            <button className="self-center rounded bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                    disabled={excluindo} onClick={excluirSelecionadas}>
+              {excluindo ? "Excluindo…" : "🗑 Excluir " + sel.size + " selecionada(s)"}
+            </button>
+          ) : null}
+          {ehAdmin && items.length > 0 ? (
+            <label className="flex items-center gap-1 self-center text-[11px] text-slate-500">
+              <input type="checkbox" checked={items.length > 0 && items.every((x) => sel.has(x.id))}
+                     onChange={(e) => setSel(e.target.checked ? new Set(items.map((x) => x.id)) : new Set())} />
+              todas da página
+            </label>
+          ) : null}
         </div>
 
         {erro && (
@@ -181,6 +221,11 @@ export default function AvaliacoesPage() {
                   className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50"
                   onClick={() => toggle(a.id)}
                 >
+                  {ehAdmin ? (
+                    <input type="checkbox" checked={sel.has(a.id)}
+                           onClick={(e) => e.stopPropagation()}
+                           onChange={() => toggleSel(a.id)} className="shrink-0" />
+                  ) : null}
                   <Estrelas media={a.media} />
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm text-slate-700 truncate">

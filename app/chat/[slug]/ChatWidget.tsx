@@ -84,7 +84,7 @@ export default function ChatWidget({ slug }: { slug: string }) {
         const c = await publicoAcompanhar(numero, email);
         if (!vivo) return;
         const msgs: Msg[] = (c.mensagens || []).map((m) => ({
-          autor: m.autor_tipo === "consumidor" ? "cliente" : "loja",
+          autor: m.autor === "voce" ? "cliente" : "loja",
           texto: m.texto,
           hora: m.criado_em ? new Date(m.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : undefined,
         }));

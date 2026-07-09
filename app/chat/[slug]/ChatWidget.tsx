@@ -47,7 +47,7 @@ export default function ChatWidget({ slug }: { slug: string }) {
 
   useEffect(() => {
     (async () => {
-      try { setMarca(await publicoForm(slug)); } catch { setErro("Marca não encontrada."); return; }
+      try { setMarca((await publicoForm(slug)).marca); } catch { setErro("Marca não encontrada."); return; }
       // conversa anterior deste navegador? retoma direto.
       try {
         const salvo = JSON.parse(localStorage.getItem(chave) || "null");

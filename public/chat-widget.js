@@ -47,6 +47,14 @@
       '<path d="M12 3C6.9 3 3 6.5 3 10.8c0 2.4 1.2 4.5 3.2 5.9-.1.9-.5 2.1-1.5 3.3 0 0 2.6-.2 4.6-1.6.9.2 1.8.4 2.7.4 5.1 0 9-3.5 9-7.9S17.1 3 12 3z" fill="#fff"/>' +
       '<circle cx="8.2" cy="10.8" r="1.2" fill="' + cor + '"/><circle cx="12" cy="10.8" r="1.2" fill="' + cor + '"/><circle cx="15.8" cy="10.8" r="1.2" fill="' + cor + '"/></svg>';
   }
+  function icone(tamPx) {
+    var ic = attr("data-icone");
+    if (!ic) return svgBolha();
+    if (/^https?:/.test(ic) || ic.indexOf("/") === 0) {
+      return '<img src="' + ic.replace(/"/g, "") + '" alt="" style="width:60%;height:60%;object-fit:contain;border-radius:50%"/>';
+    }
+    return '<span style="font-size:' + Math.round(tamPx * 0.5) + 'px;line-height:1">' + ic + "</span>";
+  }
   function comBadge(el) {
     if (!alerta) return el;
     var w = document.createElement("span");
@@ -105,7 +113,7 @@
     b.type = "button";
     if (formato === "redondo") {
       var d2 = Math.round(fonte * 3.4);
-      b.innerHTML = svgBolha();
+      b.innerHTML = icone(d2);
       b.title = texto;
       b.style.display = "inline-flex"; b.style.alignItems = "center"; b.style.justifyContent = "center";
       b.style.cssText = "width:" + d2 + "px;height:" + d2 + "px;border-radius:50%;border:none;cursor:pointer;color:#fff;font-size:" + Math.round(fonte * 1.5) + "px;box-shadow:0 3px 10px rgba(0,0,0,.25);background:" + cor + ";";
@@ -126,7 +134,7 @@
   // BALAO flutuante (padrao) — icone SVG proprio (balão com pontinhos) e MAIOR.
   var diam = (tam !== "p" && tam !== "m" && tam !== "g" && parseInt(tam, 10)) ? Math.max(48, Math.min(110, parseInt(tam, 10) * 4)) : 68;
   var btn = document.createElement("button");
-  btn.innerHTML = svgBolha();
+  btn.innerHTML = icone(diam);
   btn.setAttribute("aria-label", "Abrir chat com a loja");
   btn.style.cssText = "position:fixed;bottom:20px;right:20px;width:" + diam + "px;height:" + diam + "px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:none;cursor:pointer;color:#fff;box-shadow:0 5px 18px rgba(0,0,0,.3);z-index:99998;background:" + cor + ";";
   if (alerta) {
@@ -140,7 +148,7 @@
   btn.onclick = function () {
     abrir();
     var aberto = box.style.display !== "none";
-    btn.innerHTML = aberto ? '<span style="font-size:' + Math.round(diam * 0.4) + 'px">&#10005;</span>' : svgBolha();
+    btn.innerHTML = aberto ? '<span style="font-size:' + Math.round(diam * 0.4) + 'px">&#10005;</span>' : icone(diam);
     if (alerta && !aberto) { var bd2 = document.createElement("span"); bd2.className = "wt-badge"; bd2.textContent = "1"; btn.appendChild(bd2); }
   };
   document.body.appendChild(btn);

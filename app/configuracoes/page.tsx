@@ -1695,6 +1695,7 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
   const [cor, setCor] = useState(marca.tema?.cor ?? "#0f172a");
   const [fonte, setFonte] = useState(15);
   const [alerta, setAlerta] = useState(false);
+  const [icone, setIcone] = useState("");  // "" = bolha padrão; emoji; ou URL de imagem
   const [verChat, setVerChat] = useState(false);
   // chatboxes (roteiros)
   const [boxes, setBoxes] = useState<Chatbox[]>([]);
@@ -1784,6 +1785,7 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
     `data-cor="${cor}"`,
     `data-tamanho="${fonte}"`,
     alerta ? 'data-alerta="1"' : "",
+    icone ? `data-icone="${icone.replace(/"/g, "")}"` : "",
   ].filter(Boolean).join(" ");
   const snippet = `<script src="${base}/chat-widget.js" ${attrs}></script>`;
   const chatPreviewUrl = `${base}/embed/chat/${marca.slug}?cor=${encodeURIComponent(cor)}` +
@@ -1872,12 +1874,27 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
         <label className="flex items-center gap-1 text-[11px] text-slate-500">
           <input type="checkbox" checked={alerta} onChange={(e) => setAlerta(e.target.checked)} /> alerta “1” pulsante
         </label>
+        {(estilo === "balao" || (estilo === "botao" && formato === "redondo")) ? (
+          <label className="flex items-center gap-1 text-[11px] text-slate-500">Ícone
+            <select value={["", "💬", "🗨️", "💭", "👋", "🎧", "✉️", "❓"].includes(icone) ? icone : "url"}
+                    onChange={(e) => setIcone(e.target.value === "url" ? "https://" : e.target.value)}
+                    className="input w-28 text-xs">
+              <option value="">Bolha (padrão)</option>
+              {["💬", "🗨️", "💭", "👋", "🎧", "✉️", "❓"].map((em) => <option key={em} value={em}>{em}</option>)}
+              <option value="url">Imagem (URL)…</option>
+            </select>
+            {icone && !["💬", "🗨️", "💭", "👋", "🎧", "✉️", "❓"].includes(icone) ? (
+              <input value={icone} onChange={(e) => setIcone(e.target.value)} className="input w-48 text-xs"
+                     placeholder="https://…/logo.png" />
+            ) : null}
+          </label>
+        ) : null}
       </div>
       <div className="mb-2 flex min-h-[56px] items-center gap-4 overflow-x-auto rounded bg-slate-50 p-3">
         {estilo === "balao" ? (
           <span className="relative inline-flex items-center justify-center rounded-full text-white shadow-lg"
                 style={{ background: cor, width: Math.max(48, Math.min(110, fonte * 4)), height: Math.max(48, Math.min(110, fonte * 4)) }}>
-            <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none"><path d="M12 3C6.9 3 3 6.5 3 10.8c0 2.4 1.2 4.5 3.2 5.9-.1.9-.5 2.1-1.5 3.3 0 0 2.6-.2 4.6-1.6.9.2 1.8.4 2.7.4 5.1 0 9-3.5 9-7.9S17.1 3 12 3z" fill="#fff" /><circle cx="8.2" cy="10.8" r="1.2" fill={cor} /><circle cx="12" cy="10.8" r="1.2" fill={cor} /><circle cx="15.8" cy="10.8" r="1.2" fill={cor} /></svg>
+            {icone ? (icone.startsWith("http") || icone.startsWith("/") ? <img src={icone} alt="" className="h-[60%] w-[60%] rounded-full object-contain" /> : <span style={{ fontSize: "2em" }} className="leading-none">{icone}</span>) : (<svg viewBox="0 0 24 24" width="55%" height="55%" fill="none"><path d="M12 3C6.9 3 3 6.5 3 10.8c0 2.4 1.2 4.5 3.2 5.9-.1.9-.5 2.1-1.5 3.3 0 0 2.6-.2 4.6-1.6.9.2 1.8.4 2.7.4 5.1 0 9-3.5 9-7.9S17.1 3 12 3z" fill="#fff" /><circle cx="8.2" cy="10.8" r="1.2" fill={cor} /><circle cx="12" cy="10.8" r="1.2" fill={cor} /><circle cx="15.8" cy="10.8" r="1.2" fill={cor} /></svg>)}
             {Badge}
           </span>
         ) : estilo === "campo" ? (
@@ -1889,7 +1906,7 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
         ) : formato === "redondo" ? (
           <span className="relative inline-flex items-center justify-center rounded-full text-white shadow-lg"
                 style={{ background: cor, width: fonte * 3.4, height: fonte * 3.4 }}>
-            <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none"><path d="M12 3C6.9 3 3 6.5 3 10.8c0 2.4 1.2 4.5 3.2 5.9-.1.9-.5 2.1-1.5 3.3 0 0 2.6-.2 4.6-1.6.9.2 1.8.4 2.7.4 5.1 0 9-3.5 9-7.9S17.1 3 12 3z" fill="#fff" /><circle cx="8.2" cy="10.8" r="1.2" fill={cor} /><circle cx="12" cy="10.8" r="1.2" fill={cor} /><circle cx="15.8" cy="10.8" r="1.2" fill={cor} /></svg>
+            {icone ? (icone.startsWith("http") || icone.startsWith("/") ? <img src={icone} alt="" className="h-[60%] w-[60%] rounded-full object-contain" /> : <span style={{ fontSize: "2em" }} className="leading-none">{icone}</span>) : (<svg viewBox="0 0 24 24" width="55%" height="55%" fill="none"><path d="M12 3C6.9 3 3 6.5 3 10.8c0 2.4 1.2 4.5 3.2 5.9-.1.9-.5 2.1-1.5 3.3 0 0 2.6-.2 4.6-1.6.9.2 1.8.4 2.7.4 5.1 0 9-3.5 9-7.9S17.1 3 12 3z" fill="#fff" /><circle cx="8.2" cy="10.8" r="1.2" fill={cor} /><circle cx="12" cy="10.8" r="1.2" fill={cor} /><circle cx="15.8" cy="10.8" r="1.2" fill={cor} /></svg>)}
             {Badge}
           </span>
         ) : (

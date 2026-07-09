@@ -1027,6 +1027,9 @@ export type TemaMarca = {
   cor?: string; titulo?: string; boas_vindas?: string; rodape?: string;
   // Chat da marca (widget): horário de atendimento + mensagem fora do horário.
   chat_abre?: string; chat_fecha?: string; chat_fechado_msg?: string;
+  chat_abre_sem?: string; chat_fecha_sem?: string;
+  chat_abre_sab?: string; chat_fecha_sab?: string;
+  chat_abre_dom?: string; chat_fecha_dom?: string;
   // Textos editáveis da página pública de atendimento (todos com fallback no código).
   subtitulo?: string; consent?: string; ph_assunto?: string; ph_loja?: string;
   // Texto do checkbox de consentimento na AVALIAÇÃO (publicar na vitrine/redes).
@@ -1989,4 +1992,28 @@ export async function precosAnalise(): Promise<{ texto: string | null; criado_em
 }
 export async function precosAtualizar(backfillDias = 0): Promise<{ ok: boolean; msg: string }> {
   return req(`precos/atualizar?backfill_dias=${backfillDias}`, { method: "POST" });
+}
+
+// ── Chatboxes (roteiros do widget de chat, por marca) ─────────────────────
+export type ChatboxExtra = { rotulo: string; obrigatorio?: boolean };
+export type ChatboxConfig = {
+  titulo?: string; saudacao?: string; cor?: string;
+  assunto_fixo?: string; perguntar_assunto?: boolean;
+  extras?: ChatboxExtra[];
+};
+export type Chatbox = { id: number; marca_id?: number; nome: string; config: ChatboxConfig; ativo: boolean };
+export function chatboxesListar(marcaId: number): Promise<Chatbox[]> {
+  return req(`config/marcas/${marcaId}/chatboxes`);
+}
+export function chatboxCriar(marcaId: number, body: { nome: string; config: ChatboxConfig; ativo?: boolean }): Promise<Chatbox> {
+  return req(`config/marcas/${marcaId}/chatboxes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: true, ...body }) });
+}
+export function chatboxEditar(id: number, body: { nome: string; config: ChatboxConfig; ativo?: boolean }): Promise<Chatbox> {
+  return req(`config/chatboxes/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativo: true, ...body }) });
+}
+export function chatboxApagar(id: number): Promise<void> {
+  return req(`config/chatboxes/${id}`, { method: "DELETE" });
+}
+export function publicoChatbox(slug: string, id: number): Promise<{ id: number; nome: string; config: ChatboxConfig }> {
+  return req(`publico/chat/${encodeURIComponent(slug)}/chatbox/${id}`);
 }

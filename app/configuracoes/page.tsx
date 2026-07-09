@@ -14,6 +14,10 @@ import {
   configEditarCampo,
   configApagarMarca,
   configCriarMarca,
+  chatboxApagar,
+  chatboxCriar,
+  chatboxEditar,
+  chatboxesListar,
   configEditarMarca,
   configEditarPergunta,
   configExcluirCampo,
@@ -47,6 +51,8 @@ import {
   vitrineCandidatas,
   definirVitrine,
   type VitrineCandidata,
+  type Chatbox,
+  type ChatboxExtra,
 } from "@/lib/api";
 import { paraPngQuadrado } from "@/lib/imagemQuadrada";
 
@@ -1681,8 +1687,7 @@ function SecaoAutoresposta({ marca, onSalvo, onErro, onOk }: {
   );
 }
 
-// ── Gerador do WIDGET de chat (estilo/formato/cor/tamanho/alerta + janela do
-// chat personalizada com PRÉVIA ao vivo + horário de atendimento) — 09-10/07 ──
+// ── Gerador do WIDGET de chat + CHATBOXES (roteiros) + horários por dia ─────
 function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig }) {
   const [estilo, setEstilo] = useState<"balao" | "botao" | "campo">("botao");
   const [formato, setFormato] = useState<"pilula" | "quadrado" | "redondo">("pilula");
@@ -1690,44 +1695,102 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
   const [cor, setCor] = useState(marca.tema?.cor ?? "#0f172a");
   const [fonte, setFonte] = useState(15);
   const [alerta, setAlerta] = useState(false);
-  const [chatTitulo, setChatTitulo] = useState("");
-  const [chatSaudacao, setChatSaudacao] = useState("");
   const [verChat, setVerChat] = useState(false);
-  // horário de atendimento do chat (salvo no tema da marca)
-  const [abre, setAbre] = useState(marca.tema?.chat_abre ?? "");
-  const [fecha, setFecha] = useState(marca.tema?.chat_fecha ?? "");
+  // chatboxes (roteiros)
+  const [boxes, setBoxes] = useState<Chatbox[]>([]);
+  const [boxSel, setBoxSel] = useState<number | 0>(0); // 0 = padrão
+  const [edNome, setEdNome] = useState("");
+  const [edTitulo, setEdTitulo] = useState("");
+  const [edSaud, setEdSaud] = useState("");
+  const [edAssunto, setEdAssunto] = useState("");
+  const [edExtras, setEdExtras] = useState<ChatboxExtra[]>([]);
+  const [edMsg, setEdMsg] = useState("");
+  const [salvandoCb, setSalvandoCb] = useState(false);
+  // horários por grupo de dia
+  const [hr, setHr] = useState({
+    sem_a: marca.tema?.chat_abre_sem ?? marca.tema?.chat_abre ?? "",
+    sem_f: marca.tema?.chat_fecha_sem ?? marca.tema?.chat_fecha ?? "",
+    sab_a: marca.tema?.chat_abre_sab ?? "", sab_f: marca.tema?.chat_fecha_sab ?? "",
+    dom_a: marca.tema?.chat_abre_dom ?? "", dom_f: marca.tema?.chat_fecha_dom ?? "",
+  });
   const [msgFechado, setMsgFechado] = useState(marca.tema?.chat_fechado_msg ?? "");
   const [salvandoHr, setSalvandoHr] = useState(false);
   const [okHr, setOkHr] = useState("");
 
-  const attrs = [
-    `data-marca="${marca.slug}"`,
-    estilo !== "balao" ? `data-texto="${texto.replace(/"/g, "")}"` : "",
-    estilo === "campo" ? 'data-estilo="campo"' : "",
-    estilo === "botao" && formato !== "pilula" ? `data-formato="${formato}"` : "",
-    `data-cor="${cor}"`,
-    estilo !== "balao" ? `data-tamanho="${fonte}"` : "",
-    alerta ? 'data-alerta="1"' : "",
-    chatTitulo ? `data-chat-titulo="${chatTitulo.replace(/"/g, "")}"` : "",
-    chatSaudacao ? `data-chat-saudacao="${chatSaudacao.replace(/"/g, "")}"` : "",
-  ].filter(Boolean).join(" ");
-  const snippet = `<script src="${base}/chat-widget.js" ${attrs}></script>`;
-  const chatPreviewUrl = `${base}/embed/chat/${marca.slug}?cor=${encodeURIComponent(cor)}` +
-    (chatTitulo ? `&titulo=${encodeURIComponent(chatTitulo)}` : "") +
-    (chatSaudacao ? `&saudacao=${encodeURIComponent(chatSaudacao)}` : "");
-  const pv = Math.round(fonte * 0.62);
-  const ph = Math.round(fonte * 1.5);
-  const raio = formato === "quadrado" ? 10 : 999;
+  const recarregarBoxes = useCallback(async () => {
+    try { setBoxes(await chatboxesListar(marca.id)); } catch { setBoxes([]); }
+  }, [marca.id]);
+  useEffect(() => { recarregarBoxes(); }, [recarregarBoxes]);
+
+  function abrirEditor(cbx: Chatbox | null) {
+    setEdMsg("");
+    if (cbx) {
+      setBoxSel(cbx.id); setEdNome(cbx.nome);
+      setEdTitulo(cbx.config.titulo ?? ""); setEdSaud(cbx.config.saudacao ?? "");
+      setEdAssunto(cbx.config.assunto_fixo ?? ""); setEdExtras(cbx.config.extras ?? []);
+    } else {
+      setBoxSel(-1); setEdNome(""); setEdTitulo(""); setEdSaud(""); setEdAssunto(""); setEdExtras([]);
+    }
+  }
+
+  async function salvarChatbox() {
+    if (edNome.trim().length < 2) { setEdMsg("Dê um nome ao chatbox (ex.: Landing Dia das Mães)."); return; }
+    setSalvandoCb(true); setEdMsg("");
+    const config = {
+      titulo: edTitulo || undefined, saudacao: edSaud || undefined, cor,
+      assunto_fixo: edAssunto || undefined,
+      perguntar_assunto: edAssunto ? false : true,
+      extras: edExtras.filter((x) => x.rotulo.trim()),
+    };
+    try {
+      if (boxSel && boxSel > 0) await chatboxEditar(boxSel, { nome: edNome.trim(), config });
+      else {
+        const novo = await chatboxCriar(marca.id, { nome: edNome.trim(), config });
+        setBoxSel(novo.id);
+      }
+      setEdMsg("✓ Chatbox salvo!");
+      recarregarBoxes();
+    } catch (e) { setEdMsg("Erro: " + (e instanceof Error ? e.message : "não salvou")); }
+    setSalvandoCb(false);
+  }
+
+  async function apagarChatbox() {
+    if (!boxSel || boxSel <= 0) return;
+    if (!confirm("Apagar este chatbox? Os sites que usam o código dele voltam ao roteiro padrão.")) return;
+    try { await chatboxApagar(boxSel); setBoxSel(0); recarregarBoxes(); } catch { /* ok */ }
+  }
 
   async function salvarHorario() {
     setSalvandoHr(true); setOkHr("");
     try {
-      await configEditarMarca(marca.id, { tema: { chat_abre: abre, chat_fecha: fecha, chat_fechado_msg: msgFechado } });
-      setOkHr("✓ Horário salvo — fora dele o chat responde sozinho.");
+      await configEditarMarca(marca.id, { tema: {
+        chat_abre_sem: hr.sem_a, chat_fecha_sem: hr.sem_f,
+        chat_abre_sab: hr.sab_a, chat_fecha_sab: hr.sab_f,
+        chat_abre_dom: hr.dom_a, chat_fecha_dom: hr.dom_f,
+        chat_fechado_msg: msgFechado, chat_abre: "", chat_fecha: "",
+      } });
+      setOkHr("✓ Horários salvos — fora deles o chat responde sozinho.");
     } catch (e) { setOkHr("Erro: " + (e instanceof Error ? e.message : "não salvou")); }
     setSalvandoHr(false);
   }
 
+  const cbAtivo = boxSel > 0 ? boxes.find((b) => b.id === boxSel) : undefined;
+  const attrs = [
+    `data-marca="${marca.slug}"`,
+    boxSel > 0 ? `data-chatbox="${boxSel}"` : "",
+    estilo !== "balao" ? `data-texto="${texto.replace(/"/g, "")}"` : "",
+    estilo === "campo" ? 'data-estilo="campo"' : "",
+    estilo === "botao" && formato !== "pilula" ? `data-formato="${formato}"` : "",
+    `data-cor="${cor}"`,
+    `data-tamanho="${fonte}"`,
+    alerta ? 'data-alerta="1"' : "",
+  ].filter(Boolean).join(" ");
+  const snippet = `<script src="${base}/chat-widget.js" ${attrs}></script>`;
+  const chatPreviewUrl = `${base}/embed/chat/${marca.slug}?cor=${encodeURIComponent(cor)}` +
+    (boxSel > 0 ? `&cb=${boxSel}` : "");
+  const pv = Math.round(fonte * 0.62);
+  const ph = Math.round(fonte * 1.9);
+  const raio = formato === "quadrado" ? 10 : 999;
   const Dots = (
     <span className="ml-2 inline-flex items-center gap-[3px]">
       {[0, 1, 2].map((d) => (
@@ -1742,7 +1805,47 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
 
   return (
     <div className="rounded-lg border border-slate-200 p-3">
-      <p className="text-xs font-semibold text-slate-500 mb-2">💬 GERADOR do widget de chat (botão/campo/balão + janela personalizada)</p>
+      <p className="text-xs font-semibold text-slate-500 mb-2">💬 GERADOR do widget de chat</p>
+
+      {/* ROTEIRO (chatbox): padrão ou específico da landing page */}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold text-slate-600">Roteiro:</span>
+        <select value={boxSel} onChange={(e) => { const v = Number(e.target.value); if (v === -1) abrirEditor(null); else if (v === 0) setBoxSel(0); else { const cbx = boxes.find((b2) => b2.id === v); if (cbx) abrirEditor(cbx); } }}
+                className="input w-64 text-xs">
+          <option value={0}>Padrão (loja → nome → telefone → assunto → e-mail)</option>
+          {boxes.map((b2) => <option key={b2.id} value={b2.id}>{b2.nome}</option>)}
+          <option value={-1}>＋ criar novo chatbox…</option>
+        </select>
+        {boxSel > 0 ? <button className="btn-ghost text-xs" onClick={apagarChatbox}>🗑 apagar</button> : null}
+      </div>
+      {boxSel !== 0 ? (
+        <div className="mb-3 space-y-2 rounded bg-violet-50 p-2">
+          <div className="grid gap-2 md:grid-cols-2">
+            <input value={edNome} onChange={(e) => setEdNome(e.target.value)} maxLength={80} className="input text-xs" placeholder="nome do chatbox (ex.: Landing Dia das Mães)" />
+            <input value={edAssunto} onChange={(e) => setEdAssunto(e.target.value)} maxLength={120} className="input text-xs" placeholder="ASSUNTO fixo do atendimento (vazio = bot pergunta ao cliente)" />
+            <input value={edTitulo} onChange={(e) => setEdTitulo(e.target.value)} maxLength={60} className="input text-xs" placeholder={"título da janela (padrão: " + (marca.nome ?? marca.slug) + ")"} />
+            <input value={edSaud} onChange={(e) => setEdSaud(e.target.value)} maxLength={200} className="input text-xs" placeholder="saudação inicial do bot (abre a conversa do seu jeito)" />
+          </div>
+          <p className="text-[11px] font-semibold text-violet-800">Perguntas extras de coleta (depois do e-mail):</p>
+          {edExtras.map((ex, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input value={ex.rotulo} onChange={(e) => setEdExtras(edExtras.map((x, j) => j === i ? { ...x, rotulo: e.target.value } : x))}
+                     maxLength={120} className="input grow text-xs" placeholder="pergunta (ex.: Qual o número do seu pedido?)" />
+              <label className="flex items-center gap-1 text-[11px] text-slate-600">
+                <input type="checkbox" checked={!!ex.obrigatorio} onChange={(e) => setEdExtras(edExtras.map((x, j) => j === i ? { ...x, obrigatorio: e.target.checked } : x))} /> obrigatória
+              </label>
+              <button className="text-slate-400 hover:text-red-600" onClick={() => setEdExtras(edExtras.filter((_x, j) => j !== i))}>×</button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <button className="btn-ghost text-xs" onClick={() => setEdExtras([...edExtras, { rotulo: "", obrigatorio: false }])}>＋ pergunta</button>
+            <button className="btn-primary text-xs" disabled={salvandoCb} onClick={salvarChatbox}>{salvandoCb ? "Salvando…" : "Salvar chatbox"}</button>
+            {edMsg ? <span className="text-[11px] text-slate-600">{edMsg}</span> : null}
+          </div>
+        </div>
+      ) : null}
+
+      {/* aparencia do gatilho */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <select value={estilo} onChange={(e) => setEstilo(e.target.value as "balao" | "botao" | "campo")} className="input w-44 text-xs">
           <option value="botao">Botão</option>
@@ -1762,44 +1865,43 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
         ) : null}
         <input type="color" value={cor} onChange={(e) => setCor(e.target.value)}
                className="h-8 w-10 cursor-pointer rounded border border-slate-300" title="Cor" />
-        {estilo !== "balao" ? (
-          <label className="flex items-center gap-1 text-[11px] text-slate-500">Tamanho
-            <input type="range" min={11} max={32} value={fonte} onChange={(e) => setFonte(Number(e.target.value))} className="w-24" />
-            <span className="w-9 font-mono">{fonte}px</span>
-          </label>
-        ) : null}
+        <label className="flex items-center gap-1 text-[11px] text-slate-500">Tamanho
+          <input type="range" min={11} max={32} value={fonte} onChange={(e) => setFonte(Number(e.target.value))} className="w-24" />
+          <span className="w-9 font-mono">{fonte}px</span>
+        </label>
         <label className="flex items-center gap-1 text-[11px] text-slate-500">
           <input type="checkbox" checked={alerta} onChange={(e) => setAlerta(e.target.checked)} /> alerta “1” pulsante
         </label>
       </div>
-      <div className="mb-2 flex min-h-[56px] items-center gap-4 rounded bg-slate-50 p-3">
+      <div className="mb-2 flex min-h-[56px] items-center gap-4 overflow-x-auto rounded bg-slate-50 p-3">
         {estilo === "balao" ? (
-          <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-full text-2xl text-white shadow-lg" style={{ background: cor }}>💬{Badge}</span>
+          <span className="relative inline-flex items-center justify-center rounded-full text-white shadow-lg"
+                style={{ background: cor, width: Math.max(48, Math.min(110, fonte * 4)), height: Math.max(48, Math.min(110, fonte * 4)) }}>
+            <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none"><path d="M12 3C6.9 3 3 6.5 3 10.8c0 2.4 1.2 4.5 3.2 5.9-.1.9-.5 2.1-1.5 3.3 0 0 2.6-.2 4.6-1.6.9.2 1.8.4 2.7.4 5.1 0 9-3.5 9-7.9S17.1 3 12 3z" fill="#fff" /><circle cx="8.2" cy="10.8" r="1.2" fill={cor} /><circle cx="12" cy="10.8" r="1.2" fill={cor} /><circle cx="15.8" cy="10.8" r="1.2" fill={cor} /></svg>
+            {Badge}
+          </span>
         ) : estilo === "campo" ? (
-          <span className="relative inline-flex cursor-text items-center gap-2 rounded-full border-2 bg-white text-slate-400"
+          <span className="relative inline-flex cursor-text items-center gap-2 whitespace-nowrap rounded-full border-2 bg-white text-slate-400"
                 style={{ borderColor: cor, padding: pv + "px " + ph + "px", fontSize: fonte, borderRadius: raio }}>
             <span>{texto || "Digite sua mensagem…"}</span>
             <span style={{ color: cor }}>{Dots}</span>{Badge}
           </span>
         ) : formato === "redondo" ? (
           <span className="relative inline-flex items-center justify-center rounded-full text-white shadow-lg"
-                style={{ background: cor, width: fonte * 3.4, height: fonte * 3.4, fontSize: fonte * 1.5 }}>💬{Badge}</span>
+                style={{ background: cor, width: fonte * 3.4, height: fonte * 3.4 }}>
+            <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none"><path d="M12 3C6.9 3 3 6.5 3 10.8c0 2.4 1.2 4.5 3.2 5.9-.1.9-.5 2.1-1.5 3.3 0 0 2.6-.2 4.6-1.6.9.2 1.8.4 2.7.4 5.1 0 9-3.5 9-7.9S17.1 3 12 3z" fill="#fff" /><circle cx="8.2" cy="10.8" r="1.2" fill={cor} /><circle cx="12" cy="10.8" r="1.2" fill={cor} /><circle cx="15.8" cy="10.8" r="1.2" fill={cor} /></svg>
+            {Badge}
+          </span>
         ) : (
-          <button type="button" className="relative inline-flex items-center font-bold text-white shadow"
+          <button type="button" className="relative inline-flex items-center whitespace-nowrap font-bold text-white shadow"
                   style={{ background: cor, padding: pv + "px " + ph + "px", fontSize: fonte, borderRadius: raio }}>
             {texto || "Fale com a sua loja 💬"}{Dots}{Badge}
           </button>
         )}
-        <span className="text-[11px] text-slate-400">← prévia (os pontinhos e o alerta animam no site)</span>
-      </div>
-      <div className="mb-2 grid gap-2 md:grid-cols-2">
-        <input value={chatTitulo} onChange={(e) => setChatTitulo(e.target.value)} maxLength={60}
-               className="input text-xs" placeholder={"Título da janela (padrão: " + (marca.nome ?? marca.slug) + ")"} />
-        <input value={chatSaudacao} onChange={(e) => setChatSaudacao(e.target.value)} maxLength={200}
-               className="input text-xs" placeholder="Saudação inicial do bot (padrão: Olá! 👋 …)" />
+        <span className="text-[11px] text-slate-400">← prévia</span>
       </div>
       <button type="button" className="btn-ghost mb-2 text-xs" onClick={() => setVerChat(!verChat)}>
-        {verChat ? "▾ Esconder prévia da janela do chat" : "▸ Ver prévia da janela do chat (ao vivo)"}
+        {verChat ? "▾ Esconder prévia da janela do chat" : "▸ Ver prévia da janela do chat (ao vivo" + (cbAtivo ? ", com o roteiro selecionado" : "") + ")"}
       </button>
       {verChat ? (
         <div className="mb-2 overflow-hidden rounded-xl border border-slate-300 shadow" style={{ width: 340, height: 480 }}>
@@ -1808,22 +1910,31 @@ function GeradorBotaoChat({ base, marca }: { base: string; marca: MarcaConfig })
       ) : null}
       <textarea readOnly rows={2} className="input w-full text-[11px] font-mono" value={snippet}
                 onFocus={(e) => e.currentTarget.select()} />
-      <p className="text-[11px] text-slate-400 mb-3">O widget aparece ONDE o código for colado (balão flutuante = canto da tela). WordPress: bloco HTML.</p>
+      <p className="text-[11px] text-slate-400 mb-3">O widget aparece ONDE o código for colado (balão = canto da tela). WordPress: bloco HTML. Cada landing page pode usar um chatbox diferente.</p>
 
       <div className="rounded bg-amber-50 p-2">
         <p className="text-xs font-semibold text-amber-800 mb-1">🕐 Horário de atendimento do chat (fora dele, o robô avisa o cliente na hora)</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="text-[11px] text-slate-600">abre <input type="time" value={abre} onChange={(e) => setAbre(e.target.value)} className="input w-24 text-xs" /></label>
-          <label className="text-[11px] text-slate-600">fecha <input type="time" value={fecha} onChange={(e) => setFecha(e.target.value)} className="input w-24 text-xs" /></label>
-          <button className="btn-primary text-xs" disabled={salvandoHr} onClick={salvarHorario}>{salvandoHr ? "Salvando…" : "Salvar horário"}</button>
-          {okHr ? <span className="text-[11px] text-emerald-700">{okHr}</span> : null}
-        </div>
+        {[{ r: "Segunda a sexta", a: "sem_a" as const, f: "sem_f" as const },
+          { r: "Sábado", a: "sab_a" as const, f: "sab_f" as const },
+          { r: "Domingo", a: "dom_a" as const, f: "dom_f" as const }].map((g) => (
+          <div key={g.r} className="mb-1 flex flex-wrap items-center gap-2">
+            <span className="w-28 text-[11px] font-semibold text-slate-600">{g.r}</span>
+            <label className="text-[11px] text-slate-600">abre <input type="time" value={hr[g.a]} onChange={(e) => setHr({ ...hr, [g.a]: e.target.value })} className="input w-24 text-xs" /></label>
+            <label className="text-[11px] text-slate-600">fecha <input type="time" value={hr[g.f]} onChange={(e) => setHr({ ...hr, [g.f]: e.target.value })} className="input w-24 text-xs" /></label>
+            <span className="text-[10px] text-slate-400">{!hr[g.a] && !hr[g.f] ? "vazio = fechado o dia todo" : ""}</span>
+          </div>
+        ))}
         <input value={msgFechado} onChange={(e) => setMsgFechado(e.target.value)} maxLength={300}
                className="input mt-1 w-full text-xs"
                placeholder="Mensagem fora do horário (padrão: No momento a loja está fechada 🌙 …)" />
-        <p className="text-[10px] text-slate-500">Vazio = sem horário (chat considera sempre aberto). Vale para TODO chat desta marca; fuso de Brasília.</p>
+        <div className="mt-1 flex items-center gap-2">
+          <button className="btn-primary text-xs" disabled={salvandoHr} onClick={salvarHorario}>{salvandoHr ? "Salvando…" : "Salvar horários"}</button>
+          {okHr ? <span className="text-[11px] text-emerald-700">{okHr}</span> : null}
+        </div>
+        <p className="text-[10px] text-slate-500">Se NENHUM horário for preenchido, o chat considera sempre aberto. Fuso de Brasília; vale p/ todos os chats desta marca.</p>
       </div>
     </div>
   );
 }
+
 

@@ -1,70 +1,85 @@
 "use client";
 
-// Chat da MARCA (widget embutivel): o bot coleta loja -> nome -> e-mail -> LGPD
-// -> mensagem, cria o atendimento (canal "chat") e vira conversa ao vivo com a
-// loja (polling). Reusa TODA a mecanica publica do form/acompanhar (identity,
-// flood, LGPD). Usado por /chat/{slug} e /embed/chat/{slug} (iframe do site).
+// Chat da MARCA (widget embutivel). Roteiro do bot (ordem Renato 10/07):
+// loja -> NOME -> TELEFONE/WhatsApp -> ASSUNTO -> E-MAIL -> perguntas EXTRAS
+// (do chatbox da landing page) -> LGPD -> mensagem -> conversa ao vivo.
+// Chatbox (?cb=ID) personaliza saudacao/titulo/cor/assunto fixo/extras.
+// Ao "Resolvido", encerra no CRM e o convite de avaliacao sai por e-mail.
 import { useEffect, useRef, useState } from "react";
 import {
   publicoAbrir,
   publicoAcompanhar,
+  publicoChatbox,
+  publicoEncerrar,
   publicoForm,
   publicoLojas,
   publicoResponder,
+  type ChatboxConfig,
   type LojaPublica,
   type PublicoMarca,
 } from "@/lib/api";
 
 type Msg = { autor: "bot" | "cliente" | "loja"; texto: string; hora?: string };
-type Etapa = "loja" | "nome" | "email" | "lgpd" | "mensagem" | "conversa";
 
 function agora(): string {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function ChatWidget({ slug, cor: corProp, titulo, saudacao }: { slug: string; cor?: string; titulo?: string; saudacao?: string }) {
+export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
+  { slug: string; cb?: number; cor?: string; titulo?: string; saudacao?: string }) {
   const [marca, setMarca] = useState<PublicoMarca | null>(null);
-  const [etapa, setEtapa] = useState<Etapa>("loja");
+  const [box, setBox] = useState<ChatboxConfig | null>(null);
   const [balões, setBaloes] = useState<Msg[]>([]);
   const [entrada, setEntrada] = useState("");
   const [lojas, setLojas] = useState<LojaPublica[]>([]);
   const [lojaSel, setLojaSel] = useState<LojaPublica | null>(null);
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
+  const [passo, setPasso] = useState(0);      // indice no roteiro
+  const [roteiro, setRoteiro] = useState<string[]>(["loja"]);
+  const [resp, setResp] = useState<Record<string, string>>({});
   const [numero, setNumero] = useState("");
+  const [encerrada, setEncerrada] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const fimRef = useRef<HTMLDivElement | null>(null);
   const buscaRef = useRef<number | null>(null);
-  const chave = "chat_" + slug;
+  const chave = "chat_" + slug + (cb ? "_" + cb : "");
 
-  function bot(texto: string) {
-    setBaloes((b) => [...b, { autor: "bot", texto, hora: agora() }]);
-  }
-  function eu(texto: string) {
-    setBaloes((b) => [...b, { autor: "cliente", texto, hora: agora() }]);
-  }
+  const etapa = roteiro[passo] || "conversa";
+  const extras: { rotulo: string; obrigatorio?: boolean }[] = box?.extras ?? [];
+
+  function bot(texto: string) { setBaloes((b) => [...b, { autor: "bot", texto, hora: agora() }]); }
+  function eu(texto: string) { setBaloes((b) => [...b, { autor: "cliente", texto, hora: agora() }]); }
 
   useEffect(() => {
     (async () => {
+      let cfg: ChatboxConfig | null = null;
       try { setMarca((await publicoForm(slug)).marca); } catch { setErro("Marca não encontrada."); return; }
-      // conversa anterior deste navegador? retoma direto.
+      if (cb) {
+        try { cfg = (await publicoChatbox(slug, cb)).config; setBox(cfg); } catch { /* roteiro padrão */ }
+      }
+      // monta o ROTEIRO: loja -> nome -> telefone -> assunto? -> email -> extras -> lgpd -> mensagem
+      const r: string[] = ["loja", "nome", "telefone"];
+      if (!(cfg?.assunto_fixo) && cfg?.perguntar_assunto !== false) r.push("assunto");
+      r.push("email");
+      (cfg?.extras ?? []).forEach((_x, i) => r.push("extra:" + i));
+      r.push("lgpd", "mensagem", "conversa");
+      setRoteiro(r);
       try {
         const salvo = JSON.parse(localStorage.getItem(chave) || "null");
         if (salvo && salvo.numero && salvo.email) {
-          setNumero(salvo.numero); setEmail(salvo.email);
-          setEtapa("conversa");
+          setNumero(salvo.numero); setResp((x) => ({ ...x, email: salvo.email }));
+          setPasso(r.length - 1);  // direto p/ conversa
           return;
         }
-      } catch { /* começa do zero */ }
-      bot(saudacao || "Olá! 👋 Que bom te ver por aqui. Para falar com a loja mais próxima, me diga a sua cidade, o shopping ou o nome da loja:");
+      } catch { /* zera */ }
+      bot((cfg?.saudacao || saudacao) || "Olá! 👋 Que bom te ver por aqui. Para falar com a loja mais próxima, me diga a sua cidade, o shopping ou o nome da loja:");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, cb]);
 
   useEffect(() => { fimRef.current?.scrollIntoView({ behavior: "smooth" }); }, [balões, lojas]);
 
-  // autocomplete de lojas enquanto digita (etapa loja)
+  // autocomplete de lojas (etapa loja)
   useEffect(() => {
     if (etapa !== "loja") return;
     if (buscaRef.current) window.clearTimeout(buscaRef.current);
@@ -75,104 +90,149 @@ export default function ChatWidget({ slug, cor: corProp, titulo, saudacao }: { s
     }, 300);
   }, [entrada, etapa, slug]);
 
-  // polling da conversa (etapa conversa)
+  // polling da conversa
   useEffect(() => {
-    if (etapa !== "conversa" || !numero || !email) return;
+    if (etapa !== "conversa" || !numero || !resp.email) return;
     let vivo = true;
     async function puxar() {
       try {
-        const c = await publicoAcompanhar(numero, email);
+        const c = await publicoAcompanhar(numero, resp.email);
         if (!vivo) return;
-        const msgs: Msg[] = (c.mensagens || []).map((m) => ({
+        setBaloes((c.mensagens || []).map((m) => ({
           autor: m.autor === "voce" ? "cliente" : "loja",
           texto: m.texto,
           hora: m.criado_em ? new Date(m.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : undefined,
-        }));
-        setBaloes(msgs);
-      } catch { /* rede oscilou; tenta no proximo tick */ }
+        })));
+      } catch { /* proximo tick */ }
     }
     puxar();
     const timer = window.setInterval(puxar, 4000);
     return () => { vivo = false; window.clearInterval(timer); };
-  }, [etapa, numero, email]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa, numero, resp.email]);
+
+  function avancar(prox?: number) { setPasso((p2) => prox ?? p2 + 1); }
+
+  function perguntaDe(et: string): string {
+    const nome1 = (resp.nome || "").split(" ")[0];
+    if (et === "nome") return "Perfeito! Qual é o seu nome?";
+    if (et === "telefone") return "Prazer" + (nome1 ? ", " + nome1 : "") + "! Qual o seu telefone/WhatsApp com DDD?";
+    if (et === "assunto") return "Sobre o que você quer falar? (assunto em poucas palavras)";
+    if (et === "email") return "E o seu e-mail? (é por ele que você recebe as respostas se sair da página)";
+    if (et.startsWith("extra:")) {
+      const ex = extras[Number(et.slice(6))];
+      return ex ? ex.rotulo + (ex.obrigatorio ? "" : " (se preferir, responda \"pular\")") : "";
+    }
+    if (et === "lgpd") return "Para te atender, registramos seus dados e esta conversa no nosso sistema (LGPD). Pode ser?";
+    if (et === "mensagem") return "Pode escrever sua mensagem que eu já chamo a loja 😊";
+    return "";
+  }
 
   function escolherLoja(l: LojaPublica) {
     setLojaSel(l); setLojas([]); setEntrada("");
     eu(l.nome + (l.cidade ? " — " + l.cidade + (l.uf ? "/" + l.uf : "") : ""));
-    bot("Perfeito! E qual é o seu nome?");
-    setEtapa("nome");
+    bot(perguntaDe("nome"));
+    avancar();
+  }
+
+  function validar(et: string, txt: string): string | null {
+    if (et === "nome" && txt.length < 2) return "Digite seu nome completo.";
+    if (et === "telefone" && txt.replace(/[^0-9]/g, "").length < 10) return "Telefone com DDD, por favor (10 ou 11 números).";
+    if (et === "assunto" && txt.length < 2) return "Me diga o assunto em poucas palavras.";
+    if (et === "email" && !/^[^@ ]+@[^@ ]+[.][^@ ]+$/.test(txt)) return "E-mail inválido — confere pra mim?";
+    if (et.startsWith("extra:")) {
+      const ex = extras[Number(et.slice(6))];
+      if (ex?.obrigatorio && txt.length < 1) return "Preciso dessa informação para a loja te atender.";
+    }
+    return null;
   }
 
   async function enviar() {
     const txt = entrada.trim();
     if (!txt || enviando) return;
     setErro("");
-    if (etapa === "nome") {
-      if (txt.length < 2) { setErro("Digite seu nome completo."); return; }
-      setNome(txt); eu(txt); setEntrada("");
-      bot("Prazer, " + txt.split(" ")[0] + "! Qual o seu e-mail? (é por ele que você recebe as respostas se sair desta página)");
-      setEtapa("email");
-      return;
-    }
-    if (etapa === "email") {
-      if (!/^[^@ ]+@[^@ ]+.[^@ ]+$/.test(txt)) { setErro("E-mail inválido — confere pra mim?"); return; }
-      setEmail(txt.toLowerCase()); eu(txt); setEntrada("");
-      bot("Para te atender, registramos seus dados e esta conversa no nosso sistema (LGPD). Pode ser?");
-      setEtapa("lgpd");
+    if (etapa === "conversa") {
+      setEnviando(true);
+      try {
+        await publicoResponder(numero, resp.email, txt);
+        setBaloes((b) => [...b, { autor: "cliente", texto: txt, hora: agora() }]);
+        setEntrada(""); setEncerrada(false);
+      } catch (e) { setErro(e instanceof Error ? e.message : "Não consegui enviar — tente de novo."); }
+      setEnviando(false);
       return;
     }
     if (etapa === "mensagem") {
       setEnviando(true);
       try {
+        const campos: Record<string, string> = {};
+        extras.forEach((ex, i) => { const v = resp["extra:" + i]; if (v && v.toLowerCase() !== "pular") campos[ex.rotulo.slice(0, 60)] = v; });
         const r = await publicoAbrir({
           marca_slug: slug, loja_id: lojaSel ? lojaSel.id : undefined,
-          nome, email, assunto: "Chat com a loja", mensagem: txt,
-          aceita_contato: true, canal: "chat",
+          nome: resp.nome, email: resp.email, telefone: resp.telefone,
+          assunto: (box?.assunto_fixo || resp.assunto || "Chat com a loja").slice(0, 255),
+          mensagem: txt, campos, aceita_contato: true, canal: "chat",
         });
-        localStorage.setItem(chave, JSON.stringify({ numero: r.numero, email }));
+        localStorage.setItem(chave, JSON.stringify({ numero: r.numero, email: resp.email }));
         setNumero(r.numero); setEntrada("");
-        setEtapa("conversa");
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : "Não consegui enviar — tente de novo.");
-      }
+        avancar();
+      } catch (e) { setErro(e instanceof Error ? e.message : "Não consegui enviar — tente de novo."); }
       setEnviando(false);
       return;
     }
-    if (etapa === "conversa") {
-      setEnviando(true);
-      try {
-        await publicoResponder(numero, email, txt);
-        setBaloes((b) => [...b, { autor: "cliente", texto: txt, hora: agora() }]);
-        setEntrada("");
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : "Não consegui enviar — tente de novo.");
-      }
-      setEnviando(false);
-    }
+    // etapas de coleta (nome/telefone/assunto/email/extras)
+    const problema = validar(etapa, txt);
+    if (problema) { setErro(problema); return; }
+    setResp((x) => ({ ...x, [etapa]: txt }));
+    eu(txt); setEntrada("");
+    const prox = roteiro[passo + 1];
+    bot(perguntaDe(prox));
+    avancar();
   }
 
   function aceitarLgpd() {
     eu("Aceito ✓");
-    bot("Ótimo! Pode escrever sua mensagem que eu já chamo a loja 😊");
-    setEtapa("mensagem");
+    bot(perguntaDe("mensagem"));
+    avancar();
   }
 
-  const cor = corProp || marca?.tema?.cor || "#0f172a";
-  const podeDigitar = etapa === "loja" || etapa === "nome" || etapa === "email" || etapa === "mensagem" || etapa === "conversa";
+  async function resolvido() {
+    if (!numero || !resp.email) return;
+    try {
+      await publicoEncerrar(numero, resp.email);
+      setEncerrada(true);
+      setBaloes((b) => [...b, { autor: "bot", texto: "Que bom que resolvemos! ✅ Enviamos um e-mail para você avaliar o atendimento. Se precisar de novo, é só escrever aqui que a conversa reabre.", hora: agora() }]);
+    } catch { setErro("Não consegui encerrar — tente de novo."); }
+  }
+
+  const cor = box?.cor || corProp || marca?.tema?.cor || "#0f172a";
+  const cab = box?.titulo || titulo || marca?.nome || marca?.slug || "Atendimento";
+  const podeDigitar = etapa !== "lgpd";
+  const placeholder =
+    etapa === "loja" ? "cidade, shopping ou loja…" :
+    etapa === "nome" ? "seu nome…" :
+    etapa === "telefone" ? "DDD + número (WhatsApp)…" :
+    etapa === "assunto" ? "assunto…" :
+    etapa === "email" ? "seu e-mail…" :
+    etapa.startsWith("extra:") ? "sua resposta…" : "escreva sua mensagem…";
 
   return (
     <div className="flex h-full min-h-[420px] flex-col bg-white">
       <div className="flex items-center gap-2 px-3 py-2 text-white" style={{ background: cor }}>
         <span className="text-lg">💬</span>
         <div className="grow">
-          <div className="text-sm font-semibold">{titulo || marca?.nome || marca?.slug || "Atendimento"}</div>
+          <div className="text-sm font-semibold">{cab}</div>
           <div className="text-[11px] opacity-80">
             {lojaSel ? "Você fala com: " + lojaSel.nome : etapa === "conversa" ? "Conversa nº " + numero : "Fale com a sua loja"}
           </div>
         </div>
+        {etapa === "conversa" && !encerrada ? (
+          <button className="rounded bg-white/15 px-2 py-1 text-[10px] font-semibold hover:bg-white/25"
+                  title="Encerra o atendimento e envia o convite de avaliação" onClick={resolvido}>
+            ✔ Resolvido
+          </button>
+        ) : null}
         {etapa === "conversa" ? (
-          <button className="rounded px-2 py-0.5 text-[10px] opacity-80 hover:opacity-100"
-                  title="Começar uma nova conversa"
+          <button className="rounded px-2 py-0.5 text-[10px] opacity-80 hover:opacity-100" title="Começar uma nova conversa"
                   onClick={() => { localStorage.removeItem(chave); window.location.reload(); }}>
             nova conversa
           </button>
@@ -203,8 +263,7 @@ export default function ChatWidget({ slug, cor: corProp, titulo, saudacao }: { s
           </div>
         ) : null}
         {etapa === "lgpd" ? (
-          <button onClick={aceitarLgpd}
-                  className="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow" style={{ background: cor }}>
+          <button onClick={aceitarLgpd} className="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow" style={{ background: cor }}>
             Aceito continuar ✓
           </button>
         ) : null}
@@ -219,7 +278,7 @@ export default function ChatWidget({ slug, cor: corProp, titulo, saudacao }: { s
         <div className="flex gap-2 border-t border-slate-200 p-2">
           <input value={entrada} onChange={(e) => setEntrada(e.target.value)}
                  onKeyDown={(e) => { if (e.key === "Enter") enviar(); }}
-                 placeholder={etapa === "loja" ? "cidade, shopping ou loja…" : etapa === "nome" ? "seu nome…" : etapa === "email" ? "seu e-mail…" : "escreva sua mensagem…"}
+                 placeholder={placeholder}
                  className="grow rounded-full border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-slate-500" />
           <button onClick={enviar} disabled={enviando}
                   className="rounded-full px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: cor }}>

@@ -1685,31 +1685,55 @@ function SecaoAutoresposta({ marca, onSalvo, onErro, onOk }: {
 function GeradorBotaoChat({ base, slug, corPadrao }: { base: string; slug: string; corPadrao: string }) {
   const [texto, setTexto] = useState("Fale com a sua loja 💬");
   const [cor, setCor] = useState(corPadrao);
-  const [tamanho, setTamanho] = useState<"p" | "m" | "g">("m");
-  const snippet = `<script src="${base}/chat-widget.js" data-marca="${slug}" data-texto="${texto.replace(/"/g, "")}" data-cor="${cor}" data-tamanho="${tamanho}"></script>`;
-  const tamCss = tamanho === "p" ? "8px 16px" : tamanho === "g" ? "16px 32px" : "12px 24px";
-  const fonte = tamanho === "p" ? 13 : tamanho === "g" ? 18 : 15;
+  const [fonte, setFonte] = useState(15); // px — slider (11 a 32)
+  const [estilo, setEstilo] = useState<"botao" | "campo">("botao");
+  const snippet = `<script src="${base}/chat-widget.js" data-marca="${slug}" data-texto="${texto.replace(/"/g, "")}"${estilo === "campo" ? ' data-estilo="campo"' : ""} data-cor="${cor}" data-tamanho="${fonte}"></script>`;
+  const pv = Math.round(fonte * 0.62);
+  const ph = Math.round(fonte * 1.5);
+  const Dots = (
+    <span className="ml-2 inline-flex items-center gap-[3px]">
+      {[0, 1, 2].map((d) => (
+        <i key={d} className="inline-block h-[6px] w-[6px] animate-bounce rounded-full bg-current"
+           style={{ animationDelay: d * 0.18 + "s", animationDuration: "1.3s" }} />
+      ))}
+    </span>
+  );
   return (
     <div>
-      <p className="text-xs font-semibold text-slate-500 mb-1">💬 BOTÃO de chat p/ colocar em qualquer lugar da página (personalizável)</p>
+      <p className="text-xs font-semibold text-slate-500 mb-1">💬 BOTÃO / CAMPO de chat p/ qualquer lugar da página (personalizável)</p>
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <input value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={40}
-               className="input w-56 text-xs" placeholder="texto do botão (call to action)" />
-        <input type="color" value={cor} onChange={(e) => setCor(e.target.value)}
-               className="h-8 w-10 cursor-pointer rounded border border-slate-300" title="Cor do botão" />
-        <select value={tamanho} onChange={(e) => setTamanho(e.target.value as "p" | "m" | "g")} className="input w-28 text-xs">
-          <option value="p">Pequeno</option>
-          <option value="m">Médio</option>
-          <option value="g">Grande</option>
+        <select value={estilo} onChange={(e) => setEstilo(e.target.value as "botao" | "campo")} className="input w-40 text-xs">
+          <option value="botao">Botão</option>
+          <option value="campo">Campo de digitação</option>
         </select>
-        <button type="button" className="rounded-full font-bold text-white shadow"
-                style={{ background: cor, padding: tamCss, fontSize: fonte }}>
-          {texto || "Fale com a sua loja 💬"}
-        </button>
+        <input value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={40}
+               className="input w-56 text-xs" placeholder={estilo === "campo" ? "texto de convite (placeholder)" : "texto do botão (call to action)"} />
+        <input type="color" value={cor} onChange={(e) => setCor(e.target.value)}
+               className="h-8 w-10 cursor-pointer rounded border border-slate-300" title="Cor" />
+        <label className="flex items-center gap-1 text-[11px] text-slate-500">
+          Tamanho
+          <input type="range" min={11} max={32} value={fonte} onChange={(e) => setFonte(Number(e.target.value))} className="w-28" />
+          <span className="w-8 font-mono">{fonte}px</span>
+        </label>
+      </div>
+      <div className="mb-2">
+        {estilo === "campo" ? (
+          <span role="button" tabIndex={0}
+                className="inline-flex cursor-text items-center justify-between gap-3 rounded-full border-2 bg-white text-slate-500"
+                style={{ borderColor: cor, padding: pv + "px " + ph + "px", fontSize: fonte, minWidth: fonte * 15 }}>
+            <span>{texto || "Digite sua mensagem…"}</span>
+            <span className="inline-flex items-center font-bold" style={{ color: cor }}>{Dots}</span>
+          </span>
+        ) : (
+          <button type="button" className="inline-flex items-center rounded-full font-bold text-white shadow"
+                  style={{ background: cor, padding: pv + "px " + ph + "px", fontSize: fonte }}>
+            {texto || "Fale com a sua loja 💬"}{Dots}
+          </button>
+        )}
       </div>
       <textarea readOnly rows={2} className="input w-full text-[11px] font-mono" value={snippet}
                 onFocus={(e) => e.currentTarget.select()} />
-      <p className="text-[11px] text-slate-400">O botão aparece exatamente ONDE o código for colado (página de contato, rodapé, um post…). A prévia acima mostra como ele fica.</p>
+      <p className="text-[11px] text-slate-400">O botão/campo aparece exatamente ONDE o código for colado. Os pontinhos “digitando” animam sozinhos; no modo campo, clicar abre a janela do chat.</p>
     </div>
   );
 }

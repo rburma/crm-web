@@ -15,7 +15,8 @@ export default function EmbedChatPage() {
                   cb={cbRaw ? Number(cbRaw) : undefined}
                   cor={q?.get("cor") ?? undefined}
                   titulo={q?.get("titulo") ?? undefined}
-                  saudacao={q?.get("saudacao") ?? undefined} />
+                  saudacao={q?.get("saudacao") ?? undefined}
+                  pag={q?.get("pag") ?? undefined} />
     </div>
   );
 }

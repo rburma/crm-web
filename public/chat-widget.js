@@ -74,6 +74,7 @@
     var frame = document.createElement("iframe");
     var qs = "?cor=" + encodeURIComponent(cor);
     if (attr("data-chatbox")) qs += "&cb=" + encodeURIComponent(attr("data-chatbox"));
+    try { qs += "&pag=" + encodeURIComponent(String(location.href).slice(0, 300)); } catch (e) { /* ok */ }
     if (attr("data-chat-titulo")) qs += "&titulo=" + encodeURIComponent(attr("data-chat-titulo"));
     if (attr("data-chat-saudacao")) qs += "&saudacao=" + encodeURIComponent(attr("data-chat-saudacao"));
     frame.src = base + "/embed/chat/" + encodeURIComponent(marca) + qs;

@@ -25,8 +25,8 @@ function agora(): string {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
-  { slug: string; cb?: number; cor?: string; titulo?: string; saudacao?: string }) {
+export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, pag }:
+  { slug: string; cb?: number; cor?: string; titulo?: string; saudacao?: string; pag?: string }) {
   const [marca, setMarca] = useState<PublicoMarca | null>(null);
   const [box, setBox] = useState<ChatboxConfig | null>(null);
   const [balões, setBaloes] = useState<Msg[]>([]);
@@ -38,6 +38,8 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
   const [resp, setResp] = useState<Record<string, string>>({});
   const [numero, setNumero] = useState("");
   const [encerrada, setEncerrada] = useState(false);
+  // pergunta de RETORNO (telefone/WhatsApp) enquanto a loja nao responde
+  const [perguntaRetorno, setPerguntaRetorno] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const fimRef = useRef<HTMLDivElement | null>(null);
@@ -52,7 +54,7 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
   // balançando por ~1-2s (proporcional ao tamanho da resposta) e só então fala.
   function bot(texto: string) {
     setDigitandoBot(true);
-    const espera = Math.min(900 + texto.length * 18, 2200);
+    const espera = Math.min(1400 + texto.length * 22, 3200);
     window.setTimeout(() => {
       setBaloes((b) => [...b, { autor: "bot", texto, hora: agora() }]);
       setDigitandoBot(false);
@@ -123,6 +125,30 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
 
   function avancar(prox?: number) { setPasso((p2) => prox ?? p2 + 1); }
 
+  // Loja demorando? Oferece RETORNO por telefone/WhatsApp (grava no atendimento).
+  useEffect(() => {
+    if (etapa !== "conversa" || !numero || encerrada) return;
+    if (localStorage.getItem(chave + "_ret")) return;      // ja perguntou nesta conversa
+    if (balões.some((m) => m.autor === "loja")) return;     // loja ja respondeu
+    const t2 = window.setTimeout(() => {
+      if (!balões.some((m) => m.autor === "loja")) setPerguntaRetorno(true);
+    }, 45000);
+    return () => window.clearTimeout(t2);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa, numero, balões, encerrada]);
+
+  async function escolherRetorno(como: "telefone" | "whatsapp" | "aqui") {
+    setPerguntaRetorno(false);
+    localStorage.setItem(chave + "_ret", "1");
+    if (como === "aqui") return;
+    const fone = resp.telefone ? " no número " + resp.telefone : "";
+    const txt = como === "telefone"
+      ? "📞 Prefiro que a loja me LIGUE de volta" + fone + "."
+      : "💬 Prefiro retorno pelo WHATSAPP" + fone + ".";
+    try { await publicoResponder(numero, resp.email, txt); } catch { /* fica so local */ }
+    setBaloes((b) => [...b, { autor: "cliente", texto: txt, hora: agora() }]);
+  }
+
   function perguntaDe(et: string): string {
     const nome1 = (resp.nome || "").split(" ")[0];
     if (et === "nome") return "Perfeito! Qual é o seu nome?";
@@ -176,6 +202,8 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
       try {
         const campos: Record<string, string> = {};
         extras.forEach((ex, i) => { const v = resp["extra:" + i]; if (v && v.toLowerCase() !== "pular") campos[ex.rotulo.slice(0, 60)] = v; });
+        const origem = pag || (typeof document !== "undefined" ? document.referrer : "");
+        if (origem) campos["Página de origem"] = origem.slice(0, 255);
         const r = await publicoAbrir({
           marca_slug: slug, loja_id: lojaSel ? lojaSel.id : undefined,
           nome: resp.nome, email: resp.email, telefone: resp.telefone,
@@ -279,6 +307,18 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao }:
         ) : null}
         {etapa === "conversa" && !balões.some((m) => m.autor === "loja") ? (
           <div className="text-center text-[11px] text-slate-400">Sua mensagem chegou na loja 🛎 — se você sair, a resposta também vai para o seu e-mail.</div>
+        ) : null}
+        {perguntaRetorno ? (
+          <div className="flex justify-start">
+            <div className="max-w-[90%] space-y-2 rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm">
+              <div>A loja vai te atender em breve 😊 Enquanto isso: se preferir, ela pode te retornar. Como fica melhor para você?</div>
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => escolherRetorno("telefone")} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold hover:bg-slate-50">📞 Me liguem</button>
+                <button onClick={() => escolherRetorno("whatsapp")} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold hover:bg-slate-50">💬 WhatsApp</button>
+                <button onClick={() => escolherRetorno("aqui")} className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-500 hover:bg-slate-50">Espero aqui</button>
+              </div>
+            </div>
+          </div>
         ) : null}
         {digitandoBot ? (
           <div className="flex justify-start">

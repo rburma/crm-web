@@ -22,7 +22,7 @@ function agora(): string {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function ChatWidget({ slug }: { slug: string }) {
+export default function ChatWidget({ slug, cor: corProp, titulo, saudacao }: { slug: string; cor?: string; titulo?: string; saudacao?: string }) {
   const [marca, setMarca] = useState<PublicoMarca | null>(null);
   const [etapa, setEtapa] = useState<Etapa>("loja");
   const [balões, setBaloes] = useState<Msg[]>([]);
@@ -57,7 +57,7 @@ export default function ChatWidget({ slug }: { slug: string }) {
           return;
         }
       } catch { /* começa do zero */ }
-      bot("Olá! 👋 Que bom te ver por aqui. Para falar com a loja mais próxima, me diga a sua cidade, o shopping ou o nome da loja:");
+      bot(saudacao || "Olá! 👋 Que bom te ver por aqui. Para falar com a loja mais próxima, me diga a sua cidade, o shopping ou o nome da loja:");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
@@ -157,7 +157,7 @@ export default function ChatWidget({ slug }: { slug: string }) {
     setEtapa("mensagem");
   }
 
-  const cor = marca?.tema?.cor || "#0f172a";
+  const cor = corProp || marca?.tema?.cor || "#0f172a";
   const podeDigitar = etapa === "loja" || etapa === "nome" || etapa === "email" || etapa === "mensagem" || etapa === "conversa";
 
   return (
@@ -165,7 +165,7 @@ export default function ChatWidget({ slug }: { slug: string }) {
       <div className="flex items-center gap-2 px-3 py-2 text-white" style={{ background: cor }}>
         <span className="text-lg">💬</span>
         <div className="grow">
-          <div className="text-sm font-semibold">{marca?.nome || marca?.slug || "Atendimento"}</div>
+          <div className="text-sm font-semibold">{titulo || marca?.nome || marca?.slug || "Atendimento"}</div>
           <div className="text-[11px] opacity-80">
             {lojaSel ? "Você fala com: " + lojaSel.nome : etapa === "conversa" ? "Conversa nº " + numero : "Fale com a sua loja"}
           </div>

@@ -115,6 +115,7 @@ export default function LojaCadastro({
   const [buscandoG, setBuscandoG] = useState(false);
   const [ifoodUrl, setIfoodUrl] = useState("");
   const [ifoodBusy, setIfoodBusy] = useState(false);
+  const [gConectado, setGConectado] = useState("");
 
   async function gerarLink() {
     setGerandoLink(true); setErro("");
@@ -211,6 +212,7 @@ export default function LojaCadastro({
     }
     setRepSync(true);
     setErro("");
+    setGConectado("");
     try {
       const r = await conectarGoogleLink(lojaId, link);
       if (!r.ok) {
@@ -218,6 +220,13 @@ export default function LojaCadastro({
       } else {
         setVal("google_meu_negocio", link);
         setCandG([]);
+        const lug = r.lugar?.nome
+          ? `${r.lugar.nome}${r.lugar.endereco ? ` — ${r.lugar.endereco}` : ""}`
+          : "lugar do link";
+        setGConectado(
+          `✔ Conectado a: ${lug}${r.nota != null ? ` (nota ${r.nota} · ${r.qtd ?? 0} avaliações)` : ""}. ` +
+          "Confira se é a LOJA (não o shopping).",
+        );
         setRep(await reputacaoLoja(lojaId));
       }
     } catch (e) {
@@ -551,6 +560,11 @@ export default function LojaCadastro({
                       Cole o link da <b>loja</b> (Compartilhar no Google Maps) e clique em{" "}
                       <b>Conectar link</b> — as avaliações passam a vir desse lugar exato.
                     </div>
+                    {gConectado && (
+                      <div className="mt-1 text-[11px] font-medium text-emerald-700">
+                        {gConectado}
+                      </div>
+                    )}
                     {candG.length > 0 && (
                       <div className="mt-1 space-y-1">
                         {candG.map((c) => (

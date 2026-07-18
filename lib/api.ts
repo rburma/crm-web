@@ -1860,7 +1860,10 @@ export function confirmarGoogleLoja(
 // LOJA e confirma (as avaliacoes passam a vir daquele lugar, nao do shopping).
 export function conectarGoogleLink(
   lojaId: number, link: string,
-): Promise<{ ok: boolean; nota?: number; qtd?: number; motivo?: string; place_id?: string }> {
+): Promise<{
+  ok: boolean; nota?: number; qtd?: number; motivo?: string; place_id?: string;
+  lugar?: { nome?: string | null; endereco?: string | null };
+}> {
   return req(`reputacao/loja/${lojaId}/conectar-google-link`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -20,6 +20,7 @@ import {
   reputacaoUpsert,
   sugerirGoogleLoja,
   confirmarGoogleLoja,
+  conectarGoogleLink,
   confirmarIfood,
   type GoogleCandidato,
   type LojaCampoDef,
@@ -193,6 +194,32 @@ export default function LojaCadastro({
       setVal("google_meu_negocio", "https://www.google.com/maps/place/?q=place_id:" + placeId);
       setCandG([]);
       setRep(await reputacaoLoja(lojaId));
+    } catch (e) {
+      setErro(String((e as Error).message || e));
+    } finally {
+      setRepSync(false);
+    }
+  }
+
+  // Cola o LINK da LOJA no Google -> o motor resolve o place_id daquele lugar
+  // exato e as avaliacoes passam a vir da loja (nao mais do shopping).
+  async function conectarPeloLink() {
+    const link = (valores["google_meu_negocio"] ?? "").trim();
+    if (!link) {
+      setErro("Cole o link do Google da LOJA no campo e clique em Conectar link.");
+      return;
+    }
+    setRepSync(true);
+    setErro("");
+    try {
+      const r = await conectarGoogleLink(lojaId, link);
+      if (!r.ok) {
+        setErro(r.motivo || "Nao consegui conectar por esse link.");
+      } else {
+        setVal("google_meu_negocio", link);
+        setCandG([]);
+        setRep(await reputacaoLoja(lojaId));
+      }
     } catch (e) {
       setErro(String((e as Error).message || e));
     } finally {
@@ -510,10 +537,19 @@ export default function LojaCadastro({
                       <input className="input flex-1" placeholder="https://maps.app.goo.gl/..."
                         value={valores["google_meu_negocio"] ?? ""}
                         onChange={(e) => setVal("google_meu_negocio", e.target.value)} />
+                      <button type="button" onClick={conectarPeloLink} disabled={repSync}
+                        className="btn-primary text-xs whitespace-nowrap self-center"
+                        title="Cola o link da LOJA no Google e conecta as avaliações àquele lugar exato">
+                        {repSync ? "Conectando…" : "Conectar link"}
+                      </button>
                       <button type="button" onClick={buscarGoogle} disabled={buscandoG}
                         className="btn-secondary text-xs whitespace-nowrap self-center">
                         {buscandoG ? "Buscando…" : "Buscar"}
                       </button>
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-slate-500">
+                      Cole o link da <b>loja</b> (Compartilhar no Google Maps) e clique em{" "}
+                      <b>Conectar link</b> — as avaliações passam a vir desse lugar exato.
                     </div>
                     {candG.length > 0 && (
                       <div className="mt-1 space-y-1">

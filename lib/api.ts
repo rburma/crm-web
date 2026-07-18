@@ -1856,6 +1856,17 @@ export function confirmarGoogleLoja(
     body: JSON.stringify({ place_id: placeId }),
   });
 }
+// Cola o LINK do Google (curto ou completo) -> o motor resolve o place_id DA
+// LOJA e confirma (as avaliacoes passam a vir daquele lugar, nao do shopping).
+export function conectarGoogleLink(
+  lojaId: number, link: string,
+): Promise<{ ok: boolean; nota?: number; qtd?: number; motivo?: string; place_id?: string }> {
+  return req(`reputacao/loja/${lojaId}/conectar-google-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ link }),
+  });
+}
 
 // ── iFood (Apify): salvar a URL da loja + buscar nota/qtd (grava veiculo iFood) ──
 export function confirmarIfood(

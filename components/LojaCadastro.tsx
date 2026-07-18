@@ -316,7 +316,14 @@ export default function LojaCadastro({
       await lojaSalvarDados(lojaId, {
         nome: nome.trim(), email, sigla: sigla.trim().toUpperCase(), ativo, ...end,
       });
-      await lojaSalvarAtributos(lojaId, valores);
+      // NÃO reenviar as chaves internas do vínculo Google: `valores` é a foto
+      // de quando a tela abriu — reenviá-las revertia o place_id recém-
+      // conectado pro lugar velho (a "memória" do shopping, caso SBRIOV).
+      const paraSalvar = { ...valores };
+      delete paraSalvar["google_place_id"];
+      delete paraSalvar["google_maps_uri"];
+      delete paraSalvar["google_place_nome"];
+      await lojaSalvarAtributos(lojaId, paraSalvar);
       setOkMsg("Cadastro salvo.");
       onSalvo?.();
     } catch (e) {

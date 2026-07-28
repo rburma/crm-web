@@ -273,7 +273,7 @@ export default function FinanceiroPage() {
 
   return (
     <Shell title="Financeiro">
-      <div className="max-w-6xl">
+      <div className="w-full">
         {erro && <div className="text-sm text-red-600 mb-3">{erro}</div>}
         {carregando ? (
           <div className="text-sm text-slate-400">Carregando…</div>
@@ -314,13 +314,8 @@ export default function FinanceiroPage() {
                   >
                     <option value="">Todos</option>
                     <optgroup label="Boletos">
-                      <option value="pendentes">Pendentes (aberto + vencido)</option>
-                      <option value="aberto">Aberto (em dia)</option>
-                      <option value="vencido">Vencido</option>
-                      <option value="pagos">Pagos</option>
-                      <option value="baixado">Baixado</option>
-                      <option value="rejeitado">Rejeitado</option>
-                      <option value="cancelado">Cancelado</option>
+                      <option value="pendentes">Em aberto</option>
+                      <option value="pagos">Pago</option>
                     </optgroup>
                     <optgroup label="Obrigações">
                       <option value="o:em_aberto">Em aberto</option>
@@ -375,16 +370,11 @@ export default function FinanceiroPage() {
                 ))}
               </div>
               {abaEhObrig ? (
-                <ObrigacoesTabela
-                  tipo={tipoFiltro}
-                  filtros={filtros}
-                  multiLoja={lojas.length > 1}
-                />
+                <ObrigacoesTabela tipo={tipoFiltro} filtros={filtros} />
               ) : (
                 <BoletosTabela
                   origem={tipoFiltro === "BOLETOS" ? "wt" : ""}
                   filtros={filtros}
-                  multiLoja={lojas.length > 1}
                 />
               )}
             </div>
@@ -415,9 +405,9 @@ function cmp(x: unknown, y: unknown, dir: "asc" | "desc"): number {
 }
 
 function BoletosTabela({
-  origem, filtros, multiLoja,
+  origem, filtros,
 }: {
-  origem: string; filtros: Filtros; multiLoja: boolean;
+  origem: string; filtros: Filtros;
 }) {
   const [offset, setOffset] = useState(0);
   const [pagina, setPagina] = useState<{ total: number; itens: BoletoFin[]; offset: number } | null>(null);
@@ -479,12 +469,17 @@ function BoletosTabela({
         <thead className="bg-slate-50">
           <tr>
             <th className={TH}>Tipo</th>
-            {multiLoja && <SortHeader label="Cód. loja" k="sigla" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />}
             <SortHeader label="Empresa" k="empresa" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Estado" k="estado_efetivo" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="NNum" k="nnum" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Num Doc" k="num_doc" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Cód. cliente" k="codigo_mestre" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Cliente" k="cliente_nome" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Apelido" k="apelido" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Cód. loja" k="sigla" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="CNPJ/CPF" k="cnpj_cpf" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Valor" k="valor_doc" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} align="right" />
+            <SortHeader label="Data Doc" k="data_documento" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Venc." k="vencimento" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Pago" k="valor_recebido" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} align="right" />
             <SortHeader label="Pagto" k="data_pagamento" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
@@ -502,12 +497,17 @@ function BoletosTabela({
                     BOL
                   </span>
                 </td>
-                {multiLoja && <td className="p-2 font-mono">{b.sigla ?? "—"}</td>}
                 <td className="p-2">{b.empresa ?? "—"}</td>
                 <td className="p-2"><Selo cor={est.cor}>{est.short}</Selo></td>
                 <td className="p-2 font-mono">{b.nnum}</td>
                 <td className="p-2 font-mono">{b.num_doc}</td>
+                <td className="p-2 font-mono">{b.codigo_mestre ?? "—"}</td>
+                <td className="p-2">{b.cliente_nome ?? "—"}</td>
+                <td className="p-2">{b.apelido ?? "—"}</td>
+                <td className="p-2 font-mono">{b.sigla ?? "—"}</td>
+                <td className="p-2 font-mono">{b.cnpj_cpf ?? "—"}</td>
                 <td className="p-2 text-right">{fmtValor(b.valor_doc)}</td>
+                <td className="p-2">{fmtData(b.data_documento)}</td>
                 <td className="p-2">{fmtData(b.vencimento)}</td>
                 <td className="p-2 text-right">{fmtValor(b.valor_recebido)}</td>
                 <td className="p-2">{fmtData(b.data_pagamento)}</td>
@@ -520,8 +520,9 @@ function BoletosTabela({
                   )}
                   {b.pode_tratar && (
                     <button onClick={() => tratar(b)} disabled={tratandoId === b.id}
-                      className="text-red-600 hover:underline font-semibold">
-                      {tratandoId === b.id ? "abrindo…" : "⚠️ Tratar"}
+                      className={`hover:underline font-semibold ${b.pode_pdf ? "ml-2 text-blue-600" : "text-red-600"}`}
+                      title="Enviar mensagem sobre este boleto (já paguei / quero pagar / preciso de ajuda)">
+                      {tratandoId === b.id ? "abrindo…" : "💬 Tratar"}
                     </button>
                   )}
                 </td>
@@ -537,9 +538,9 @@ function BoletosTabela({
 }
 
 function ObrigacoesTabela({
-  tipo, filtros, multiLoja,
+  tipo, filtros,
 }: {
-  tipo: string; filtros: Filtros; multiLoja: boolean;
+  tipo: string; filtros: Filtros;
 }) {
   const [offset, setOffset] = useState(0);
   const [pagina, setPagina] = useState<{ total: number; itens: ObrigacaoFin[]; offset: number } | null>(null);
@@ -588,9 +589,11 @@ function ObrigacoesTabela({
         <thead className="bg-slate-50">
           <tr>
             <th className={TH}>Tipo</th>
-            {multiLoja && <SortHeader label="Cód. loja" k="sigla" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />}
             <SortHeader label="Estado" k="status" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Nº" k="numero" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Cód. cliente" k="codigo_mestre" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Apelido" k="apelido" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Cód. loja" k="sigla" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Título" k="titulo" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Venc." k="vencimento" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
             <SortHeader label="Respondido" k="respondido_em" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
@@ -612,9 +615,11 @@ function ObrigacoesTabela({
                     {ABREV_TIPO[o.tipo ?? ""] ?? o.tipo ?? "—"}
                   </span>
                 </td>
-                {multiLoja && <td className="p-2 font-mono">{o.sigla ?? "—"}</td>}
                 <td className="p-2"><Selo cor={st.cor}>{st.label}</Selo></td>
                 <td className="p-2 font-mono">{o.numero ?? "—"}</td>
+                <td className="p-2 font-mono">{o.codigo_mestre ?? "—"}</td>
+                <td className="p-2">{o.apelido ?? "—"}</td>
+                <td className="p-2 font-mono">{o.sigla ?? "—"}</td>
                 <td className="p-2">{o.titulo ?? "—"}</td>
                 <td className="p-2">{fmtData(o.vencimento)}</td>
                 <td className="p-2">{fmtData(o.respondido_em)}</td>

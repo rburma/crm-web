@@ -91,7 +91,12 @@ export type BoletoFin = {
   nnum: number;
   num_doc: string;
   sigla: string | null;
+  codigo_mestre: string | null;
+  apelido: string | null;
+  cliente_nome: string | null;
+  cnpj_cpf: string | null;
   empresa: string | null;
+  data_documento: string | null;
   vencimento: string | null;
   valor_doc: number | null;
   estado: string | null;
@@ -105,6 +110,8 @@ export type BoletoFin = {
 export type ObrigacaoFin = {
   id: string;
   sigla: string | null;
+  codigo_mestre: string | null;
+  apelido: string | null;
   titulo: string | null;
   tipo: string | null;
   tipo_nome: string | null;

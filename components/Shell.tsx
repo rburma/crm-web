@@ -73,11 +73,14 @@ export default function Shell({
   }, []);
   const papel = u?.papel ?? "";
   // Fail-closed (28/07): sem usuario salvo -> menu MINIMO (so vis "todos").
-  // Antes o sem-login caia no menu de admin (resquicio do piloto) — franqueado/
-  // loja chegavam a VER os links administrativos. O backend sempre validou o
-  // papel, mas os links nao devem nem aparecer.
-  const ehGlobal = GLOBAIS_MENU.includes(papel);
-  const ehFranqueado = FRANQUEADO_MENU.includes(papel);
+  // Fonte da verdade = campo `menu` que o MOTOR devolve no /auth/me
+  // (admin | franqueado | loja). Fallback pras listas locais só quando a
+  // sessão salva ainda não tem o campo (registro antigo).
+  const menuSrv = u?.menu ?? "";
+  const ehGlobal = menuSrv ? menuSrv === "admin" : GLOBAIS_MENU.includes(papel);
+  const ehFranqueado = menuSrv
+    ? menuSrv === "franqueado"
+    : FRANQUEADO_MENU.includes(papel);
   const navVisivel = NAV.filter(
     (n) =>
       n.vis === "todos" ||

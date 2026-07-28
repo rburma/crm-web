@@ -315,6 +315,7 @@ export default function FinanceiroPage() {
                     <option value="">Todos</option>
                     <optgroup label="Boletos">
                       <option value="pendentes">Em aberto</option>
+                      <option value="vencido">Vencido</option>
                       <option value="pagos">Pago</option>
                     </optgroup>
                     <optgroup label="Obrigações">

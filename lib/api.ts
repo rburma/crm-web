@@ -696,6 +696,9 @@ export function atendimentosEmLote(
 // ── Login / sessão ─────────────────────────────────────────────────
 export type UsuarioLogado = {
   id: number; nome: string | null; email: string | null; papel: string; ativo: boolean;
+  // Qual menu mostrar — decidido pelo MOTOR (admin | franqueado | loja).
+  // Opcional p/ compat com sessões salvas antes do campo existir.
+  menu?: string;
 };
 
 export function login(email: string, senha: string): Promise<{ token: string; usuario: UsuarioLogado }> {

@@ -37,7 +37,9 @@ const NAV = [
 // LGPD): SÓ equipe da franqueadora. Franqueado/master/loja NUNCA veem (Renato
 // 28/07). "master"/"franqueado" veem os itens vis:"franqueado" (Minha Loja,
 // Financeiro). O menu é só apresentação — o backend valida papel de novo.
-const GLOBAIS_MENU = ["admin", "rede", "matriz", "staff"];
+// (fallback local — a decisão REAL vem no campo `menu` do /auth/me; "staff"
+// NÃO é global: na base migrada há gente de loja com esse papel)
+const GLOBAIS_MENU = ["admin", "rede", "matriz"];
 const FRANQUEADO_MENU = ["franqueado", "master"];
 
 export default function Shell({

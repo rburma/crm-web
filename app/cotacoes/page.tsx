@@ -52,12 +52,32 @@ function fmtDia(iso: string): string {
 type Pt = { data: string; cidade: string; v: number };
 function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number; onPick?: (p: Pt) => void }) {
   const [sel, setSel] = useState<Pt | null>(null);
+  // Legenda: séries ocultáveis pelo clique (28/07 — com variedades por linha
+  // a legenda dentro do SVG estourava; agora é HTML com quebra de linha, e
+  // ocultar séries reajusta a escala do gráfico).
+  const [ocultas, setOcultas] = useState<Set<string>>(new Set());
   const W = 560;
   const H = altura ?? 130;
-  const cidades = [...new Set(pontos.map((p) => p.cidade))];
-  const datas = [...new Set(pontos.map((p) => p.data))].sort();
-  if (!datas.length) return <div className="py-6 text-center text-xs text-slate-400">Sem histórico ainda — use Atualizar (ou a carga histórica do admin).</div>;
-  const vals = pontos.map((p) => p.v);
+  const cidadesTodas = [...new Set(pontos.map((p) => p.cidade))];
+  const visiveis = pontos.filter((p) => !ocultas.has(p.cidade));
+  const cidades = cidadesTodas.filter((c) => !ocultas.has(c));
+  const datas = [...new Set(visiveis.map((p) => p.data))].sort();
+  if (!pontos.length) return <div className="py-6 text-center text-xs text-slate-400">Sem histórico ainda — use Atualizar (ou a carga histórica do admin).</div>;
+  const Legenda = (
+    <div className="mb-1 flex flex-wrap gap-x-3 gap-y-1">
+      {cidadesTodas.map((cid, ci) => (
+        <button key={cid} type="button"
+                onClick={() => { const n = new Set(ocultas); if (n.has(cid)) { n.delete(cid); } else { n.add(cid); } setOcultas(n); }}
+                className={"inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 " + (ocultas.has(cid) ? "opacity-40 line-through" : "")}
+                title="Clique para mostrar/ocultar esta linha">
+          <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: CORES[ci % CORES.length] }} />
+          {cid}
+        </button>
+      ))}
+    </div>
+  );
+  if (!datas.length) return <div>{Legenda}<div className="py-6 text-center text-xs text-slate-400">Todas as linhas estão ocultas — clique na legenda para reexibir.</div></div>;
+  const vals = visiveis.map((p) => p.v);
   const vMin = Math.min(...vals);
   const vMax = Math.max(...vals, vMin + 0.01);
   const x = (d: string) => (datas.indexOf(d) / Math.max(1, datas.length - 1)) * (W - 76) + 10;
@@ -72,6 +92,7 @@ function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number;
   function pick(p: Pt) { setSel(p); if (onPick) onPick(p); }
   return (
     <div>
+      {Legenda}
       <svg viewBox={"0 0 " + W + " " + (H + 16)} className="w-full" role="img" aria-label="Serie de precos">
         {faixas.map((v) => (
           <g key={"f" + v.toFixed(3)}>
@@ -87,8 +108,11 @@ function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number;
             </text>
           </g>
         ))}
-        {cidades.map((cid, ci) => {
-          const meus = datas.map((d) => pontos.find((p) => p.data === d && p.cidade === cid)).filter(Boolean) as Pt[];
+        {cidades.map((cid) => {
+          // cor pela posição na lista COMPLETA — ocultar uma linha não muda
+          // a cor das outras (legenda e gráfico sempre combinam)
+          const ci = cidadesTodas.indexOf(cid);
+          const meus = datas.map((d) => visiveis.find((p) => p.data === d && p.cidade === cid)).filter(Boolean) as Pt[];
           const pts = meus.map((p) => x(p.data).toFixed(1) + "," + y(p.v).toFixed(1)).join(" ");
           return (
             <g key={cid}>
@@ -103,9 +127,6 @@ function SerieChart({ pontos, altura, onPick }: { pontos: Pt[]; altura?: number;
             </g>
           );
         })}
-        {cidades.map((cid, ci) => (
-          <text key={cid} x={10 + ci * 90} y={10} className="font-medium" fill={CORES[ci % CORES.length]} style={{ fontSize: 9 }}>{cid}</text>
-        ))}
       </svg>
       {sel ? (
         <div className="mt-1 rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">

@@ -90,6 +90,7 @@ export type BoletoFin = {
   id: string;
   nnum: number;
   num_doc: string;
+  sigla: string | null;
   empresa: string | null;
   vencimento: string | null;
   valor_doc: number | null;
@@ -103,6 +104,7 @@ export type BoletoFin = {
 
 export type ObrigacaoFin = {
   id: string;
+  sigla: string | null;
   titulo: string | null;
   tipo: string | null;
   tipo_nome: string | null;
@@ -119,32 +121,44 @@ export function financeiroMinhasLojas(): Promise<{ disponivel: boolean; lojas: L
   return req("portal-financeiro/minhas");
 }
 
-export function financeiroBoletos(
-  lojaId: number, situacao: string, limit: number, offset: number,
-): Promise<PaginaFin<BoletoFin>> {
-  return req(
-    `portal-financeiro/loja/${lojaId}/boletos?situacao=${situacao}&limit=${limit}&offset=${offset}`,
-  );
+export type FiltrosFin = {
+  q?: string;
+  venc_de?: string;
+  venc_ate?: string;
+  limit: number;
+  offset: number;
+};
+
+function _qs(params: Record<string, string | number | undefined>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== "") p.set(k, String(v));
+  }
+  return p.toString();
 }
 
+/** Boletos de TODAS as lojas do usuário numa lista só (com filtros). */
+export function financeiroBoletos(
+  f: FiltrosFin & { estado?: string },
+): Promise<PaginaFin<BoletoFin>> {
+  return req(`portal-financeiro/boletos?${_qs(f)}`);
+}
+
+/** Obrigações de TODAS as lojas do usuário numa lista só (com filtros). */
 export function financeiroObrigacoes(
-  lojaId: number, limit: number, offset: number,
+  f: FiltrosFin & { status_filtro?: string },
 ): Promise<PaginaFin<ObrigacaoFin>> {
-  return req(`portal-financeiro/loja/${lojaId}/obrigacoes?limit=${limit}&offset=${offset}`);
+  return req(`portal-financeiro/obrigacoes?${_qs(f)}`);
 }
 
 /** Gera o link público de tratamento do boleto vencido e devolve a URL. */
-export function financeiroTratarBoleto(
-  lojaId: number, boletoId: string,
-): Promise<{ url: string }> {
-  return req(`portal-financeiro/loja/${lojaId}/boletos/${boletoId}/tratar`, {
-    method: "POST",
-  });
+export function financeiroTratarBoleto(boletoId: string): Promise<{ url: string }> {
+  return req(`portal-financeiro/boletos/${boletoId}/tratar`, { method: "POST" });
 }
 
 /** URL da 2ª via (PDF) — abrir em nova aba; o proxy injeta a identidade. */
-export function financeiroPdfUrl(lojaId: number, boletoId: string): string {
-  return `${BASE}/portal-financeiro/loja/${lojaId}/boletos/${boletoId}/pdf`;
+export function financeiroPdfUrl(boletoId: string): string {
+  return `${BASE}/portal-financeiro/boletos/${boletoId}/pdf`;
 }
 
 // ── Backup completo do CRM (admin) ──────────────────────────────────

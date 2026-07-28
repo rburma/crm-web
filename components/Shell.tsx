@@ -7,6 +7,7 @@ import AjudaWidget from "@/components/AjudaWidget";
 import {
   impersonando,
   logout,
+  me,
   sairImpersonacao,
   usuarioLogado,
   type UsuarioLogado,
@@ -53,6 +54,15 @@ export default function Shell({
   useEffect(() => {
     setU(usuarioLogado());
     setImp(impersonando());
+    // Fonte da VERDADE do papel = servidor (28/07). O localStorage pode estar
+    // velho ou vazio (ex.: login Google antigo) — e o menu decidia por ele.
+    // Busca /auth/me da sessão atual e atualiza menu + cache local.
+    me()
+      .then((srv) => {
+        setU(srv);
+        try { localStorage.setItem("crm_usuario", JSON.stringify(srv)); } catch { /* ignore */ }
+      })
+      .catch(() => { /* sem sessão válida — mantém o que tiver */ });
   }, []);
   const papel = u?.papel ?? "";
   // Fail-closed (28/07): sem usuario salvo -> menu MINIMO (so vis "todos").
@@ -112,7 +122,10 @@ export default function Shell({
           <div className="ml-auto flex items-center gap-2 text-xs">
             {u ? (
               <>
-                <span className="text-slate-400 truncate max-w-[180px]">{u.nome || u.email}</span>
+                <span className="text-slate-400 truncate max-w-[220px]">
+                  {u.nome || u.email}
+                  <span className="text-slate-500"> ({u.papel})</span>
+                </span>
                 <button
                   onClick={() => {
                     logout();

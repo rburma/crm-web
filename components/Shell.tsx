@@ -7,7 +7,6 @@ import AjudaWidget from "@/components/AjudaWidget";
 import {
   impersonando,
   logout,
-  me,
   sairImpersonacao,
   usuarioLogado,
   type UsuarioLogado,
@@ -56,13 +55,21 @@ export default function Shell({
     setImp(impersonando());
     // Fonte da VERDADE do papel = servidor (28/07). O localStorage pode estar
     // velho ou vazio (ex.: login Google antigo) — e o menu decidia por ele.
-    // Busca /auth/me da sessão atual e atualiza menu + cache local.
-    me()
-      .then((srv) => {
-        setU(srv);
-        try { localStorage.setItem("crm_usuario", JSON.stringify(srv)); } catch { /* ignore */ }
+    // 401 = sessão vencida/inválida -> manda pro login (não fica meio-logado;
+    // era assim que o fallback do piloto tratava franqueado vencido como admin).
+    fetch("/api/render/auth/me", { cache: "no-store" })
+      .then(async (r) => {
+        if (r.ok) {
+          const srv = (await r.json()) as UsuarioLogado;
+          setU(srv);
+          try { localStorage.setItem("crm_usuario", JSON.stringify(srv)); } catch { /* ignore */ }
+        } else if (r.status === 401 && !path.startsWith("/login")) {
+          logout();
+          window.location.href = "/login";
+        }
       })
-      .catch(() => { /* sem sessão válida — mantém o que tiver */ });
+      .catch(() => { /* rede fora — mantém o que tiver */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const papel = u?.papel ?? "";
   // Fail-closed (28/07): sem usuario salvo -> menu MINIMO (so vis "todos").

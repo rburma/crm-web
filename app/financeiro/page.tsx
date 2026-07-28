@@ -405,9 +405,10 @@ function useSort(defaultKey: string) {
   return { sortKey, sortDir, clickSort };
 }
 
-function cmp(a: unknown, b: unknown, dir: "asc" | "desc"): number {
-  const va = a ?? "";
-  const vb = b ?? "";
+function cmp(x: unknown, y: unknown, dir: "asc" | "desc"): number {
+  // Cast p/ o TS aceitar < e > (valores reais são string/number/null)
+  const va = (x ?? "") as string | number;
+  const vb = (y ?? "") as string | number;
   if (va < vb) return dir === "asc" ? -1 : 1;
   if (va > vb) return dir === "asc" ? 1 : -1;
   return 0;

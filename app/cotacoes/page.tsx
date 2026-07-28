@@ -424,7 +424,7 @@ export default function CotacoesPage() {
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
-                    <th className="p-2 text-left">Produto (como publicado na fonte)</th>
+                    <th className="p-2 text-left">Produto (da sua lista)</th>
                     {colunas.map((c) => <th key={c} className="p-2 text-right">{c} (R$/kg)</th>)}
                   </tr>
                 </thead>
@@ -433,7 +433,7 @@ export default function CotacoesPage() {
                     <tr key={p.produto} className={"border-t border-slate-100 hover:bg-amber-50 " + (produtos.indexOf(p) % 2 ? "bg-slate-50" : "bg-white")}>
                       <td className="p-2">
                         <button className="text-left font-medium text-slate-700 hover:text-brand-600" onClick={() => abrirSerie(p.produto)}
-                                title="Ver histórico (gráfico)">{p.equiv && p.insumo ? p.insumo : p.produto} 📉</button>
+                                title="Ver histórico (gráfico)">{p.produto} 📉</button>
                       </td>
                       {colunas.map((cid) => {
                         const cel = p.precos.find((x) => x.cidade === cid);
@@ -442,13 +442,13 @@ export default function CotacoesPage() {
                             {cel ? (
                               <span className="inline-flex items-start gap-1">
                                 <a href={cel.fonte_url ?? undefined} target="_blank" rel="noreferrer" className="hover:underline"
-                                   title={"Publicado em " + fmtDia(cel.data) + (cel.embalagem ? " · " + cel.embalagem + " = R$ " + fmtBR(cel.preco_bruto) : "") + " · clique p/ ver a fonte"}>
+                                   title={"Publicado pela fonte como: " + (cel.produto_fonte ?? p.produto) + " · em " + fmtDia(cel.data) + (cel.embalagem ? " · " + cel.embalagem + " = R$ " + fmtBR(cel.preco_bruto) : "") + " · clique p/ ver a fonte"}>
                                   <span className="font-semibold text-slate-800">{cel.preco_kg != null ? fmtBR(cel.preco_kg) : "R$ " + fmtBR(cel.preco_bruto) + (cel.embalagem ? "/" + cel.embalagem : "")}</span>
                                   <span className="block text-[10px] text-slate-400">{fmtDia(cel.data)}/{cel.data.slice(2, 4)}</span>
                                 </a>
-                                {p.equiv ? (
+                                {cel.equiv ? (
                                   <span className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center rounded-full bg-amber-400 text-[11px] font-black leading-none text-white"
-                                        title={"Preço publicado pela fonte como: " + p.produto + ". " + p.equiv}>!</span>
+                                        title={"Preço publicado pela fonte como: " + (cel.produto_fonte ?? "?") + ". " + cel.equiv}>!</span>
                                 ) : null}
                               </span>
                             ) : <span className="text-slate-300">—</span>}

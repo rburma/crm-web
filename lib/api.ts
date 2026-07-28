@@ -139,14 +139,14 @@ function _qs(params: Record<string, string | number | undefined>): string {
 
 /** Boletos de TODAS as lojas do usuário numa lista só (com filtros). */
 export function financeiroBoletos(
-  f: FiltrosFin & { estado?: string },
+  f: FiltrosFin & { estado?: string; origem?: string },
 ): Promise<PaginaFin<BoletoFin>> {
   return req(`portal-financeiro/boletos?${_qs(f)}`);
 }
 
 /** Obrigações de TODAS as lojas do usuário numa lista só (com filtros). */
 export function financeiroObrigacoes(
-  f: FiltrosFin & { status_filtro?: string },
+  f: FiltrosFin & { status_filtro?: string; tipo?: string },
 ): Promise<PaginaFin<ObrigacaoFin>> {
   return req(`portal-financeiro/obrigacoes?${_qs(f)}`);
 }

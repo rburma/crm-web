@@ -1,17 +1,19 @@
 "use client";
 
 /**
- * FINANCEIRO do franqueado (Fase A, 28/07/2026) — v3 visual idêntico à
- * página de boletos da cobrança (pedido do admin):
- *   - tabela compacta text-xs, cabeçalho bg-slate-50 uppercase slate-500
- *   - linhas border-t + hover (sem zebra), células p-2 whitespace-nowrap
- *   - selos em pílula uppercase com as MESMAS cores da cobrança (100/800)
- *   - painéis .panel (branco, borda arredondada) e filtros estilo .field
- * Conteúdo: todas as lojas numa lista só (coluna Loja), buscas iguais
- * (texto + Estado boletos/obrigações + venc de/até), rating no topo.
+ * FINANCEIRO do franqueado — v4 ESPELHO da página de boletos da cobrança:
+ *   - painel ÚNICO com a barra de abas "Tipo:" (Boletos · Todos · DRE ·
+ *     Treinamento · …) — igual à /boletos: Boletos = só WT; Todos = inclui
+ *     fornecedores; aba de tipo = obrigações daquele tipo
+ *   - tabela compacta text-xs, chip de tipo em cada linha (BOL cinza /
+ *     obrigação lilás), linhas de obrigação com fundo lilás claro
+ *   - cabeçalhos ORDENÁVEIS (setinha ▲▼) e paginação "Exibindo X–Y de Z"
+ *   - barra de busca: texto + Estado + vencimento de/até (Buscar/Limpar)
+ * Ações: 2ª via (PDF) só em boleto em dia; vencido → TRATAR; obrigação
+ * aberta → Responder. Rating por loja no topo (sem alertas internos).
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Shell from "@/components/Shell";
 import {
   financeiroBoletos,
@@ -22,18 +24,17 @@ import {
   type BoletoFin,
   type LojaFinanceiro,
   type ObrigacaoFin,
-  type PaginaFin,
 } from "@/lib/api";
 
 const PAGE_SIZE = 50;
 
-// ── Réplica do visual da cobrança ───────────────────────────────────────
-// (classes copiadas do globals.css do cobranca-wt — não mexe nos .badge do CRM)
+// ── Réplica das classes visuais da cobrança ─────────────────────────────
 const PANEL = "bg-white border border-slate-200 rounded-lg";
 const TABLE =
   "w-full text-xs [&_td]:py-1 [&_th]:py-1 [&_td]:align-middle [&_td]:whitespace-nowrap";
 const TH = "text-left p-2 text-xs uppercase text-slate-500";
-const ROW = "border-t border-slate-100 hover:bg-slate-50";
+const ROW_BOL = "border-t border-slate-100 hover:bg-slate-50";
+const ROW_OBRIG = "border-t border-slate-100 bg-indigo-50/30 hover:bg-indigo-50";
 const SELO = "inline-block px-2 py-0.5 rounded-full text-xs font-semibold uppercase";
 const SELO_COR: Record<string, string> = {
   green: "bg-green-100 text-green-800",
@@ -47,7 +48,6 @@ function Selo({ cor, children }: { cor: string; children: React.ReactNode }) {
   return <span className={`${SELO} ${SELO_COR[cor] ?? SELO_COR.gray}`}>{children}</span>;
 }
 
-// Mesmos rótulos/cores da página de boletos da cobrança
 const ESTADOS_LABEL: Record<string, { short: string; cor: string }> = {
   aberto: { short: "ABERTO", cor: "blue" },
   vencido: { short: "VENC", cor: "red" },
@@ -65,6 +65,30 @@ const STATUS_OBRIG_LABEL: Record<string, { label: string; cor: string }> = {
   aceita: { label: "OK", cor: "green" },
   recusada: { label: "ABERTO", cor: "blue" },
   nao_cumprida: { label: "NÃO OK", cor: "red" },
+};
+
+// Abas "Tipo:" — espelha a /boletos da cobrança (sem Helpcenter/Contratos/
+// fornecedor-por-empresa; "Todos" inclui fornecedores, "Boletos" = só WT).
+const ABAS: { v: string; r: string }[] = [
+  { v: "BOLETOS", r: "Boletos" },
+  { v: "TODOS", r: "Todos" },
+  { v: "DRE", r: "DRE (relatório financeiro)" },
+  { v: "RESPOSTAS", r: "Respostas / Perguntas" },
+  { v: "CONTRATOS", r: "Contratos" },
+  { v: "PESQUISAS", r: "Pesquisas" },
+  { v: "ZOOM", r: "Treinamento" },
+  { v: "DOCUMENTOS", r: "Documentos" },
+  { v: "CHECKLISTS", r: "Checklists" },
+  { v: "VISUAL_MERCH", r: "Visual Merchandising" },
+  { v: "REFORMA", r: "Reforma de loja" },
+  { v: "OUTRO", r: "Outros" },
+];
+
+// Abrevs da coluna Tipo (iguais às da /boletos)
+const ABREV_TIPO: Record<string, string> = {
+  DRE: "DRE", CHECKLISTS: "CK", OUTRO: "OUT", PESQUISAS: "PQ", ZOOM: "TR",
+  DOCUMENTOS: "DOC", VISUAL_MERCH: "VM", REFORMA: "REF", CONTRATOS: "CT",
+  RESPOSTAS: "RSP", COMPROVANTES: "CPR",
 };
 
 const CORES_LETRA: Record<string, string> = {
@@ -160,6 +184,26 @@ function RatingsStrip({ lojas }: { lojas: LojaFinanceiro[] }) {
   );
 }
 
+/** Cabeçalho ordenável com setinha — igual ao SortHeader da /boletos. */
+function SortHeader({
+  label, k, sortKey, sortDir, onClick, align = "left",
+}: {
+  label: string; k: string; sortKey: string; sortDir: "asc" | "desc";
+  onClick: (k: string) => void; align?: "left" | "right";
+}) {
+  const ativo = sortKey === k;
+  return (
+    <th
+      className={`${align === "right" ? "text-right" : "text-left"} p-2 text-xs uppercase text-slate-500 cursor-pointer select-none hover:text-slate-700`}
+      onClick={() => onClick(k)}
+      title="Clique para ordenar"
+    >
+      {label}
+      {ativo && <span className="ml-0.5">{sortDir === "asc" ? "▲" : "▼"}</span>}
+    </th>
+  );
+}
+
 function Paginacao({
   total, offset, count, onMove,
 }: {
@@ -195,7 +239,6 @@ function Paginacao({
   );
 }
 
-// Filtros compartilhados (mesma barra da /boletos da cobrança)
 type Filtros = { q: string; estado: string; vencDe: string; vencAte: string };
 const FILTROS_VAZIOS: Filtros = { q: "", estado: "", vencDe: "", vencAte: "" };
 
@@ -209,7 +252,7 @@ export default function FinanceiroPage() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
 
-  // Campos digitados x filtros APLICADOS (busca ao clicar/Enter, como na cobrança)
+  const [tipoFiltro, setTipoFiltro] = useState("BOLETOS");
   const [form, setForm] = useState<Filtros>(FILTROS_VAZIOS);
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS);
 
@@ -226,9 +269,7 @@ export default function FinanceiroPage() {
   const buscar = () => setFiltros({ ...form });
   const limpar = () => { setForm(FILTROS_VAZIOS); setFiltros(FILTROS_VAZIOS); };
 
-  const estadoEhObrig = filtros.estado.startsWith("o:");
-  const mostraBoletos = !estadoEhObrig;
-  const mostraObrigacoes = !filtros.estado || estadoEhObrig;
+  const abaEhObrig = tipoFiltro !== "BOLETOS" && tipoFiltro !== "TODOS";
 
   return (
     <Shell title="Financeiro">
@@ -249,7 +290,7 @@ export default function FinanceiroPage() {
           <>
             <RatingsStrip lojas={lojas} />
 
-            {/* Barra de busca — mesma da página de boletos da cobrança */}
+            {/* Barra de busca — mesma da /boletos */}
             <div className={`${PANEL} p-4 mb-4`}>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex flex-col gap-1 flex-1 min-w-[220px]">
@@ -292,21 +333,13 @@ export default function FinanceiroPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className={FIELD_LABEL}>Venc. de</label>
-                  <input
-                    type="date"
-                    className={FIELD_INPUT}
-                    value={form.vencDe}
-                    onChange={(e) => setForm({ ...form, vencDe: e.target.value })}
-                  />
+                  <input type="date" className={FIELD_INPUT} value={form.vencDe}
+                    onChange={(e) => setForm({ ...form, vencDe: e.target.value })} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className={FIELD_LABEL}>Venc. até</label>
-                  <input
-                    type="date"
-                    className={FIELD_INPUT}
-                    value={form.vencAte}
-                    onChange={(e) => setForm({ ...form, vencAte: e.target.value })}
-                  />
+                  <input type="date" className={FIELD_INPUT} value={form.vencAte}
+                    onChange={(e) => setForm({ ...form, vencAte: e.target.value })} />
                 </div>
                 <button
                   className="bg-blue-600 text-white font-medium px-4 py-2 rounded hover:bg-blue-700 transition text-sm"
@@ -323,10 +356,38 @@ export default function FinanceiroPage() {
               </div>
             </div>
 
-            {mostraBoletos && <BoletosLista filtros={filtros} multiLoja={lojas.length > 1} />}
-            {mostraObrigacoes && (
-              <ObrigacoesLista filtros={filtros} multiLoja={lojas.length > 1} />
-            )}
+            {/* Painel único com abas Tipo + tabela — como a /boletos */}
+            <div className={`${PANEL} overflow-x-auto p-2`}>
+              <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-slate-400">Tipo:</span>
+                {ABAS.map((f) => (
+                  <button
+                    key={f.v}
+                    onClick={() => setTipoFiltro(f.v)}
+                    className={`rounded px-2.5 py-1 text-xs ${
+                      tipoFiltro === f.v
+                        ? "bg-slate-800 text-white"
+                        : "border hover:bg-gray-50"
+                    }`}
+                  >
+                    {f.r}
+                  </button>
+                ))}
+              </div>
+              {abaEhObrig ? (
+                <ObrigacoesTabela
+                  tipo={tipoFiltro}
+                  filtros={filtros}
+                  multiLoja={lojas.length > 1}
+                />
+              ) : (
+                <BoletosTabela
+                  origem={tipoFiltro === "BOLETOS" ? "wt" : ""}
+                  filtros={filtros}
+                  multiLoja={lojas.length > 1}
+                />
+              )}
+            </div>
           </>
         )}
       </div>
@@ -334,20 +395,44 @@ export default function FinanceiroPage() {
   );
 }
 
-function BoletosLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: boolean }) {
+function useSort(defaultKey: string) {
+  const [sortKey, setSortKey] = useState(defaultKey);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const clickSort = (k: string) => {
+    if (k === sortKey) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(k); setSortDir("desc"); }
+  };
+  return { sortKey, sortDir, clickSort };
+}
+
+function cmp(a: unknown, b: unknown, dir: "asc" | "desc"): number {
+  const va = a ?? "";
+  const vb = b ?? "";
+  if (va < vb) return dir === "asc" ? -1 : 1;
+  if (va > vb) return dir === "asc" ? 1 : -1;
+  return 0;
+}
+
+function BoletosTabela({
+  origem, filtros, multiLoja,
+}: {
+  origem: string; filtros: Filtros; multiLoja: boolean;
+}) {
   const [offset, setOffset] = useState(0);
-  const [pagina, setPagina] = useState<PaginaFin<BoletoFin> | null>(null);
+  const [pagina, setPagina] = useState<{ total: number; itens: BoletoFin[]; offset: number } | null>(null);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [tratandoId, setTratandoId] = useState<string | null>(null);
+  const { sortKey, sortDir, clickSort } = useSort("vencimento");
 
-  useEffect(() => { setOffset(0); }, [filtros]);
+  useEffect(() => { setOffset(0); }, [filtros, origem]);
 
   useEffect(() => {
     setCarregando(true);
     financeiroBoletos({
       q: filtros.q,
       estado: filtros.estado.startsWith("o:") ? "" : filtros.estado,
+      origem,
       venc_de: filtros.vencDe || undefined,
       venc_ate: filtros.vencAte || undefined,
       limit: PAGE_SIZE,
@@ -356,7 +441,18 @@ function BoletosLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: boo
       .then((r) => { setPagina(r); setErro(""); })
       .catch((e) => setErro(e instanceof Error ? e.message : "Erro"))
       .finally(() => setCarregando(false));
-  }, [filtros, offset]);
+  }, [filtros, origem, offset]);
+
+  const itens = useMemo(() => {
+    if (!pagina) return [];
+    const arr = [...pagina.itens];
+    arr.sort((a, b) => cmp(
+      (a as unknown as Record<string, unknown>)[sortKey],
+      (b as unknown as Record<string, unknown>)[sortKey],
+      sortDir,
+    ));
+    return arr;
+  }, [pagina, sortKey, sortDir]);
 
   async function tratar(b: BoletoFin) {
     setTratandoId(b.id);
@@ -370,105 +466,94 @@ function BoletosLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: boo
     }
   }
 
+  if (erro) return <div className="text-sm text-red-600 p-3">{erro}</div>;
+  if (carregando) return <div className="text-sm text-slate-400 p-3">Carregando…</div>;
+  if (!pagina || pagina.itens.length === 0) {
+    return <div className="text-sm text-slate-400 p-3">Nenhum boleto com esses filtros.</div>;
+  }
+
   return (
-    <div className={`${PANEL} mb-4 overflow-hidden`}>
-      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-700">Boletos</h2>
-      </div>
-      {erro && <div className="text-sm text-red-600 p-3">{erro}</div>}
-      {carregando ? (
-        <div className="text-sm text-slate-400 p-3">Carregando…</div>
-      ) : !pagina || pagina.itens.length === 0 ? (
-        <div className="text-sm text-slate-400 p-3">Nenhum boleto com esses filtros.</div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className={TABLE}>
-              <thead className="bg-slate-50">
-                <tr>
-                  {multiLoja && <th className={TH}>Cód. loja</th>}
-                  <th className={TH}>Empresa</th>
-                  <th className={TH}>Estado</th>
-                  <th className={TH}>NNum</th>
-                  <th className={TH}>Num Doc</th>
-                  <th className={`${TH} text-right`}>Valor</th>
-                  <th className={TH}>Venc.</th>
-                  <th className={`${TH} text-right`}>Pago</th>
-                  <th className={TH}>Pagto</th>
-                  <th className={`${TH} text-right`}>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagina.itens.map((b) => {
-                  const est = ESTADOS_LABEL[b.estado_efetivo] ??
-                    { short: (b.estado_efetivo || "—").toUpperCase(), cor: "gray" };
-                  return (
-                    <tr key={b.id} className={ROW}>
-                      {multiLoja && (
-                        <td className="p-2 font-mono">{b.sigla ?? "—"}</td>
-                      )}
-                      <td className="p-2">{b.empresa ?? "—"}</td>
-                      <td className="p-2"><Selo cor={est.cor}>{est.short}</Selo></td>
-                      <td className="p-2 font-mono">{b.nnum}</td>
-                      <td className="p-2 font-mono">{b.num_doc}</td>
-                      <td className="p-2 text-right">{fmtValor(b.valor_doc)}</td>
-                      <td className="p-2">{fmtData(b.vencimento)}</td>
-                      <td className="p-2 text-right">{fmtValor(b.valor_recebido)}</td>
-                      <td className="p-2">{fmtData(b.data_pagamento)}</td>
-                      <td className="p-2 text-right">
-                        {b.pode_pdf && (
-                          <a
-                            href={financeiroPdfUrl(b.id)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 hover:underline font-medium"
-                          >
-                            📄 2ª via
-                          </a>
-                        )}
-                        {b.pode_tratar && (
-                          <button
-                            onClick={() => tratar(b)}
-                            disabled={tratandoId === b.id}
-                            className="text-red-600 hover:underline font-semibold"
-                          >
-                            {tratandoId === b.id ? "abrindo…" : "⚠️ Tratar"}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <Paginacao
-            total={pagina.total}
-            offset={pagina.offset}
-            count={pagina.itens.length}
-            onMove={setOffset}
-          />
-        </>
-      )}
-    </div>
+    <>
+      <table className={TABLE}>
+        <thead className="bg-slate-50">
+          <tr>
+            <th className={TH}>Tipo</th>
+            {multiLoja && <SortHeader label="Cód. loja" k="sigla" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />}
+            <SortHeader label="Empresa" k="empresa" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Estado" k="estado_efetivo" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="NNum" k="nnum" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Num Doc" k="num_doc" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Valor" k="valor_doc" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} align="right" />
+            <SortHeader label="Venc." k="vencimento" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Pago" k="valor_recebido" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} align="right" />
+            <SortHeader label="Pagto" k="data_pagamento" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <th className={`${TH} text-right`}>Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {itens.map((b) => {
+            const est = ESTADOS_LABEL[b.estado_efetivo] ??
+              { short: (b.estado_efetivo || "—").toUpperCase(), cor: "gray" };
+            return (
+              <tr key={b.id} className={ROW_BOL}>
+                <td className="p-2">
+                  <span className="rounded bg-slate-200 px-1 py-0.5 text-[10px] font-semibold">
+                    BOL
+                  </span>
+                </td>
+                {multiLoja && <td className="p-2 font-mono">{b.sigla ?? "—"}</td>}
+                <td className="p-2">{b.empresa ?? "—"}</td>
+                <td className="p-2"><Selo cor={est.cor}>{est.short}</Selo></td>
+                <td className="p-2 font-mono">{b.nnum}</td>
+                <td className="p-2 font-mono">{b.num_doc}</td>
+                <td className="p-2 text-right">{fmtValor(b.valor_doc)}</td>
+                <td className="p-2">{fmtData(b.vencimento)}</td>
+                <td className="p-2 text-right">{fmtValor(b.valor_recebido)}</td>
+                <td className="p-2">{fmtData(b.data_pagamento)}</td>
+                <td className="p-2 text-right">
+                  {b.pode_pdf && (
+                    <a href={financeiroPdfUrl(b.id)} target="_blank" rel="noreferrer"
+                      className="text-blue-600 hover:underline font-medium">
+                      📄 2ª via
+                    </a>
+                  )}
+                  {b.pode_tratar && (
+                    <button onClick={() => tratar(b)} disabled={tratandoId === b.id}
+                      className="text-red-600 hover:underline font-semibold">
+                      {tratandoId === b.id ? "abrindo…" : "⚠️ Tratar"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <Paginacao total={pagina.total} offset={pagina.offset}
+        count={pagina.itens.length} onMove={setOffset} />
+    </>
   );
 }
 
-function ObrigacoesLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: boolean }) {
+function ObrigacoesTabela({
+  tipo, filtros, multiLoja,
+}: {
+  tipo: string; filtros: Filtros; multiLoja: boolean;
+}) {
   const [offset, setOffset] = useState(0);
-  const [pagina, setPagina] = useState<PaginaFin<ObrigacaoFin> | null>(null);
+  const [pagina, setPagina] = useState<{ total: number; itens: ObrigacaoFin[]; offset: number } | null>(null);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const { sortKey, sortDir, clickSort } = useSort("vencimento");
 
-  useEffect(() => { setOffset(0); }, [filtros]);
+  useEffect(() => { setOffset(0); }, [filtros, tipo]);
 
   useEffect(() => {
     setCarregando(true);
     financeiroObrigacoes({
       q: filtros.q,
-      status_filtro: filtros.estado.startsWith("o:")
-        ? filtros.estado.slice(2)
-        : "",
+      status_filtro: filtros.estado.startsWith("o:") ? filtros.estado.slice(2) : "",
+      tipo,
       venc_de: filtros.vencDe || undefined,
       venc_ate: filtros.vencAte || undefined,
       limit: PAGE_SIZE,
@@ -477,74 +562,76 @@ function ObrigacoesLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: 
       .then((r) => { setPagina(r); setErro(""); })
       .catch((e) => setErro(e instanceof Error ? e.message : "Erro"))
       .finally(() => setCarregando(false));
-  }, [filtros, offset]);
+  }, [filtros, tipo, offset]);
+
+  const itens = useMemo(() => {
+    if (!pagina) return [];
+    const arr = [...pagina.itens];
+    arr.sort((a, b) => cmp(
+      (a as unknown as Record<string, unknown>)[sortKey],
+      (b as unknown as Record<string, unknown>)[sortKey],
+      sortDir,
+    ));
+    return arr;
+  }, [pagina, sortKey, sortDir]);
+
+  if (erro) return <div className="text-sm text-red-600 p-3">{erro}</div>;
+  if (carregando) return <div className="text-sm text-slate-400 p-3">Carregando…</div>;
+  if (!pagina || pagina.itens.length === 0) {
+    return <div className="text-sm text-slate-400 p-3">Nenhuma obrigação com esses filtros.</div>;
+  }
 
   return (
-    <div className={`${PANEL} overflow-hidden`}>
-      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-700">Obrigações</h2>
-      </div>
-      {erro && <div className="text-sm text-red-600 p-3">{erro}</div>}
-      {carregando ? (
-        <div className="text-sm text-slate-400 p-3">Carregando…</div>
-      ) : !pagina || pagina.itens.length === 0 ? (
-        <div className="text-sm text-slate-400 p-3">Nenhuma obrigação com esses filtros.</div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className={TABLE}>
-              <thead className="bg-slate-50">
-                <tr>
-                  {multiLoja && <th className={TH}>Cód. loja</th>}
-                  <th className={TH}>Nº</th>
-                  <th className={TH}>Estado</th>
-                  <th className={TH}>Título</th>
-                  <th className={TH}>Tipo</th>
-                  <th className={TH}>Venc.</th>
-                  <th className={`${TH} text-right`}>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagina.itens.map((o) => {
-                  const stEf = statusObrigEfetivo(o);
-                  const st = STATUS_OBRIG_LABEL[stEf] ??
-                    { label: (stEf || "—").toUpperCase(), cor: "gray" };
-                  return (
-                    <tr key={o.id} className={ROW}>
-                      {multiLoja && (
-                        <td className="p-2 font-mono">{o.sigla ?? "—"}</td>
-                      )}
-                      <td className="p-2 font-mono">{o.numero ?? "—"}</td>
-                      <td className="p-2"><Selo cor={st.cor}>{st.label}</Selo></td>
-                      <td className="p-2">{o.titulo ?? "—"}</td>
-                      <td className="p-2">{o.tipo_nome || o.tipo || "—"}</td>
-                      <td className="p-2">{fmtData(o.vencimento)}</td>
-                      <td className="p-2 text-right">
-                        {o.link_responder && (
-                          <a
-                            href={o.link_responder}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 hover:underline font-medium"
-                          >
-                            ✍️ Responder
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <Paginacao
-            total={pagina.total}
-            offset={pagina.offset}
-            count={pagina.itens.length}
-            onMove={setOffset}
-          />
-        </>
-      )}
-    </div>
+    <>
+      <table className={TABLE}>
+        <thead className="bg-slate-50">
+          <tr>
+            <th className={TH}>Tipo</th>
+            {multiLoja && <SortHeader label="Cód. loja" k="sigla" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />}
+            <SortHeader label="Estado" k="status" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Nº" k="numero" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Título" k="titulo" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Venc." k="vencimento" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <SortHeader label="Respondido" k="respondido_em" sortKey={sortKey} sortDir={sortDir} onClick={clickSort} />
+            <th className={`${TH} text-right`}>Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {itens.map((o) => {
+            const stEf = statusObrigEfetivo(o);
+            const st = STATUS_OBRIG_LABEL[stEf] ??
+              { label: (stEf || "—").toUpperCase(), cor: "gray" };
+            return (
+              <tr key={o.id} className={ROW_OBRIG}>
+                <td className="p-2">
+                  <span
+                    className="rounded bg-indigo-200 px-1 py-0.5 text-[10px] font-semibold"
+                    title={o.tipo_nome || o.tipo || ""}
+                  >
+                    {ABREV_TIPO[o.tipo ?? ""] ?? o.tipo ?? "—"}
+                  </span>
+                </td>
+                {multiLoja && <td className="p-2 font-mono">{o.sigla ?? "—"}</td>}
+                <td className="p-2"><Selo cor={st.cor}>{st.label}</Selo></td>
+                <td className="p-2 font-mono">{o.numero ?? "—"}</td>
+                <td className="p-2">{o.titulo ?? "—"}</td>
+                <td className="p-2">{fmtData(o.vencimento)}</td>
+                <td className="p-2">{fmtData(o.respondido_em)}</td>
+                <td className="p-2 text-right">
+                  {o.link_responder && (
+                    <a href={o.link_responder} target="_blank" rel="noreferrer"
+                      className="text-blue-600 hover:underline font-medium">
+                      ✍️ Responder
+                    </a>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <Paginacao total={pagina.total} offset={pagina.offset}
+        count={pagina.itens.length} onMove={setOffset} />
+    </>
   );
 }

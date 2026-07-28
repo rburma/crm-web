@@ -33,7 +33,12 @@ const NAV = [
   { href: "/backup", label: "Backup", icon: "💾", vis: "admin" },
   { href: "/lgpd", label: "LGPD", icon: "🛡️", vis: "admin" },
 ];
-const GLOBAIS_MENU = ["admin", "rede", "matriz", "staff", "master"];
+// Menu ADMIN (Importar, Aprovações, Usuários, Go-live, Configurações, Backup,
+// LGPD): SÓ equipe da franqueadora. Franqueado/master/loja NUNCA veem (Renato
+// 28/07). "master"/"franqueado" veem os itens vis:"franqueado" (Minha Loja,
+// Financeiro). O menu é só apresentação — o backend valida papel de novo.
+const GLOBAIS_MENU = ["admin", "rede", "matriz", "staff"];
+const FRANQUEADO_MENU = ["franqueado", "master"];
 
 export default function Shell({
   children,
@@ -50,15 +55,17 @@ export default function Shell({
     setImp(impersonando());
   }, []);
   const papel = u?.papel ?? "";
-  // Piloto: atras do portao, o backend trata sem-login como admin (X-Usuario-Id=1).
-  // Entao SEM usuario salvo -> menu de admin. So um usuario NAO-global logado (ex.:
-  // franqueado) ve o menu restrito.
-  const ehGlobal = !papel || GLOBAIS_MENU.includes(papel);
+  // Fail-closed (28/07): sem usuario salvo -> menu MINIMO (so vis "todos").
+  // Antes o sem-login caia no menu de admin (resquicio do piloto) — franqueado/
+  // loja chegavam a VER os links administrativos. O backend sempre validou o
+  // papel, mas os links nao devem nem aparecer.
+  const ehGlobal = GLOBAIS_MENU.includes(papel);
+  const ehFranqueado = FRANQUEADO_MENU.includes(papel);
   const navVisivel = NAV.filter(
     (n) =>
-      ehGlobal ||
       n.vis === "todos" ||
-      (n.vis === "franqueado" && papel === "franqueado"),
+      (n.vis === "franqueado" && (ehGlobal || ehFranqueado)) ||
+      (n.vis === "admin" && ehGlobal),
   );
   return (
     <div className="min-h-screen flex flex-col">

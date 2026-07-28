@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * FINANCEIRO do franqueado (Fase A, 28/07/2026) — v2 lista única.
- *
- * Como a página de boletos da cobrança (pedido do admin): TODAS as lojas do
- * usuário numa lista só (coluna Loja), com as mesmas buscas — texto, Estado
- * (boletos e obrigações no mesmo seletor) e vencimento de/até — e a mesma
- * paginação. Rating por loja no topo (letra + nota + fatores, SEM alertas
- * internos). Boleto em dia → 2ª via (PDF); vencido → TRATAR (mesma página
- * dos e-mails de cobrança). Obrigações abertas → Responder.
+ * FINANCEIRO do franqueado (Fase A, 28/07/2026) — v3 visual idêntico à
+ * página de boletos da cobrança (pedido do admin):
+ *   - tabela compacta text-xs, cabeçalho bg-slate-50 uppercase slate-500
+ *   - linhas border-t + hover (sem zebra), células p-2 whitespace-nowrap
+ *   - selos em pílula uppercase com as MESMAS cores da cobrança (100/800)
+ *   - painéis .panel (branco, borda arredondada) e filtros estilo .field
+ * Conteúdo: todas as lojas numa lista só (coluna Loja), buscas iguais
+ * (texto + Estado boletos/obrigações + venc de/até), rating no topo.
  */
 
 import { useEffect, useState } from "react";
@@ -27,24 +27,44 @@ import {
 
 const PAGE_SIZE = 50;
 
-// Mesmos rótulos/cores da página de boletos da cobrança
-const ESTADOS_LABEL: Record<string, { short: string; badge: string }> = {
-  aberto: { short: "ABERTO", badge: "badge-blue" },
-  vencido: { short: "VENC", badge: "badge-red" },
-  pago_auto: { short: "PG CNAB", badge: "badge-green" },
-  pago_manual: { short: "PG MANUAL", badge: "badge-green" },
-  baixado: { short: "BAIXA", badge: "badge-gray" },
-  rejeitado: { short: "REJ", badge: "badge-yellow" },
-  cancelado: { short: "CANC", badge: "badge-gray" },
+// ── Réplica do visual da cobrança ───────────────────────────────────────
+// (classes copiadas do globals.css do cobranca-wt — não mexe nos .badge do CRM)
+const PANEL = "bg-white border border-slate-200 rounded-lg";
+const TABLE =
+  "w-full text-xs [&_td]:py-1 [&_th]:py-1 [&_td]:align-middle [&_td]:whitespace-nowrap";
+const TH = "text-left p-2 text-xs uppercase text-slate-500";
+const ROW = "border-t border-slate-100 hover:bg-slate-50";
+const SELO = "inline-block px-2 py-0.5 rounded-full text-xs font-semibold uppercase";
+const SELO_COR: Record<string, string> = {
+  green: "bg-green-100 text-green-800",
+  red: "bg-red-100 text-red-800",
+  yellow: "bg-yellow-100 text-yellow-800",
+  blue: "bg-blue-100 text-blue-800",
+  gray: "bg-slate-100 text-slate-700",
 };
 
-const STATUS_OBRIG_LABEL: Record<string, { label: string; badge: string }> = {
-  em_aberto: { label: "ABERTO", badge: "badge-blue" },
-  vencida: { label: "VENC", badge: "badge-red" },
-  respondida: { label: "RESP", badge: "badge-blue" },
-  aceita: { label: "OK", badge: "badge-green" },
-  recusada: { label: "ABERTO", badge: "badge-blue" },
-  nao_cumprida: { label: "NÃO OK", badge: "badge-red" },
+function Selo({ cor, children }: { cor: string; children: React.ReactNode }) {
+  return <span className={`${SELO} ${SELO_COR[cor] ?? SELO_COR.gray}`}>{children}</span>;
+}
+
+// Mesmos rótulos/cores da página de boletos da cobrança
+const ESTADOS_LABEL: Record<string, { short: string; cor: string }> = {
+  aberto: { short: "ABERTO", cor: "blue" },
+  vencido: { short: "VENC", cor: "red" },
+  pago_auto: { short: "PG CNAB", cor: "green" },
+  pago_manual: { short: "PG MANUAL", cor: "green" },
+  baixado: { short: "BAIXA", cor: "gray" },
+  rejeitado: { short: "REJ", cor: "yellow" },
+  cancelado: { short: "CANC", cor: "gray" },
+};
+
+const STATUS_OBRIG_LABEL: Record<string, { label: string; cor: string }> = {
+  em_aberto: { label: "ABERTO", cor: "blue" },
+  vencida: { label: "VENC", cor: "red" },
+  respondida: { label: "RESP", cor: "blue" },
+  aceita: { label: "OK", cor: "green" },
+  recusada: { label: "ABERTO", cor: "blue" },
+  nao_cumprida: { label: "NÃO OK", cor: "red" },
 };
 
 const CORES_LETRA: Record<string, string> = {
@@ -72,7 +92,8 @@ function statusObrigEfetivo(o: ObrigacaoFin): string {
 
 function LetraRating({ letra, size = 24 }: { letra: string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-label={`Rating ${letra}`}>
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-label={`Rating ${letra}`}
+      style={{ display: "inline-block", verticalAlign: "middle" }}>
       <rect x="1" y="1" width="22" height="22" rx="5" fill={CORES_LETRA[letra] ?? "#94a3b8"} />
       <text x="12" y="12" textAnchor="middle" dominantBaseline="central" fontSize="15"
         fontWeight="800" fontFamily="ui-sans-serif, system-ui, sans-serif" fill="#fff">
@@ -87,14 +108,14 @@ function RatingsStrip({ lojas }: { lojas: LojaFinanceiro[] }) {
   const [abertaId, setAbertaId] = useState<number | null>(null);
   const aberta = lojas.find((lj) => lj.loja_id === abertaId) ?? null;
   return (
-    <div className="mb-3">
+    <div className="mb-4">
       <div className="flex gap-2 flex-wrap">
         {lojas.map((lj) => (
           <button
             key={lj.loja_id}
             onClick={() => setAbertaId(abertaId === lj.loja_id ? null : lj.loja_id)}
-            className={`card px-3 py-2 flex items-center gap-2 text-left hover:bg-slate-50 ${
-              abertaId === lj.loja_id ? "ring-2 ring-brand-500" : ""
+            className={`${PANEL} px-3 py-2 flex items-center gap-2 text-left hover:bg-slate-50 transition ${
+              abertaId === lj.loja_id ? "ring-2 ring-blue-400" : ""
             }`}
             title="Clique para ver como a nota é formada"
           >
@@ -116,7 +137,7 @@ function RatingsStrip({ lojas }: { lojas: LojaFinanceiro[] }) {
         ))}
       </div>
       {aberta?.rating?.componentes?.length ? (
-        <div className="card p-3 mt-2 max-w-xl">
+        <div className={`${PANEL} p-3 mt-2 max-w-xl`}>
           <div className="text-xs font-semibold text-slate-600 mb-1">
             Como a nota de {aberta.nome || aberta.sigla} é formada
           </div>
@@ -146,7 +167,7 @@ function Paginacao({
 }) {
   if (total <= 0) return null;
   return (
-    <div className="flex items-center justify-between mt-2 text-sm">
+    <div className="flex items-center justify-between mt-3 text-sm px-2 pb-2">
       <div className="text-slate-500">
         Exibindo{" "}
         <strong className="text-slate-700">
@@ -156,14 +177,14 @@ function Paginacao({
       </div>
       <div className="flex gap-1">
         <button
-          className="btn-ghost text-xs"
+          className="bg-white border border-slate-300 text-slate-700 font-medium px-3 py-1 rounded hover:bg-slate-50 transition text-xs disabled:opacity-40"
           disabled={offset <= 0}
           onClick={() => onMove(Math.max(0, offset - PAGE_SIZE))}
         >
           ‹ Anterior
         </button>
         <button
-          className="btn-ghost text-xs"
+          className="bg-white border border-slate-300 text-slate-700 font-medium px-3 py-1 rounded hover:bg-slate-50 transition text-xs disabled:opacity-40"
           disabled={offset + count >= total}
           onClick={() => onMove(offset + PAGE_SIZE)}
         >
@@ -177,6 +198,10 @@ function Paginacao({
 // Filtros compartilhados (mesma barra da /boletos da cobrança)
 type Filtros = { q: string; estado: string; vencDe: string; vencAte: string };
 const FILTROS_VAZIOS: Filtros = { q: "", estado: "", vencDe: "", vencAte: "" };
+
+const FIELD_LABEL = "text-xs font-semibold text-slate-600";
+const FIELD_INPUT =
+  "border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500";
 
 export default function FinanceiroPage() {
   const [lojas, setLojas] = useState<LojaFinanceiro[]>([]);
@@ -225,24 +250,24 @@ export default function FinanceiroPage() {
             <RatingsStrip lojas={lojas} />
 
             {/* Barra de busca — mesma da página de boletos da cobrança */}
-            <div className="card p-3 mb-3">
-              <div className="flex flex-wrap items-end gap-2">
-                <div className="flex-1 min-w-[200px]">
-                  <label className="block text-xs text-slate-500 mb-0.5">
+            <div className={`${PANEL} p-4 mb-4`}>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-1 flex-1 min-w-[220px]">
+                  <label className={FIELD_LABEL}>
                     Busca (nº documento, NNum, título…)
                   </label>
                   <input
-                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+                    className={FIELD_INPUT}
                     value={form.q}
                     onChange={(e) => setForm({ ...form, q: e.target.value })}
                     onKeyDown={(e) => e.key === "Enter" && buscar()}
                     placeholder="Ex: 4310, DRE, 123456"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-0.5">Estado</label>
+                <div className="flex flex-col gap-1">
+                  <label className={FIELD_LABEL}>Estado</label>
                   <select
-                    className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                    className={FIELD_INPUT}
                     value={form.estado}
                     onChange={(e) => setForm({ ...form, estado: e.target.value })}
                   >
@@ -265,28 +290,34 @@ export default function FinanceiroPage() {
                     </optgroup>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-0.5">Venc. de</label>
+                <div className="flex flex-col gap-1">
+                  <label className={FIELD_LABEL}>Venc. de</label>
                   <input
                     type="date"
-                    className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                    className={FIELD_INPUT}
                     value={form.vencDe}
                     onChange={(e) => setForm({ ...form, vencDe: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-0.5">Venc. até</label>
+                <div className="flex flex-col gap-1">
+                  <label className={FIELD_LABEL}>Venc. até</label>
                   <input
                     type="date"
-                    className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                    className={FIELD_INPUT}
                     value={form.vencAte}
                     onChange={(e) => setForm({ ...form, vencAte: e.target.value })}
                   />
                 </div>
-                <button className="btn-primary text-sm" onClick={buscar}>
+                <button
+                  className="bg-blue-600 text-white font-medium px-4 py-2 rounded hover:bg-blue-700 transition text-sm"
+                  onClick={buscar}
+                >
                   🔍 Buscar
                 </button>
-                <button className="btn-ghost text-sm" onClick={limpar}>
+                <button
+                  className="bg-white border border-slate-300 text-slate-700 font-medium px-4 py-2 rounded hover:bg-slate-50 transition text-sm"
+                  onClick={limpar}
+                >
                   Limpar
                 </button>
               </div>
@@ -340,60 +371,57 @@ function BoletosLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: boo
   }
 
   return (
-    <section className="card p-3 mb-3">
-      <h2 className="font-semibold text-slate-700 mb-2">Boletos</h2>
-      {erro && <div className="text-sm text-red-600 mb-2">{erro}</div>}
+    <div className={`${PANEL} mb-4 overflow-hidden`}>
+      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+        <h2 className="font-semibold text-slate-700">Boletos</h2>
+      </div>
+      {erro && <div className="text-sm text-red-600 p-3">{erro}</div>}
       {carregando ? (
-        <div className="text-sm text-slate-400">Carregando…</div>
+        <div className="text-sm text-slate-400 p-3">Carregando…</div>
       ) : !pagina || pagina.itens.length === 0 ? (
-        <div className="text-sm text-slate-400">Nenhum boleto com esses filtros.</div>
+        <div className="text-sm text-slate-400 p-3">Nenhum boleto com esses filtros.</div>
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  {multiLoja && <th className="th">Loja</th>}
-                  <th className="th">Empresa</th>
-                  <th className="th">NNum</th>
-                  <th className="th">Doc</th>
-                  <th className="th">Vencimento</th>
-                  <th className="th text-right">Valor</th>
-                  <th className="th">Estado</th>
-                  <th className="th">Pagamento</th>
-                  <th className="th text-right">Ação</th>
+            <table className={TABLE}>
+              <thead className="bg-slate-50">
+                <tr>
+                  {multiLoja && <th className={TH}>Cód. loja</th>}
+                  <th className={TH}>Empresa</th>
+                  <th className={TH}>Estado</th>
+                  <th className={TH}>NNum</th>
+                  <th className={TH}>Num Doc</th>
+                  <th className={`${TH} text-right`}>Valor</th>
+                  <th className={TH}>Venc.</th>
+                  <th className={`${TH} text-right`}>Pago</th>
+                  <th className={TH}>Pagto</th>
+                  <th className={`${TH} text-right`}>Ação</th>
                 </tr>
               </thead>
               <tbody>
-                {pagina.itens.map((b, idx) => {
+                {pagina.itens.map((b) => {
                   const est = ESTADOS_LABEL[b.estado_efetivo] ??
-                    { short: (b.estado_efetivo || "—").toUpperCase(), badge: "badge-gray" };
+                    { short: (b.estado_efetivo || "—").toUpperCase(), cor: "gray" };
                   return (
-                    <tr
-                      key={b.id}
-                      className={`border-t border-slate-100 ${idx % 2 === 1 ? "bg-slate-50/60" : ""}`}
-                    >
+                    <tr key={b.id} className={ROW}>
                       {multiLoja && (
-                        <td className="td font-mono text-xs">{b.sigla ?? "—"}</td>
+                        <td className="p-2 font-mono">{b.sigla ?? "—"}</td>
                       )}
-                      <td className="td">{b.empresa ?? "—"}</td>
-                      <td className="td font-mono text-xs">{b.nnum}</td>
-                      <td className="td font-mono text-xs">{b.num_doc}</td>
-                      <td className="td">{fmtData(b.vencimento)}</td>
-                      <td className="td text-right">{fmtValor(b.valor_doc)}</td>
-                      <td className="td"><span className={est.badge}>{est.short}</span></td>
-                      <td className="td text-xs">
-                        {b.data_pagamento
-                          ? `${fmtData(b.data_pagamento)}${b.valor_recebido != null ? ` · ${fmtValor(b.valor_recebido)}` : ""}`
-                          : "—"}
-                      </td>
-                      <td className="td text-right whitespace-nowrap">
+                      <td className="p-2">{b.empresa ?? "—"}</td>
+                      <td className="p-2"><Selo cor={est.cor}>{est.short}</Selo></td>
+                      <td className="p-2 font-mono">{b.nnum}</td>
+                      <td className="p-2 font-mono">{b.num_doc}</td>
+                      <td className="p-2 text-right">{fmtValor(b.valor_doc)}</td>
+                      <td className="p-2">{fmtData(b.vencimento)}</td>
+                      <td className="p-2 text-right">{fmtValor(b.valor_recebido)}</td>
+                      <td className="p-2">{fmtData(b.data_pagamento)}</td>
+                      <td className="p-2 text-right">
                         {b.pode_pdf && (
                           <a
                             href={financeiroPdfUrl(b.id)}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-brand-600 hover:underline text-xs font-medium"
+                            className="text-blue-600 hover:underline font-medium"
                           >
                             📄 2ª via
                           </a>
@@ -402,7 +430,7 @@ function BoletosLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: boo
                           <button
                             onClick={() => tratar(b)}
                             disabled={tratandoId === b.id}
-                            className="text-red-600 hover:underline text-xs font-semibold"
+                            className="text-red-600 hover:underline font-semibold"
                           >
                             {tratandoId === b.id ? "abrindo…" : "⚠️ Tratar"}
                           </button>
@@ -422,7 +450,7 @@ function BoletosLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: boo
           />
         </>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -452,53 +480,52 @@ function ObrigacoesLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: 
   }, [filtros, offset]);
 
   return (
-    <section className="card p-3">
-      <h2 className="font-semibold text-slate-700 mb-2">Obrigações</h2>
-      {erro && <div className="text-sm text-red-600 mb-2">{erro}</div>}
+    <div className={`${PANEL} overflow-hidden`}>
+      <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+        <h2 className="font-semibold text-slate-700">Obrigações</h2>
+      </div>
+      {erro && <div className="text-sm text-red-600 p-3">{erro}</div>}
       {carregando ? (
-        <div className="text-sm text-slate-400">Carregando…</div>
+        <div className="text-sm text-slate-400 p-3">Carregando…</div>
       ) : !pagina || pagina.itens.length === 0 ? (
-        <div className="text-sm text-slate-400">Nenhuma obrigação com esses filtros.</div>
+        <div className="text-sm text-slate-400 p-3">Nenhuma obrigação com esses filtros.</div>
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  {multiLoja && <th className="th">Loja</th>}
-                  <th className="th">Nº</th>
-                  <th className="th">Título</th>
-                  <th className="th">Tipo</th>
-                  <th className="th">Vencimento</th>
-                  <th className="th">Status</th>
-                  <th className="th text-right">Ação</th>
+            <table className={TABLE}>
+              <thead className="bg-slate-50">
+                <tr>
+                  {multiLoja && <th className={TH}>Cód. loja</th>}
+                  <th className={TH}>Nº</th>
+                  <th className={TH}>Estado</th>
+                  <th className={TH}>Título</th>
+                  <th className={TH}>Tipo</th>
+                  <th className={TH}>Venc.</th>
+                  <th className={`${TH} text-right`}>Ação</th>
                 </tr>
               </thead>
               <tbody>
-                {pagina.itens.map((o, idx) => {
+                {pagina.itens.map((o) => {
                   const stEf = statusObrigEfetivo(o);
                   const st = STATUS_OBRIG_LABEL[stEf] ??
-                    { label: (stEf || "—").toUpperCase(), badge: "badge-gray" };
+                    { label: (stEf || "—").toUpperCase(), cor: "gray" };
                   return (
-                    <tr
-                      key={o.id}
-                      className={`border-t border-slate-100 ${idx % 2 === 1 ? "bg-slate-50/60" : ""}`}
-                    >
+                    <tr key={o.id} className={ROW}>
                       {multiLoja && (
-                        <td className="td font-mono text-xs">{o.sigla ?? "—"}</td>
+                        <td className="p-2 font-mono">{o.sigla ?? "—"}</td>
                       )}
-                      <td className="td font-mono text-xs">{o.numero ?? "—"}</td>
-                      <td className="td">{o.titulo ?? "—"}</td>
-                      <td className="td text-xs">{o.tipo_nome || o.tipo || "—"}</td>
-                      <td className="td">{fmtData(o.vencimento)}</td>
-                      <td className="td"><span className={st.badge}>{st.label}</span></td>
-                      <td className="td text-right">
+                      <td className="p-2 font-mono">{o.numero ?? "—"}</td>
+                      <td className="p-2"><Selo cor={st.cor}>{st.label}</Selo></td>
+                      <td className="p-2">{o.titulo ?? "—"}</td>
+                      <td className="p-2">{o.tipo_nome || o.tipo || "—"}</td>
+                      <td className="p-2">{fmtData(o.vencimento)}</td>
+                      <td className="p-2 text-right">
                         {o.link_responder && (
                           <a
                             href={o.link_responder}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-brand-600 hover:underline text-xs font-medium"
+                            className="text-blue-600 hover:underline font-medium"
                           >
                             ✍️ Responder
                           </a>
@@ -518,6 +545,6 @@ function ObrigacoesLista({ filtros, multiLoja }: { filtros: Filtros; multiLoja: 
           />
         </>
       )}
-    </section>
+    </div>
   );
 }

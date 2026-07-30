@@ -38,7 +38,7 @@ export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
       <h2 className="font-bold text-slate-700 mb-2 text-center">
         📍 Onde estamos — escolha o país e clique na região
       </h2>
-      <MapaMundo contagem={contagem} cor="#0f172a" selecionado={uf} onSelect={setUf}
+      <MapaMundo contagem={contagem} cor="#009c3b" selecionado={uf} onSelect={setUf}
         onPais={setPais} />
       {uf && visiveis.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-4">

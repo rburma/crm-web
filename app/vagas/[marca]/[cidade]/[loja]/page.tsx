@@ -118,9 +118,9 @@ export default async function VagasLoja({ params }: Props) {
               <h2 className="font-bold">{c.titulo}</h2>
               <Link
                 href={`/vagas/candidatar?marca=${marca.slug}&loja=${loja.id}&cargo=${c.id}`}
-                className="text-sm font-semibold rounded-lg px-3 py-2 border border-slate-300 hover:bg-slate-50"
+                className="text-sm font-semibold rounded-lg px-3 py-2 bg-emerald-600 text-white hover:bg-emerald-700"
               >
-                📥 Quero enviar meu currículo p/ quando houver disponibilidade
+                Quero enviar meu currículo p/ quando houver disponibilidade
               </Link>
             </div>
             {c.descricao && <p className="text-sm text-slate-600 mt-2 whitespace-pre-line">{c.descricao}</p>}

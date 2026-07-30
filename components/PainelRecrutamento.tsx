@@ -185,6 +185,15 @@ export default function PainelRecrutamento({ id }: { id: number }) {
                       )}
                     </div>
                     {r.aval_ia && <div className="text-slate-400 mt-0.5">IA: {r.aval_ia}</div>}
+                    {r.alertas_ia && r.alertas_ia.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {r.alertas_ia.map((a, j) => (
+                          <span key={j} className="text-[10px] bg-red-50 text-red-700 border border-red-200 rounded-full px-2 py-0.5">
+                            ⚠ {a}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

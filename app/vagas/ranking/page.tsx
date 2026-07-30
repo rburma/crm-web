@@ -18,6 +18,7 @@ const COLUNAS: { chave: string; rotulo: string; padrao: boolean }[] = [
   { chave: "fase", rotulo: "Fase", padrao: true },
   { chave: "mbi", rotulo: "MBI", padrao: true },
   { chave: "disc", rotulo: "DISC", padrao: true },
+  { chave: "alertas", rotulo: "⚠ Alertas", padrao: true },
   { chave: "videos", rotulo: "Vídeos", padrao: false },
   { chave: "cidade", rotulo: "Cidade", padrao: false },
   { chave: "capital", rotulo: "Capital", padrao: false },
@@ -140,6 +141,12 @@ export default function RankingPage() {
       case "mbi": return l.mbi != null ? l.mbi.toFixed(1) : "—";
       case "disc": return l.disc || "—";
       case "videos": return l.videos > 0 ? `${l.videos} ▶` : "—";
+      case "alertas": return l.alertas > 0 ? (
+        <span className={`px-1.5 py-0.5 rounded-lg font-bold ${l.alertas >= 3 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}
+          title="Sinais de alerta (Murphy/Quinn) detectados pela IA — detalhe na ficha">
+          ⚠ {l.alertas}
+        </span>
+      ) : <span className="text-emerald-600">✓ 0</span>;
       case "parado_min": return (
         <span className={l.parado_min > 5 * 1440 ? "text-amber-600 font-semibold" : ""}>
           {parado(l.parado_min)}{l.parado_min > 5 * 1440 ? " ⏰" : ""}

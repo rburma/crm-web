@@ -2246,7 +2246,8 @@ export type RankingLinha = {
   cidade: string | null; uf: string | null; capital: string | null;
   tipo: string; cargo: string | null; loja: string | null;
   fase: string; status: string; score: number | null; mbi: number | null;
-  disc: string | null; videos: number; parado_min: number; criado_em: string | null;
+  disc: string | null; videos: number; alertas: number;
+  parado_min: number; criado_em: string | null;
 };
 export function vagasRanking(params: Record<string, string | number>): Promise<{
   total: number; pagina: number; por_pagina: number; linhas: RankingLinha[];
@@ -2282,6 +2283,7 @@ export type PainelCandidatura = {
   } | null;
   respostas: { pergunta_id: number; valor: string; tipo: string; nota?: number;
     nota_ia?: number; nota_manual?: number; aval_ia?: string;
+    alertas_ia?: string[];
     pergunta: string | null; rankeia: string | null; peso: number | null; fase: string }[];
   fases: { slug: string; nome: string }[];
   capital: string | null; cidade: string | null; uf: string | null;

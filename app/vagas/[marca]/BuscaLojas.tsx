@@ -5,7 +5,7 @@
 // (client component hidrata), então o SEO da lista continua intacto.
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import MapaBrasil, { UFS_BR } from "@/components/MapaBrasil";
+import MapaMundo, { paisDoCodigo, type Pais } from "@/components/MapaMundo";
 import type { CargoPub, LojaPub } from "@/lib/vagasServer";
 
 function norm(s: string | null | undefined): string {
@@ -20,9 +20,10 @@ export default function BuscaLojas({ marcaSlug, cor, lojas, cargos, ufInicial }:
   ufInicial?: string;
 }) {
   const [busca, setBusca] = useState("");
+  const ufIni = (ufInicial || "").toUpperCase();
+  const paisIni = paisDoCodigo(ufIni);
   const [uf, setUf] = useState<string | null>(
-    ufInicial && (UFS_BR.includes(ufInicial.toUpperCase()) || ufInicial === "OUTRAS")
-      ? ufInicial.toUpperCase() : null,
+    ufIni && (paisIni !== "OUTRAS" || ufIni === "OUTRAS") ? ufIni : null,
   );
   const titulos = useMemo(
     () => new Map(cargos.map((c) => [c.id, c.titulo])), [cargos],
@@ -56,13 +57,13 @@ export default function BuscaLojas({ marcaSlug, cor, lojas, cargos, ufInicial }:
   const contagem: Record<string, number> = {};
   for (const lj of lojas) {
     const u = (lj.uf || "").toUpperCase();
-    const chave = UFS_BR.includes(u) ? u : "OUTRAS";
+    const chave = paisDoCodigo(u) === "OUTRAS" ? "OUTRAS" : u;
     contagem[chave] = (contagem[chave] || 0) + 1;
   }
   const visiveis = uf
     ? buscadas.filter((lj) => {
         const u = (lj.uf || "").toUpperCase();
-        return uf === "OUTRAS" ? !UFS_BR.includes(u) : u === uf;
+        return uf === "OUTRAS" ? paisDoCodigo(u) === "OUTRAS" : u === uf;
       })
     : buscadas;
 
@@ -81,7 +82,8 @@ export default function BuscaLojas({ marcaSlug, cor, lojas, cargos, ufInicial }:
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
       />
-      <MapaBrasil contagem={contagem} cor={cor} selecionado={uf} onSelect={setUf} />
+      <MapaMundo contagem={contagem} cor={cor} selecionado={uf} onSelect={setUf}
+        paisInicial={paisIni !== "OUTRAS" ? (paisIni as Pais) : undefined} />
       {visiveis.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-6">
           Nenhuma loja encontrada para “{busca}” — tente outro termo (cidade,

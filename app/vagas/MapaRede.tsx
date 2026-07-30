@@ -4,7 +4,7 @@
 // página abrir filtrada. A busca detalhada fica na página da marca.
 import { useState } from "react";
 import Link from "next/link";
-import MapaBrasil, { UFS_BR } from "@/components/MapaBrasil";
+import MapaMundo, { paisDoCodigo } from "@/components/MapaMundo";
 import type { MarcaPub } from "@/lib/vagasServer";
 
 export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
@@ -12,7 +12,7 @@ export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
   const contagem: Record<string, number> = {};
   for (const m of marcas) {
     for (const [u, n] of Object.entries(m.ufs || {})) {
-      const chave = UFS_BR.includes(u) ? u : "OUTRAS";
+      const chave = paisDoCodigo(u) === "OUTRAS" ? "OUTRAS" : u;
       contagem[chave] = (contagem[chave] || 0) + n;
     }
   }
@@ -20,7 +20,7 @@ export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
     if (!uf) return 1;
     if (uf === "OUTRAS") {
       return Object.entries(m.ufs || {})
-        .filter(([u]) => !UFS_BR.includes(u))
+        .filter(([u]) => paisDoCodigo(u) === "OUTRAS")
         .reduce((s, [, n]) => s + n, 0);
     }
     return (m.ufs || {})[uf] || 0;
@@ -29,9 +29,9 @@ export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
   return (
     <div>
       <h2 className="font-bold text-slate-700 mb-2 text-center">
-        📍 Onde estamos — clique no seu estado
+        📍 Onde estamos — escolha o país e clique na região
       </h2>
-      <MapaBrasil contagem={contagem} cor="#0f172a" selecionado={uf} onSelect={setUf} />
+      <MapaMundo contagem={contagem} cor="#0f172a" selecionado={uf} onSelect={setUf} />
       {uf && visiveis.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-4">
           Nenhuma loja neste estado ainda.

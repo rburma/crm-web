@@ -4,6 +4,7 @@
 // + carga IBGE). Funil/perguntas/score chegam na Fase 2.
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import VagasNav from "@/components/VagasNav";
 import FunilAdmin from "./FunilAdmin";
 import { BlocosAdmin, TestesAdmin } from "./TestesBlocos";
 import {
@@ -67,6 +68,7 @@ export default function VagasAdminPage() {
   return (
     <Shell>
       <div className="p-4 max-w-5xl mx-auto">
+        <VagasNav atual="admin" />
         <h1 className="text-xl font-bold mb-1">💼 Vagas — administração</h1>
         <p className="text-sm text-slate-500 mb-4">
           Catálogo de cargos por marca (aparece nas páginas públicas; sem faixa

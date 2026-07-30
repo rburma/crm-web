@@ -6,6 +6,7 @@
 // aba Franquias = candidatos a franqueado (depto Franquias).
 import { useCallback, useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
+import VagasNav from "@/components/VagasNav";
 import { vagasAcaoLote, vagasRanking, type RankingLinha } from "@/lib/api";
 
 const COLUNAS: { chave: string; rotulo: string; padrao: boolean }[] = [
@@ -158,6 +159,7 @@ export default function RankingPage() {
   return (
     <Shell>
       <div className="p-4 max-w-7xl mx-auto">
+        <VagasNav atual="ranking" />
         <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
           <h1 className="text-xl font-bold">🏆 Ranking de candidatos</h1>
           <div className="flex gap-1">

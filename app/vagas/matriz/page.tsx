@@ -4,6 +4,7 @@
 // Oportunidades com assunto padrao "Vaga: <cargo> — <sigla>".
 import { useEffect, useMemo, useState } from "react";
 import Shell from "@/components/Shell";
+import VagasNav from "@/components/VagasNav";
 import { vagasMatriz, vagasMarcar, type VagasMatriz } from "@/lib/api";
 
 export default function VagasMatrizPage() {
@@ -47,6 +48,7 @@ export default function VagasMatrizPage() {
   return (
     <Shell>
       <div className="p-4 max-w-6xl mx-auto">
+        <VagasNav atual="matriz" />
         <h1 className="text-xl font-bold mb-1">💼 Vagas — matriz de vagas abertas</h1>
         <p className="text-sm text-slate-500 mb-4">
           Marcou = a vaga entra NO AR na hora nas páginas públicas (e no Google).
@@ -108,17 +110,6 @@ export default function VagasMatrizPage() {
               </tbody>
             </table>
           </div>
-        )}
-        {dados && (
-          <p className="mt-3 text-xs">
-            <a href="/vagas/admin" className="text-slate-400 underline">
-              ⚙️ Administração de vagas (cargos, funil, testes, cidades — só admin)
-            </a>
-            {" · "}
-            <a href="/vagas/ranking" className="text-slate-400 underline">
-              🏆 Ranking de candidatos
-            </a>
-          </p>
         )}
       </div>
     </Shell>

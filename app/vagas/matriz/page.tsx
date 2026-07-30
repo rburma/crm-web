@@ -11,6 +11,7 @@ export default function VagasMatrizPage() {
   const [dados, setDados] = useState<VagasMatriz | null>(null);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState<string>("");
+  const [filtroMarca, setFiltroMarca] = useState<number>(0); // 0 = todas
 
   useEffect(() => {
     vagasMatriz().then(setDados).catch((e: Error) => setErro(e.message));
@@ -42,8 +43,18 @@ export default function VagasMatrizPage() {
     }
   }
 
-  const lojas = dados?.lojas ?? [];
-  const cargos = dados?.cargos ?? [];
+  const todasLojas = dados?.lojas ?? [];
+  const todosCargos = dados?.cargos ?? [];
+  // Chips de marca (30/07): admin multi-marca filtra a matriz por marca.
+  const marcasDisp = [...new Map(
+    todosCargos.map((c) => [c.marca_id, c.marca_sigla || `#${c.marca_id}`]),
+  ).entries()];
+  const cargos = filtroMarca
+    ? todosCargos.filter((c) => c.marca_id === filtroMarca)
+    : todosCargos;
+  const lojas = filtroMarca
+    ? todasLojas.filter((lj) => lj.marca_id === filtroMarca)
+    : todasLojas;
 
   return (
     <Shell>
@@ -58,6 +69,20 @@ export default function VagasMatrizPage() {
         </p>
         {erro && <div className="mb-3 text-sm text-red-600">{erro}</div>}
         {!dados && !erro && <div className="text-sm text-slate-500">Carregando…</div>}
+        {marcasDisp.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <button type="button" onClick={() => setFiltroMarca(0)}
+              className={`text-xs rounded-lg px-2.5 py-1.5 border font-semibold ${filtroMarca === 0 ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-300"}`}>
+              Todas as marcas
+            </button>
+            {marcasDisp.map(([id, sigla]) => (
+              <button key={id} type="button" onClick={() => setFiltroMarca(id)}
+                className={`text-xs rounded-lg px-2.5 py-1.5 border font-semibold ${filtroMarca === id ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-300"}`}>
+                {sigla}
+              </button>
+            ))}
+          </div>
+        )}
         {dados && cargos.length === 0 && (
           <div className="panel p-4 text-sm text-slate-500">
             Nenhum cargo cadastrado ainda para as suas marcas — o administrador

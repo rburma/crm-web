@@ -23,6 +23,7 @@ export default function VagasAdminPage() {
   const [cidades, setCidades] = useState<VagaCidadeAdmin[]>([]);
   const [temIbge, setTemIbge] = useState(false);
   const [editando, setEditando] = useState<Partial<VagaCargoAdmin> | null>(null);
+  const [marcasSel, setMarcasSel] = useState<number[]>([]);
   const [novaCidade, setNovaCidade] = useState({ nome: "", uf: "" });
   const [msg, setMsg] = useState("");
   const [erro, setErro] = useState("");
@@ -38,14 +39,20 @@ export default function VagasAdminPage() {
   useEffect(carregar, []);
 
   async function salvarCargo() {
-    if (!editando?.titulo?.trim() || !editando.marca_id) {
-      setErro("Preencha marca e título."); return;
+    const novo = !editando?.id;
+    if (!editando?.titulo?.trim() || (novo ? marcasSel.length === 0 : !editando.marca_id)) {
+      setErro(novo ? "Preencha o título e marque ao menos uma marca." : "Preencha marca e título.");
+      return;
     }
     setErro("");
     try {
-      await vagasSalvarCargo(editando);
+      await vagasSalvarCargo(
+        novo
+          ? { ...editando, marca_id: marcasSel[0], marca_ids: marcasSel }
+          : editando,
+      );
       setEditando(null);
-      setMsg("Cargo salvo.");
+      setMsg(novo && marcasSel.length > 1 ? `Cargo criado em ${marcasSel.length} marcas.` : "Cargo salvo.");
       carregar();
     } catch (e) { setErro((e as Error).message); }
   }
@@ -84,7 +91,7 @@ export default function VagasAdminPage() {
           <div className="flex justify-between items-center mb-3">
             <h2 className="font-bold">Cargos</h2>
             <button className="text-sm bg-indigo-600 text-white rounded-lg px-3 py-1.5"
-              onClick={() => setEditando({ ...CARGO_NOVO, marca_id: marcas[0]?.id })}>
+              onClick={() => { setEditando({ ...CARGO_NOVO }); setMarcasSel([]); }}>
               + Novo cargo
             </button>
           </div>
@@ -120,11 +127,33 @@ export default function VagasAdminPage() {
         {editando && (
           <div className="panel p-4 mb-4 border-2 border-indigo-300">
             <h3 className="font-bold mb-2">{editando.id ? "Editar cargo" : "Novo cargo"}</h3>
+            {!editando.id && (
+              <div className="mb-3">
+                <div className="text-[11px] font-bold uppercase text-slate-500 mb-1">
+                  Marcas (marque uma ou várias — o cargo é criado em cada uma)
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {marcas.map((m) => {
+                    const on = marcasSel.includes(m.id);
+                    return (
+                      <button key={m.id} type="button"
+                        onClick={() => setMarcasSel((s) =>
+                          on ? s.filter((i) => i !== m.id) : [...s, m.id])}
+                        className={`text-xs rounded-lg px-2.5 py-1.5 border font-semibold ${on ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-300"}`}>
+                        {m.sigla || m.nome}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <select className={inputCls} value={editando.marca_id ?? ""}
-                onChange={(e) => setEditando({ ...editando, marca_id: Number(e.target.value) })}>
-                {marcas.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-              </select>
+              {editando.id ? (
+                <select className={inputCls} value={editando.marca_id ?? ""}
+                  onChange={(e) => setEditando({ ...editando, marca_id: Number(e.target.value) })}>
+                  {marcas.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                </select>
+              ) : <div />}
               <select className={inputCls} value={editando.tipo ?? "emprego"}
                 onChange={(e) => setEditando({ ...editando, tipo: e.target.value })}>
                 <option value="emprego">Vaga de emprego</option>

@@ -2181,7 +2181,9 @@ export function vagasCargosAdmin(): Promise<{
     cargos: VagaCargoAdmin[];
   }>("vagas/admin/cargos");
 }
-export function vagasSalvarCargo(c: Partial<VagaCargoAdmin>): Promise<{ ok: boolean; id: number }> {
+export function vagasSalvarCargo(
+  c: Partial<VagaCargoAdmin> & { marca_ids?: number[] },
+): Promise<{ ok: boolean; id: number }> {
   return req<{ ok: boolean; id: number }>("vagas/admin/cargos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

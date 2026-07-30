@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import VagasNav from "@/components/VagasNav";
 import FunilAdmin from "./FunilAdmin";
-import { BlocosAdmin, TestesAdmin } from "./TestesBlocos";
+import { BlocosAdmin } from "./TestesBlocos";
 import {
   vagasCargosAdmin, vagasSalvarCargo, vagasCidades, vagasSalvarCidade,
   vagasImportarIbge, type VagaCargoAdmin, type VagaCidadeAdmin,
@@ -213,7 +213,6 @@ export default function VagasAdminPage() {
 
         <div className="mt-4">
           <FunilAdmin />
-          <TestesAdmin />
           <BlocosAdmin />
         </div>
       </div>

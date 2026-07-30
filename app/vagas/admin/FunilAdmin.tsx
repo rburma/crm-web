@@ -2,6 +2,7 @@
 // Editor do FUNIL (v4): perguntas DENTRO das fases; cada fase tem textos,
 // instruções, prazo e e-mails por situação (entrar/avançar/reprovar).
 import { useEffect, useState } from "react";
+import { TestesAdmin } from "./TestesBlocos";
 import {
   vagasApagarPergunta, vagasFunilAdmin, vagasSalvarFase, vagasSalvarPergunta,
   type FunilFaseAdmin, type FunilPerguntaAdmin,
@@ -139,6 +140,12 @@ export default function FunilAdmin() {
               <button className="text-xs bg-indigo-600 text-white rounded-lg px-3 py-1.5 mb-3"
                 onClick={() => salvarFase(f)}>💾 Salvar fase</button>
 
+              {f.slug === "teste" ? (
+                // O DISC mora AQUI (pedido 30/07): as variações do teste são
+                // o conteúdo desta fase — nada de perguntas manuais nela.
+                <TestesAdmin />
+              ) : (
+                <>
               <div className="text-xs font-bold text-slate-500 mb-1">❓ Perguntas (com score: notas 1–5 × peso)</div>
               {f.perguntas.map((p) => (
                 <details key={p.id} className="border border-slate-100 rounded-lg p-2 mb-1.5">
@@ -158,6 +165,8 @@ export default function FunilAdmin() {
                   onSalvar={(np) => salvarPergunta(f.id, { ...np, id: undefined })}
                 />
               </details>
+                </>
+              )}
             </div>
           )}
         </div>

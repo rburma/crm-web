@@ -77,6 +77,20 @@ export default function PainelRecrutamento({ id }: { id: number }) {
               {c && (
                 <div className="text-xs text-slate-600 mb-2">
                   {c.cpf_mascarado && <div>CPF {c.cpf_mascarado} · trava de recandidatura 12 meses</div>}
+                  {c.nascimento && (
+                    <div>
+                      Nascimento: {c.nascimento.split("-").reverse().join("/")}
+                      {(() => {
+                        const n = new Date(`${c.nascimento}T00:00:00`);
+                        if (Number.isNaN(n.getTime())) return null;
+                        const hoje = new Date();
+                        let idade = hoje.getFullYear() - n.getFullYear();
+                        const m = hoje.getMonth() - n.getMonth();
+                        if (m < 0 || (m === 0 && hoje.getDate() < n.getDate())) idade--;
+                        return ` (${idade} anos)`;
+                      })()}
+                    </div>
+                  )}
                   {c.redes && Object.entries(c.redes).map(([k, v]) => (
                     <div key={k}>
                       {k}: <a className="text-indigo-600 underline" target="_blank" rel="noreferrer"

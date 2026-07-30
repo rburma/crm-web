@@ -3,7 +3,7 @@
 // instruções, prazo e e-mails por situação (entrar/avançar/reprovar).
 import { useEffect, useState } from "react";
 import {
-  vagasFunilAdmin, vagasSalvarFase, vagasSalvarPergunta,
+  vagasApagarPergunta, vagasFunilAdmin, vagasSalvarFase, vagasSalvarPergunta,
   type FunilFaseAdmin, type FunilPerguntaAdmin,
 } from "@/lib/api";
 
@@ -32,6 +32,15 @@ export default function FunilAdmin() {
       await vagasSalvarFase({ id: f.id, tipo, nome: f.nome, ordem: f.ordem,
         ativo: f.ativo, config: f.config });
       setMsg("Fase salva."); carregar();
+    } catch (e) { setErro((e as Error).message); }
+  }
+
+  async function apagarPergunta(p: FunilPerguntaAdmin) {
+    if (!confirm(`Apagar a pergunta "${p.texto.slice(0, 60)}…"? Respostas já dadas por candidatos são preservadas.`)) return;
+    setErro(""); setMsg("");
+    try {
+      await vagasApagarPergunta(p.id);
+      setMsg("Pergunta apagada."); carregar();
     } catch (e) { setErro((e as Error).message); }
   }
 
@@ -136,8 +145,10 @@ export default function FunilAdmin() {
                   <summary className="text-xs cursor-pointer">
                     <span className="font-semibold text-indigo-600 uppercase text-[10px] mr-1">{p.tipo}</span>
                     {p.texto.slice(0, 90)} <span className="text-slate-400">· peso {p.peso}{p.rankeia ? ` · ${p.rankeia}` : ""}{!p.ativo ? " · INATIVA" : ""}</span>
+                    <span className="text-indigo-600 font-semibold ml-2">✏️ editar ▾</span>
                   </summary>
-                  <EditPergunta p={p} onSalvar={(np) => salvarPergunta(f.id, np)} />
+                  <EditPergunta p={p} onSalvar={(np) => salvarPergunta(f.id, np)}
+                    onApagar={() => apagarPergunta(p)} />
                 </details>
               ))}
               <details className="border border-dashed border-slate-300 rounded-lg p-2">
@@ -166,9 +177,10 @@ export default function FunilAdmin() {
   );
 }
 
-function EditPergunta({ p, onSalvar }: {
+function EditPergunta({ p, onSalvar, onApagar }: {
   p: FunilPerguntaAdmin;
   onSalvar: (p: Partial<FunilPerguntaAdmin> & { texto: string }) => void;
+  onApagar?: () => void;
 }) {
   const [e, setE] = useState<FunilPerguntaAdmin>({ ...p });
   const inputCls = "w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs";
@@ -220,8 +232,14 @@ function EditPergunta({ p, onSalvar }: {
       <div className="text-[10px] text-slate-400 mb-1.5">
         Peso 0 = não conta no score. Abertas/vídeos: IA sugere a nota e o franqueado ajusta na ficha.
       </div>
-      <button className="text-xs bg-indigo-600 text-white rounded-lg px-3 py-1.5"
-        onClick={() => e.texto.trim() && onSalvar(e)}>💾 Salvar pergunta</button>
+      <div className="flex gap-2">
+        <button className="text-xs bg-indigo-600 text-white rounded-lg px-3 py-1.5"
+          onClick={() => e.texto.trim() && onSalvar(e)}>💾 Salvar pergunta</button>
+        {onApagar && p.id > 0 && (
+          <button className="text-xs border border-red-300 text-red-700 rounded-lg px-3 py-1.5"
+            onClick={onApagar}>🗑 Apagar pergunta</button>
+        )}
+      </div>
     </div>
   );
 }

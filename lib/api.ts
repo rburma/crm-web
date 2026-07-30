@@ -2212,7 +2212,7 @@ export type CandidatarPayload = {
   marca_slug: string; tipo: "vaga" | "franquia";
   cargo_id?: number; loja_id?: number; lojas_interesse?: number[];
   cidade?: string; uf?: string; capital?: string; franquia_tipo?: "loja" | "popup";
-  nome: string; cpf: string; telefone: string; email: string;
+  nome: string; cpf: string; nascimento?: string; telefone: string; email: string;
   redes?: Record<string, string>; ja_trabalhou: boolean;
   experiencia?: { empresa: string; cargo: string; entrada: string; saida: string;
     descricao: string; telefone_ref: string; superior: string }[];
@@ -2273,7 +2273,8 @@ export type PainelCandidatura = {
   score: number | null; score_detalhe: { itens: { pergunta_id: number; fase: string; rankeia: string | null; nota: number; peso: number }[] } | null;
   disc: { D: number; I: number; S: number; C: number; perfil: string } | null;
   candidato: {
-    nome: string; email: string; telefone: string | null; cidade: string | null;
+    nome: string; email: string; telefone: string | null;
+    nascimento: string | null; cidade: string | null;
     uf: string | null; redes: Record<string, string> | null; ja_trabalhou: boolean;
     experiencia: { empresa: string; cargo: string; entrada: string; saida: string;
       descricao: string; telefone_ref: string; superior: string }[] | null;
@@ -2404,4 +2405,8 @@ export function vagasPortalTeste(token: string, variacaoId: number, escolhas: nu
       body: JSON.stringify({ variacao_id: variacaoId, escolhas }),
     },
   );
+}
+
+export function vagasApagarPergunta(id: number): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>(`vagas/admin/perguntas/${id}`, { method: "DELETE" });
 }

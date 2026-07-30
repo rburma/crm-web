@@ -34,6 +34,7 @@ export default function CandidatarForm(p: Props) {
   const [hub, setHub] = useState<HubMarca | null>(null);
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
+  const [nascimento, setNascimento] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -68,8 +69,8 @@ export default function CandidatarForm(p: Props) {
 
   async function enviar() {
     setErro("");
-    if (!nome.trim() || !cpf.trim() || !email.trim()) {
-      setErro("Preencha nome, CPF e e-mail.");
+    if (!nome.trim() || !cpf.trim() || !email.trim() || !nascimento) {
+      setErro("Preencha nome, CPF, data de nascimento e e-mail.");
       return;
     }
     if (p.tipo === "franquia" && !cidade.trim()) {
@@ -92,7 +93,8 @@ export default function CandidatarForm(p: Props) {
         lojas_interesse: interesse.slice(0, 2),
         cidade: cidade.trim(), uf: uf.trim().toUpperCase(),
         capital: capital.trim(), franquia_tipo: p.franquiaTipo,
-        nome: nome.trim(), cpf: cpf.trim(), telefone: telefone.trim(),
+        nome: nome.trim(), cpf: cpf.trim(), nascimento,
+        telefone: telefone.trim(),
         email: email.trim(), redes,
         ja_trabalhou: jaTrabalhou === true,
         experiencia:
@@ -164,8 +166,17 @@ export default function CandidatarForm(p: Props) {
               value={telefone} onChange={(e) => setTelefone(e.target.value)} />
           </div>
         </div>
-        <label className={labelCls}>E-mail *</label>
-        <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>Data de nascimento *</label>
+            <input className={inputCls} type="date" value={nascimento}
+              onChange={(e) => setNascimento(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>E-mail *</label>
+            <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+        </div>
 
         {p.tipo === "franquia" && (
           <>

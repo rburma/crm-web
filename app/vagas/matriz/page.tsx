@@ -12,6 +12,7 @@ export default function VagasMatrizPage() {
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState<string>("");
   const [filtroMarca, setFiltroMarca] = useState<number>(0); // 0 = todas
+  const [buscaLoja, setBuscaLoja] = useState("");
 
   useEffect(() => {
     vagasMatriz().then(setDados).catch((e: Error) => setErro(e.message));
@@ -52,9 +53,18 @@ export default function VagasMatrizPage() {
   const cargos = filtroMarca
     ? todosCargos.filter((c) => c.marca_id === filtroMarca)
     : todosCargos;
-  const lojas = filtroMarca
+  const normaliza = (s: string | null | undefined) =>
+    (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const termosLoja = normaliza(buscaLoja).split(/\s+/).filter(Boolean);
+  const lojas = (filtroMarca
     ? todasLojas.filter((lj) => lj.marca_id === filtroMarca)
-    : todasLojas;
+    : todasLojas
+  ).filter((lj) =>
+    termosLoja.length === 0 ||
+    termosLoja.every((t) =>
+      normaliza(`${lj.sigla || ""} ${lj.nome} ${lj.cidade || ""}`).includes(t),
+    ),
+  );
 
   return (
     <Shell>
@@ -69,6 +79,14 @@ export default function VagasMatrizPage() {
         </p>
         {erro && <div className="mb-3 text-sm text-red-600">{erro}</div>}
         {!dados && !erro && <div className="text-sm text-slate-500">Carregando…</div>}
+        {dados && todasLojas.length > 0 && (
+          <input
+            className="w-full sm:w-96 border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3"
+            placeholder="🔎 Buscar loja (sigla, nome ou cidade)…"
+            value={buscaLoja}
+            onChange={(e) => setBuscaLoja(e.target.value)}
+          />
+        )}
         {marcasDisp.length > 1 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             <button type="button" onClick={() => setFiltroMarca(0)}

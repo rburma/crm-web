@@ -41,20 +41,29 @@ export default function BuscaLojas({ marcaSlug, cor, lojas, cargos, ufInicial }:
     [lojas],
   );
   const termos = norm(busca).split(/\s+/).filter(Boolean);
-  const buscadas = termos.length
-    ? indice
-        .filter((i) =>
-          termos.every((t) => {
-            // CEP digitado com traço/ponto casa com a forma só-dígitos
-            const chave = /^[\d.-]+$/.test(t) ? t.replace(/\D/g, "") : t;
-            if (!chave) return false;
-            // termos de 1-2 letras (ex.: UF "CE") casam por PALAVRA inteira
-            if (chave.length <= 2) return ` ${i.texto} `.includes(` ${chave} `);
-            return i.texto.includes(chave);
-          }),
-        )
-        .map((i) => i.lj)
-    : lojas;
+  const casaTermo = (texto: string, t: string): boolean => {
+    // CEP digitado com traço/ponto casa com a forma só-dígitos
+    const chave = /^[\d.-]+$/.test(t) ? t.replace(/\D/g, "") : t;
+    if (!chave) return false;
+    // termos de 1-2 letras (ex.: UF "CE") casam por PALAVRA inteira
+    if (chave.length <= 2) return ` ${texto} `.includes(` ${chave} `);
+    return texto.includes(chave);
+  };
+  let buscadas = lojas;
+  if (termos.length) {
+    const todas = indice.filter((i) => termos.every((t) => casaTermo(i.texto, t)));
+    if (todas.length > 0) {
+      buscadas = todas.map((i) => i.lj);
+    } else {
+      // Fallback (bug 30/07: "shopping light" zerava se o cadastro não tem
+      // a palavra "shopping"): vale casar PARTE dos termos, mais acertos 1º.
+      buscadas = indice
+        .map((i) => ({ i, hits: termos.filter((t) => casaTermo(i.texto, t)).length }))
+        .filter((x) => x.hits > 0)
+        .sort((a, b) => b.hits - a.hits)
+        .map((x) => x.i.lj);
+    }
+  }
   const contagem: Record<string, number> = {};
   for (const lj of lojas) {
     const u = (lj.uf || "").toUpperCase();

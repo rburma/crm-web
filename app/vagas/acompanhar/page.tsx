@@ -10,8 +10,8 @@ import {
 
 const MAX_VIDEO_SEG = 180; // 3 minutos (decisão 29/07)
 
-function Recorder({ token, perguntaId, aoEnviar }: {
-  token: string; perguntaId: number; aoEnviar: () => void;
+function Recorder({ token, perguntaId, aoEnviar, soAnexo }: {
+  token: string; perguntaId: number; aoEnviar: () => void; soAnexo?: boolean;
 }) {
   const [gravando, setGravando] = useState(false);
   const [seg, setSeg] = useState(0);
@@ -86,7 +86,7 @@ function Recorder({ token, perguntaId, aoEnviar }: {
       <video ref={videoRef} className={`w-full rounded-lg bg-slate-900 ${gravando ? "" : "hidden"}`} playsInline />
       {erro && <div className="text-xs text-red-600 my-1">{erro}</div>}
       <div className="flex gap-2 flex-wrap mt-2">
-        {!gravando && !blob && (
+        {!gravando && !blob && !soAnexo && (
           <button type="button" onClick={iniciar}
             className="text-sm bg-red-600 text-white rounded-lg px-3 py-2 font-semibold">⏺ Gravar agora</button>
         )}
@@ -106,8 +106,8 @@ function Recorder({ token, perguntaId, aoEnviar }: {
         )}
         {enviando && <span className="text-sm text-slate-500 self-center">Enviando…</span>}
         <label className="text-sm border border-slate-300 rounded-lg px-3 py-2 cursor-pointer">
-          📎 ou anexar arquivo
-          <input type="file" accept="video/*" className="hidden"
+          📎 {soAnexo ? "Anexar arquivo" : "ou anexar arquivo"}
+          <input type="file" accept={soAnexo ? undefined : "video/*"} className="hidden"
             onChange={(e) => e.target.files?.[0] && enviar(e.target.files[0])} />
         </label>
       </div>
@@ -293,11 +293,28 @@ function Conteudo() {
                     )}
                     {videos.map((p) => (
                       <div key={p.id} className="mb-3 border-t border-slate-100 pt-3">
-                        <p className="text-sm font-semibold">🎥 {p.texto}</p>
-                        <p className="text-[11px] text-slate-400">máx. 3 minutos · pode gravar direto do celular</p>
-                        <Recorder token={token} perguntaId={p.id} aoEnviar={carregar} />
+                        <p className="text-sm font-semibold">{p.tipo === "video" ? "🎥" : "📎"} {p.texto}</p>
+                        {p.tipo === "video" && (
+                          <p className="text-[11px] text-slate-400">máx. 3 minutos · pode gravar direto do celular</p>
+                        )}
+                        <Recorder token={token} perguntaId={p.id} aoEnviar={carregar}
+                          soAnexo={p.tipo === "anexo"} />
                       </div>
                     ))}
+                    {pendentes.length === 0 && videos.length > 0 &&
+                      videos.every((p) => p.tipo === "anexo") && (
+                      <button type="button" disabled={enviando}
+                        onClick={() => {
+                          setEnviando(true);
+                          vagasPortalResponder(token, []).then(() => { setAviso("Etapa concluída! 🎉"); carregar(); })
+                            .catch((e: Error) => setErro(e.message))
+                            .finally(() => setEnviando(false));
+                        }}
+                        className="w-full text-white font-bold rounded-xl px-4 py-3 disabled:opacity-60"
+                        style={{ background: cor }}>
+                        Concluir etapa (anexo é opcional) →
+                      </button>
+                    )}
                     {pendentes.length === 0 && videos.length === 0 && (
                       <p className="text-sm text-slate-500">Nada pendente nesta etapa — aguarde o próximo passo por e-mail.</p>
                     )}

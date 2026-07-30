@@ -24,11 +24,20 @@ type Props = {
   franquiaTipo: "loja" | "popup";
 };
 
+type LojaHub = {
+  id: number; nome: string; cidade: string | null; uf: string | null;
+  bairro: string | null; cep: string | null; shopping: string | null;
+  cargos_abertos?: number[];
+};
 type HubMarca = {
   marca: { nome: string; tema?: { cor?: string } };
   cargos: { id: number; titulo: string }[];
-  lojas: { id: number; nome: string; cidade: string | null; cargos_abertos?: number[] }[];
+  lojas: LojaHub[];
 };
+
+function normBusca(s: string | null | undefined): string {
+  return (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
 
 export default function CandidatarForm(p: Props) {
   const [hub, setHub] = useState<HubMarca | null>(null);
@@ -42,6 +51,7 @@ export default function CandidatarForm(p: Props) {
   const [jaTrabalhou, setJaTrabalhou] = useState<null | boolean>(null);
   const [exps, setExps] = useState<Exp[]>([{ ...EXP_VAZIA }]);
   const [interesse, setInteresse] = useState<number[]>([]);
+  const [buscaLoja, setBuscaLoja] = useState("");
   const [cidade, setCidade] = useState(p.cidade);
   const [uf, setUf] = useState(p.uf);
   const [capital, setCapital] = useState("");
@@ -204,27 +214,78 @@ export default function CandidatarForm(p: Props) {
 
         {p.tipo === "vaga" && outrasLojas.length > 0 && (
           <>
-            <label className={labelCls}>Também tenho interesse em (até 2 lojas — opcional)</label>
-            <div className="flex flex-wrap gap-2">
-              {outrasLojas.slice(0, 12).map((l) => {
-                const on = interesse.includes(l.id);
-                return (
-                  <button
-                    key={l.id}
-                    type="button"
-                    onClick={() =>
-                      setInteresse((atual) =>
-                        on ? atual.filter((i) => i !== l.id)
-                          : atual.length < 2 ? [...atual, l.id] : atual,
-                      )
-                    }
-                    className={`text-xs rounded-lg px-2 py-1 border ${on ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-slate-300"}`}
-                  >
-                    {l.nome}
-                  </button>
-                );
-              })}
-            </div>
+            <label className={labelCls}>
+              Tem interesse em trabalhar em outra loja também? (até 2 — opcional)
+            </label>
+            {interesse.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {interesse.map((id) => {
+                  const l = outrasLojas.find((x) => x.id === id);
+                  return (
+                    <span key={id}
+                      className="text-xs bg-indigo-600 text-white rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5">
+                      {l?.nome || `Loja ${id}`}
+                      <button type="button" aria-label="remover"
+                        onClick={() => setInteresse((a) => a.filter((i) => i !== id))}>
+                        ✕
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {interesse.length < 2 && (
+              <>
+                <input className={inputCls}
+                  placeholder="🔎 Busque por cidade, bairro, shopping ou CEP…"
+                  value={buscaLoja}
+                  onChange={(e) => setBuscaLoja(e.target.value)} />
+                <div className="grid grid-cols-1 gap-1 mt-1.5">
+                  {(() => {
+                    const termos = normBusca(buscaLoja).split(/\s+/).filter(Boolean);
+                    const lojaPrincipal = hub?.lojas?.find((l) => l.id === p.lojaId);
+                    const base = termos.length
+                      ? outrasLojas.filter((l) => {
+                          const texto = normBusca(
+                            [l.nome, l.cidade, l.uf, l.bairro, l.cep,
+                              l.cep ? l.cep.replace(/\D/g, "") : "", l.shopping]
+                              .filter(Boolean).join(" "),
+                          );
+                          return termos.every((t) => {
+                            const chave = /^[\d.-]+$/.test(t) ? t.replace(/\D/g, "") : t;
+                            return chave.length > 0 && texto.includes(chave);
+                          });
+                        })
+                      : outrasLojas.filter(
+                          (l) => l.cidade && lojaPrincipal?.cidade
+                            && normBusca(l.cidade) === normBusca(lojaPrincipal.cidade),
+                        );
+                    return base
+                      .filter((l) => !interesse.includes(l.id))
+                      .slice(0, 8)
+                      .map((l) => (
+                        <button key={l.id} type="button"
+                          onClick={() => {
+                            setInteresse((a) => a.length < 2 ? [...a, l.id] : a);
+                            setBuscaLoja("");
+                          }}
+                          className="text-left text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 hover:bg-slate-50">
+                          <b>{l.nome}</b>
+                          <span className="block text-slate-500">
+                            {[l.shopping, l.bairro, l.cidade, l.uf].filter(Boolean).join(" · ")}
+                          </span>
+                        </button>
+                      ));
+                  })()}
+                </div>
+                {!buscaLoja && (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Sugestões da mesma cidade aparecem acima; para outras, busque
+                    pela cidade ou shopping.
+                  </p>
+                )}
+              </>
+            )}
           </>
         )}
 

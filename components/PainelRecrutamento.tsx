@@ -8,6 +8,15 @@ import {
   vagasNotaManual, vagasPainel, type PainelCandidatura,
 } from "@/lib/api";
 
+function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
+  return (
+    <div>
+      <div className="text-slate-400">{rotulo}</div>
+      <div className="font-medium text-slate-800">{valor || "—"}</div>
+    </div>
+  );
+}
+
 export default function PainelRecrutamento({ id }: { id: number }) {
   const [dados, setDados] = useState<PainelCandidatura | null>(null);
   const [semAcesso, setSemAcesso] = useState(false);
@@ -75,30 +84,55 @@ export default function PainelRecrutamento({ id }: { id: number }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               {c && (
-                <div className="text-xs text-slate-600 mb-2">
-                  {c.cpf_mascarado && <div>CPF {c.cpf_mascarado} · trava de recandidatura 12 meses</div>}
-                  {c.nascimento && (
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-3">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                    <Campo rotulo="Nome" valor={c.nome} />
+                    <Campo rotulo="CPF" valor={c.cpf} />
+                    <Campo rotulo="Nascimento" valor={(() => {
+                      if (!c.nascimento) return null;
+                      const n = new Date(`${c.nascimento}T00:00:00`);
+                      const data = c.nascimento.split("-").reverse().join("/");
+                      if (Number.isNaN(n.getTime())) return data;
+                      const hoje = new Date();
+                      let idade = hoje.getFullYear() - n.getFullYear();
+                      const m = hoje.getMonth() - n.getMonth();
+                      if (m < 0 || (m === 0 && hoje.getDate() < n.getDate())) idade--;
+                      return `${data} (${idade} anos)`;
+                    })()} />
+                    <Campo rotulo="Cidade" valor={[c.cidade, c.uf].filter(Boolean).join("/") || null} />
                     <div>
-                      Nascimento: {c.nascimento.split("-").reverse().join("/")}
-                      {(() => {
-                        const n = new Date(`${c.nascimento}T00:00:00`);
-                        if (Number.isNaN(n.getTime())) return null;
-                        const hoje = new Date();
-                        let idade = hoje.getFullYear() - n.getFullYear();
-                        const m = hoje.getMonth() - n.getMonth();
-                        if (m < 0 || (m === 0 && hoje.getDate() < n.getDate())) idade--;
-                        return ` (${idade} anos)`;
-                      })()}
+                      <div className="text-slate-400">Telefone</div>
+                      {c.telefone ? (
+                        <a className="font-medium text-indigo-700" href={`tel:+55${c.telefone}`}>
+                          {c.telefone.length === 11
+                            ? `(${c.telefone.slice(0, 2)}) ${c.telefone.slice(2, 7)}-${c.telefone.slice(7)}`
+                            : c.telefone}
+                        </a>
+                      ) : <div className="font-medium text-slate-800">—</div>}
+                    </div>
+                    <div>
+                      <div className="text-slate-400">E-mail</div>
+                      {c.email ? (
+                        <a className="font-medium text-indigo-700 break-all" href={`mailto:${c.email}`}>{c.email}</a>
+                      ) : <div className="font-medium text-slate-800">—</div>}
+                    </div>
+                    {dados.capital && <Campo rotulo="Capital declarado" valor={dados.capital} />}
+                    {dados.cidade && <Campo rotulo="Cidade pretendida" valor={`${dados.cidade}/${dados.uf || ""}`} />}
+                  </div>
+                  {c.redes && Object.keys(c.redes).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {Object.entries(c.redes).map(([k, v]) => (
+                        <a key={k} target="_blank" rel="noreferrer"
+                          href={v.startsWith("http") ? v : `https://${v}`}
+                          className="text-[11px] bg-white border border-slate-200 rounded-full px-2.5 py-1 text-indigo-700">
+                          {k === "instagram" ? "📷" : "💼"} {v.replace(/^https?:\/\//, "")}
+                        </a>
+                      ))}
                     </div>
                   )}
-                  {c.redes && Object.entries(c.redes).map(([k, v]) => (
-                    <div key={k}>
-                      {k}: <a className="text-indigo-600 underline" target="_blank" rel="noreferrer"
-                        href={v.startsWith("http") ? v : `https://${v}`}>{v}</a>
-                    </div>
-                  ))}
-                  {dados.capital && <div>Capital declarado: {dados.capital}</div>}
-                  {dados.cidade && <div>Cidade pretendida: {dados.cidade}/{dados.uf}</div>}
+                  <div className="text-[10px] text-slate-400 mt-2">
+                    Trava de recandidatura: 12 meses por CPF (qualquer loja/marca)
+                  </div>
                 </div>
               )}
               {c?.ja_trabalhou && c.experiencia && c.experiencia.length > 0 && (

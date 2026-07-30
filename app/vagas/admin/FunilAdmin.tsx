@@ -100,6 +100,16 @@ export default function FunilAdmin() {
           </div>
           {aberta === f.id && (
             <div className="p-3">
+              {f.slug === "inscricao" && (
+                <div className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2 mb-2">
+                  ⚠️ A Inscrição é o formulário público FIXO (nome, CPF,
+                  nascimento, contatos, lojas, redes, experiência) —
+                  <b> perguntas criadas aqui não aparecem para o candidato</b>.
+                  Perguntas extras (inclusive anexo de currículo) vão na
+                  fase <b>Triagem</b>: o candidato responde segundos depois
+                  de se inscrever.
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-2">
                 <input className={inputCls} value={f.nome}
                   onChange={(e) => muda(fi, { nome: e.target.value })} placeholder="Nome da fase" />

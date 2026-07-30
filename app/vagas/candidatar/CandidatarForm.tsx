@@ -135,10 +135,19 @@ export default function CandidatarForm(p: Props) {
             {fim.travado ? "Você já está em um processo" : fim.banco ? "Perfil cadastrado!" : "Candidatura enviada!"}
           </h1>
           <p className="text-sm text-slate-600">{fim.mensagem}</p>
+          {!fim.travado && fim.token && (
+            <a
+              href={`/vagas/acompanhar?t=${encodeURIComponent(fim.token)}`}
+              className="block w-full mt-4 text-white font-bold rounded-xl px-4 py-3"
+              style={{ background: cor }}
+            >
+              ▶ Continuar o processo agora
+            </a>
+          )}
           {!fim.travado && (
             <p className="text-xs text-slate-400 mt-3">
-              Enviamos um link de acompanhamento para o seu e-mail — toda a
-              comunicação do processo será por lá.
+              Você também recebe esse link por e-mail (confira o spam) — dá para
+              continuar agora ou depois, do celular ou do computador.
             </p>
           )}
         </div>

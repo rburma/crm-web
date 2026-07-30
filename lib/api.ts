@@ -2281,7 +2281,7 @@ export type PainelCandidatura = {
     uf: string | null; redes: Record<string, string> | null; ja_trabalhou: boolean;
     experiencia: { empresa: string; cargo: string; entrada: string; saida: string;
       descricao: string; telefone_ref: string; superior: string }[] | null;
-    cpf_mascarado: string | null;
+    cpf: string | null;
   } | null;
   respostas: { pergunta_id: number; valor: string; tipo: string; nota?: number;
     nota_ia?: number; nota_manual?: number; aval_ia?: string;

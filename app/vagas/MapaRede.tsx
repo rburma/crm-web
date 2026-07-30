@@ -4,11 +4,12 @@
 // página abrir filtrada. A busca detalhada fica na página da marca.
 import { useState } from "react";
 import Link from "next/link";
-import MapaMundo, { paisDoCodigo } from "@/components/MapaMundo";
+import MapaMundo, { paisDoCodigo, type Pais } from "@/components/MapaMundo";
 import type { MarcaPub } from "@/lib/vagasServer";
 
 export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
   const [uf, setUf] = useState<string | null>(null);
+  const [pais, setPais] = useState<Pais>("BR");
   const contagem: Record<string, number> = {};
   for (const m of marcas) {
     for (const [u, n] of Object.entries(m.ufs || {})) {
@@ -17,13 +18,19 @@ export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
     }
   }
   const temNoUf = (m: MarcaPub): number => {
-    if (!uf) return 1;
     if (uf === "OUTRAS") {
       return Object.entries(m.ufs || {})
         .filter(([u]) => paisDoCodigo(u) === "OUTRAS")
         .reduce((s, [, n]) => s + n, 0);
     }
-    return (m.ufs || {})[uf] || 0;
+    if (uf) return (m.ufs || {})[uf] || 0;
+    // sem regiao clicada: filtra pela BANDEIRA (pais) selecionada
+    return Object.entries(m.ufs || {})
+      .filter(([u]) => {
+        const pc = paisDoCodigo(u);
+        return pais === "BR" ? pc === "BR" || pc === "OUTRAS" : pc === pais;
+      })
+      .reduce((s, [, n]) => s + n, 0);
   };
   const visiveis = marcas.filter((m) => temNoUf(m) > 0);
   return (
@@ -31,7 +38,8 @@ export default function MapaRede({ marcas }: { marcas: MarcaPub[] }) {
       <h2 className="font-bold text-slate-700 mb-2 text-center">
         📍 Onde estamos — escolha o país e clique na região
       </h2>
-      <MapaMundo contagem={contagem} cor="#0f172a" selecionado={uf} onSelect={setUf} />
+      <MapaMundo contagem={contagem} cor="#0f172a" selecionado={uf} onSelect={setUf}
+        onPais={setPais} />
       {uf && visiveis.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-4">
           Nenhuma loja neste estado ainda.

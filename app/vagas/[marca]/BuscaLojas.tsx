@@ -25,6 +25,7 @@ export default function BuscaLojas({ marcaSlug, cor, lojas, cargos, ufInicial }:
   const [uf, setUf] = useState<string | null>(
     ufIni && (paisIni !== "OUTRAS" || ufIni === "OUTRAS") ? ufIni : null,
   );
+  const [pais, setPais] = useState<Pais>(paisIni !== "OUTRAS" ? (paisIni as Pais) : "BR");
   const titulos = useMemo(
     () => new Map(cargos.map((c) => [c.id, c.titulo])), [cargos],
   );
@@ -60,12 +61,18 @@ export default function BuscaLojas({ marcaSlug, cor, lojas, cargos, ufInicial }:
     const chave = paisDoCodigo(u) === "OUTRAS" ? "OUTRAS" : u;
     contagem[chave] = (contagem[chave] || 0) + 1;
   }
+  // Bandeira selecionada FILTRA a lista tambem (bug 30/07: em PT/EUA a
+  // lista continuava mostrando as lojas do Brasil). Sem regiao clicada,
+  // vale o pais; "OUTRAS"/desconhecidas aparecem sob a bandeira do Brasil.
   const visiveis = uf
     ? buscadas.filter((lj) => {
         const u = (lj.uf || "").toUpperCase();
         return uf === "OUTRAS" ? paisDoCodigo(u) === "OUTRAS" : u === uf;
       })
-    : buscadas;
+    : buscadas.filter((lj) => {
+        const pc = paisDoCodigo((lj.uf || "").toUpperCase());
+        return pais === "BR" ? pc === "BR" || pc === "OUTRAS" : pc === pais;
+      });
 
   const porCidade = new Map<string, LojaPub[]>();
   for (const lj of visiveis) {
@@ -83,7 +90,8 @@ export default function BuscaLojas({ marcaSlug, cor, lojas, cargos, ufInicial }:
         onChange={(e) => setBusca(e.target.value)}
       />
       <MapaMundo contagem={contagem} cor={cor} selecionado={uf} onSelect={setUf}
-        paisInicial={paisIni !== "OUTRAS" ? (paisIni as Pais) : undefined} />
+        paisInicial={paisIni !== "OUTRAS" ? (paisIni as Pais) : undefined}
+        onPais={setPais} />
       {visiveis.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-6">
           Nenhuma loja encontrada para “{busca}” — tente outro termo (cidade,

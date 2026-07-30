@@ -7,7 +7,7 @@ import BuscaLojas from "./BuscaLojas";
 
 export const revalidate = 600;
 
-type Props = { params: { marca: string } };
+type Props = { params: { marca: string }; searchParams?: { uf?: string } };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const dados = await hubMarca(params.marca);
@@ -21,11 +21,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function VagasMarca({ params }: Props) {
+export default async function VagasMarca({ params, searchParams }: Props) {
   const dados = await hubMarca(params.marca);
   if (!dados) notFound();
   const { marca, lojas, cargos } = dados;
   const cor = marca.tema?.cor || "#0f172a";
+  const ufInicial = searchParams?.uf || undefined;
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="text-white px-4 py-8 text-center" style={{ background: cor }}>
@@ -36,7 +37,8 @@ export default async function VagasMarca({ params }: Props) {
         </p>
       </header>
       <section className="max-w-3xl mx-auto p-4">
-        <BuscaLojas marcaSlug={marca.slug} cor={cor} lojas={lojas} cargos={cargos} />
+        <BuscaLojas marcaSlug={marca.slug} cor={cor} lojas={lojas} cargos={cargos}
+          ufInicial={ufInicial} />
         <p className="text-xs text-slate-400 mt-6">
           <Link href="/vagas" className="underline">← Todas as marcas</Link>
         </p>

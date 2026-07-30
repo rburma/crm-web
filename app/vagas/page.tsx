@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { hubGeral } from "@/lib/vagasServer";
+import MapaRede from "./MapaRede";
 
 export const revalidate = 600;
 
@@ -37,20 +38,7 @@ export default async function VagasHub() {
             Nenhuma vaga publicada no momento — volte em breve!
           </p>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {marcas.map((m) => (
-            <Link
-              key={m.slug}
-              href={`/vagas/${m.slug}`}
-              className="block bg-white border border-slate-200 rounded-xl p-4 hover:shadow"
-            >
-              <div className="font-bold" style={{ color: m.tema?.cor || "#0f172a" }}>
-                {m.nome}
-              </div>
-              <div className="text-xs text-slate-500 mt-1">Ver vagas e lojas →</div>
-            </Link>
-          ))}
-        </div>
+        {marcas.length > 0 && <MapaRede marcas={marcas} />}
         {franquias.length > 0 && (
           <div className="mt-8">
             <h2 className="font-bold mb-2">Quer ser franqueado?</h2>

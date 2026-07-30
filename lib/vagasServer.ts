@@ -32,6 +32,7 @@ async function pub<T>(path: string): Promise<T | null> {
 export type MarcaPub = {
   id: number; slug: string; nome: string; sigla: string | null;
   tema: { cor?: string; titulo?: string } & Record<string, unknown>;
+  ufs?: Record<string, number>;
 };
 export type LojaPub = {
   id: number; nome: string; cidade: string | null; uf: string | null;

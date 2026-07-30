@@ -151,7 +151,7 @@ export default function CandidatarForm(p: Props) {
       <header className="text-white px-4 py-5" style={{ background: cor }}>
         <div className="max-w-md mx-auto">
           <h1 className="font-extrabold text-lg">
-            📝 {p.tipo === "franquia"
+            {p.tipo === "franquia"
               ? `Quero ser franqueado${p.franquiaTipo === "popup" ? " (Pop-Up)" : ""}`
               : `Candidatura${cargoTitulo ? ` — ${cargoTitulo}` : ""}`}
           </h1>
@@ -253,7 +253,9 @@ export default function CandidatarForm(p: Props) {
                           );
                           return termos.every((t) => {
                             const chave = /^[\d.-]+$/.test(t) ? t.replace(/\D/g, "") : t;
-                            return chave.length > 0 && texto.includes(chave);
+                            if (!chave) return false;
+                            if (chave.length <= 2) return ` ${texto} `.includes(` ${chave} `);
+                            return texto.includes(chave);
                           });
                         })
                       : outrasLojas.filter(

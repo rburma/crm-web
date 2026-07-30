@@ -6,9 +6,20 @@
 const API = (process.env.RENDER_API_URL ?? "https://crm-motor.onrender.com").replace(/\/$/, "");
 const REVAL = 600; // 10 min — a matriz do franqueado reflete no ar em ate 10 min
 
+// O motor fica atras do portao Basic (GATE_USER/PASS). Este fetch roda no
+// SERVIDOR da Vercel, que ja guarda as credenciais do proxy — injeta a mesma
+// autenticacao aqui (sem elas, o motor devolve 401 e a pagina ficaria vazia).
+function cabecalhos(): Record<string, string> {
+  const u = process.env.RENDER_GATE_USER ?? "";
+  const p = process.env.RENDER_GATE_PASS ?? "";
+  if (!u || !p) return {};
+  return { Authorization: "Basic " + Buffer.from(`${u}:${p}`).toString("base64") };
+}
+
 async function pub<T>(path: string): Promise<T | null> {
   try {
     const r = await fetch(`${API}/publico/vagas${path}`, {
+      headers: cabecalhos(),
       next: { revalidate: REVAL },
     });
     if (!r.ok) return null;

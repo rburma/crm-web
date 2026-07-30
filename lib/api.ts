@@ -2148,3 +2148,92 @@ export function avaliacoesExcluirLote(ids: number[]): Promise<{ excluidas: numbe
     body: JSON.stringify({ ids }),
   });
 }
+
+
+// ── Módulo Vagas (F1) — matriz do franqueado + admin + público ──────────
+export type VagasMatriz = {
+  lojas: { id: number; nome: string; sigla: string | null; marca_id: number; cidade: string | null }[];
+  cargos: { id: number; titulo: string; marca_id: number; marca_sigla: string | null }[];
+  abertas: { cargo_id: number; loja_id: number }[];
+};
+export function vagasMatriz(): Promise<VagasMatriz> {
+  return req<VagasMatriz>("vagas/matriz");
+}
+export function vagasMarcar(cargoId: number, lojaId: number, aberta: boolean): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>("vagas/matriz", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cargo_id: cargoId, loja_id: lojaId, aberta }),
+  });
+}
+
+export type VagaCargoAdmin = {
+  id: number; marca_id: number; tipo: string; titulo: string; slug: string;
+  descricao: string | null; requisitos: string | null; texto_seo: string | null;
+  ordem: number; ativo: boolean;
+};
+export function vagasCargosAdmin(): Promise<{
+  marcas: { id: number; nome: string; slug: string; sigla: string | null }[];
+  cargos: VagaCargoAdmin[];
+}> {
+  return req<{
+    marcas: { id: number; nome: string; slug: string; sigla: string | null }[];
+    cargos: VagaCargoAdmin[];
+  }>("vagas/admin/cargos");
+}
+export function vagasSalvarCargo(c: Partial<VagaCargoAdmin>): Promise<{ ok: boolean; id: number }> {
+  return req<{ ok: boolean; id: number }>("vagas/admin/cargos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(c),
+  });
+}
+export type VagaCidadeAdmin = {
+  id: number; nome: string; uf: string; slug: string;
+  populacao: number | null; prioritaria: boolean; ativo: boolean;
+};
+export function vagasCidades(q = "", soPrio = false): Promise<{ tem_carga_ibge: boolean; cidades: VagaCidadeAdmin[] }> {
+  return req<{ tem_carga_ibge: boolean; cidades: VagaCidadeAdmin[] }>(
+    `vagas/admin/cidades?q=${encodeURIComponent(q)}&so_prioritarias=${soPrio}`,
+  );
+}
+export function vagasSalvarCidade(nome: string, uf: string, prioritaria: boolean, ativo = true): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>("vagas/admin/cidades", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome, uf, prioritaria, ativo }),
+  });
+}
+export function vagasImportarIbge(): Promise<{ ok: boolean; mensagem: string }> {
+  return req<{ ok: boolean; mensagem: string }>("vagas/admin/cidades/importar-ibge", { method: "POST" });
+}
+
+export type CandidatarPayload = {
+  marca_slug: string; tipo: "vaga" | "franquia";
+  cargo_id?: number; loja_id?: number; lojas_interesse?: number[];
+  cidade?: string; uf?: string; capital?: string; franquia_tipo?: "loja" | "popup";
+  nome: string; cpf: string; telefone: string; email: string;
+  redes?: Record<string, string>; ja_trabalhou: boolean;
+  experiencia?: { empresa: string; cargo: string; entrada: string; saida: string;
+    descricao: string; telefone_ref: string; superior: string }[];
+  consent: boolean;
+};
+export type CandidatarResp = {
+  travado: boolean; numero: string | null; token: string | null;
+  banco?: boolean; mensagem: string;
+};
+export function vagasCandidatar(p: CandidatarPayload): Promise<CandidatarResp> {
+  return req<CandidatarResp>("publico/vagas/candidatar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(p),
+  });
+}
+export type VagasAcompanhar = {
+  marca: { nome: string; tema: { cor?: string } } | null; nome: string | null;
+  tipo: string; cargo: string | null; loja: string | null;
+  cidade: string | null; uf: string | null; fase: string; status: string;
+};
+export function vagasAcompanhar(token: string): Promise<VagasAcompanhar> {
+  return req<VagasAcompanhar>(`publico/vagas/acompanhar/${encodeURIComponent(token)}`);
+}

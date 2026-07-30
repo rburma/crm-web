@@ -59,7 +59,10 @@ export default function VagasMatrizPage() {
         {dados && cargos.length === 0 && (
           <div className="panel p-4 text-sm text-slate-500">
             Nenhum cargo cadastrado ainda para as suas marcas — o administrador
-            cadastra os cargos padrão em Vagas → Administração.
+            cadastra os cargos padrão em{" "}
+            <a href="/vagas/admin" className="text-indigo-600 font-semibold underline">
+              ⚙️ Vagas → Administração
+            </a>.
           </div>
         )}
         {dados && cargos.length > 0 && (
@@ -105,6 +108,17 @@ export default function VagasMatrizPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {dados && (
+          <p className="mt-3 text-xs">
+            <a href="/vagas/admin" className="text-slate-400 underline">
+              ⚙️ Administração de vagas (cargos, funil, testes, cidades — só admin)
+            </a>
+            {" · "}
+            <a href="/vagas/ranking" className="text-slate-400 underline">
+              🏆 Ranking de candidatos
+            </a>
+          </p>
         )}
       </div>
     </Shell>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
 import SlaBadge from "@/components/SlaBadge";
+import PainelRecrutamento from "@/components/PainelRecrutamento";
 import {
   anexarFoto,
   excluirAtendimento,
@@ -341,6 +342,12 @@ export default function AtendimentoPage({ params }: { params: { id: string } }) 
                 </div>
               )}
             </div>
+
+            {/* 🔒 Painel de recrutamento (candidaturas de vagas/franquias) —
+                só renderiza p/ franqueado/admin (backend devolve 403 p/ o resto) */}
+            {d.custom != null && (d.custom as Record<string, unknown>)._candidatura_id != null && (
+              <PainelRecrutamento id={Number((d.custom as Record<string, unknown>)._candidatura_id)} />
+            )}
 
             {/* Ficha do cliente (resumo) — sempre no topo */}
             {d.cliente && (() => {

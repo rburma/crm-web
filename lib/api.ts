@@ -2237,3 +2237,171 @@ export type VagasAcompanhar = {
 export function vagasAcompanhar(token: string): Promise<VagasAcompanhar> {
   return req<VagasAcompanhar>(`publico/vagas/acompanhar/${encodeURIComponent(token)}`);
 }
+
+
+// ── Vagas F2: ranking, painel, funil admin, testes, blocos, portal ──────
+export type RankingLinha = {
+  id: number; oportunidade_id: number | null; nome: string; email: string;
+  telefone: string | null; redes: Record<string, string> | null;
+  cidade: string | null; uf: string | null; capital: string | null;
+  tipo: string; cargo: string | null; loja: string | null;
+  fase: string; status: string; score: number | null; mbi: number | null;
+  disc: string | null; videos: number; parado_min: number; criado_em: string | null;
+};
+export function vagasRanking(params: Record<string, string | number>): Promise<{
+  total: number; pagina: number; por_pagina: number; linhas: RankingLinha[];
+}> {
+  const q = Object.entries(params)
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+    .join("&");
+  return req<{ total: number; pagina: number; por_pagina: number; linhas: RankingLinha[] }>(
+    `vagas/ranking?${q}`,
+  );
+}
+export function vagasAcaoLote(payload: {
+  ids: number[]; acao: string; modelo_tipo?: string;
+  dia?: string; hora?: string; local?: string;
+}): Promise<{ ok: boolean; feitos: number; erros: string[] }> {
+  return req<{ ok: boolean; feitos: number; erros: string[] }>("vagas/ranking/acao", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+export type PainelCandidatura = {
+  id: number; status: string; fase: string; tipo: string;
+  score: number | null; score_detalhe: { itens: { pergunta_id: number; fase: string; rankeia: string | null; nota: number; peso: number }[] } | null;
+  disc: { D: number; I: number; S: number; C: number; perfil: string } | null;
+  candidato: {
+    nome: string; email: string; telefone: string | null; cidade: string | null;
+    uf: string | null; redes: Record<string, string> | null; ja_trabalhou: boolean;
+    experiencia: { empresa: string; cargo: string; entrada: string; saida: string;
+      descricao: string; telefone_ref: string; superior: string }[] | null;
+    cpf_mascarado: string | null;
+  } | null;
+  respostas: { pergunta_id: number; valor: string; tipo: string; nota?: number;
+    nota_ia?: number; nota_manual?: number; aval_ia?: string;
+    pergunta: string | null; rankeia: string | null; peso: number | null; fase: string }[];
+  fases: { slug: string; nome: string }[];
+  capital: string | null; cidade: string | null; uf: string | null;
+  lojas_interesse: number[] | null;
+};
+export function vagasPainel(id: number): Promise<PainelCandidatura> {
+  return req<PainelCandidatura>(`vagas/candidatura/${id}`);
+}
+export function vagasNotaManual(id: number, perguntaId: number, nota: number): Promise<{ ok: boolean; score: number | null }> {
+  return req<{ ok: boolean; score: number | null }>(`vagas/candidatura/${id}/nota`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta_id: perguntaId, nota }),
+  });
+}
+
+export type FunilFaseAdmin = {
+  id: number; slug: string; nome: string; ordem: number; fixa: boolean;
+  ativo: boolean; config: {
+    texto_pagina?: string; instrucoes?: string; prazo_dias?: number;
+    emails?: Record<string, { assunto?: string; corpo?: string }>;
+  };
+  perguntas: FunilPerguntaAdmin[];
+};
+export type FunilPerguntaAdmin = {
+  id: number; texto: string; tipo: string; opcoes: string[] | null;
+  rankeia: string | null; notas: Record<string, number> | null; peso: number;
+  peso_por_tipo: Record<string, number> | null; ordem: number; ativo: boolean;
+};
+export function vagasFunilAdmin(tipo: string): Promise<{ tipo: string; fases: FunilFaseAdmin[] }> {
+  return req<{ tipo: string; fases: FunilFaseAdmin[] }>(`vagas/admin/funil?tipo=${tipo}`);
+}
+export function vagasSalvarFase(f: {
+  id?: number; tipo?: string; nome: string; ordem: number; ativo: boolean;
+  config: FunilFaseAdmin["config"];
+}): Promise<{ ok: boolean; id: number }> {
+  return req<{ ok: boolean; id: number }>("vagas/admin/fases", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(f),
+  });
+}
+export function vagasSalvarPergunta(p: {
+  id?: number; fase_id: number; texto: string; tipo: string; opcoes?: string[];
+  rankeia?: string; notas?: Record<string, number>; peso: number;
+  peso_por_tipo?: Record<string, number>; ordem?: number; ativo?: boolean;
+}): Promise<{ ok: boolean; id: number }> {
+  return req<{ ok: boolean; id: number }>("vagas/admin/perguntas", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(p),
+  });
+}
+export type TesteAdmin = {
+  id: number; tipo: string; nome: string; ativo: boolean;
+  variacoes: { id: number; numero: number; ativo: boolean; usos: number; n_itens: number }[];
+};
+export function vagasTestes(): Promise<{ testes: TesteAdmin[] }> {
+  return req<{ testes: TesteAdmin[] }>("vagas/admin/testes");
+}
+export function vagasGerarVariacoes(testeId: number, quantas = 10): Promise<{ ok: boolean; mensagem: string }> {
+  return req<{ ok: boolean; mensagem: string }>(
+    `vagas/admin/testes/${testeId}/gerar?quantas=${quantas}`, { method: "POST" },
+  );
+}
+export function vagasVerVariacao(id: number): Promise<{
+  id: number; numero: number; ativo: boolean; usos: number;
+  perguntas: { itens: { texto: string; opcoes: { rotulo: string; dim: string }[] }[] };
+}> {
+  return req<{
+    id: number; numero: number; ativo: boolean; usos: number;
+    perguntas: { itens: { texto: string; opcoes: { rotulo: string; dim: string }[] }[] };
+  }>(`vagas/admin/testes/variacao/${id}`);
+}
+export function vagasAtivarVariacao(id: number, ativo: boolean): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>(`vagas/admin/testes/variacao/${id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ativo }),
+  });
+}
+export type BlocoAdmin = {
+  id: number; escopo: string; titulo: string | null; texto: string | null;
+  ordem: number; ativo: boolean;
+};
+export function vagasBlocos(): Promise<{ blocos: BlocoAdmin[] }> {
+  return req<{ blocos: BlocoAdmin[] }>("vagas/admin/blocos");
+}
+export function vagasSalvarBloco(b: Partial<BlocoAdmin>): Promise<{ ok: boolean; id: number }> {
+  return req<{ ok: boolean; id: number }>("vagas/admin/blocos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(b),
+  });
+}
+export type PortalEstado = {
+  marca: { nome: string; tema: { cor?: string } } | null; nome: string | null;
+  tipo: string; status: string; fase: string;
+  fases: { slug: string; nome: string }[];
+  perguntas: { id: number; texto: string; tipo: string; opcoes: string[] | null; respondida: boolean }[];
+  teste: { variacao_id: number; itens: { texto: string; opcoes: string[] }[] } | null;
+  texto: string | null; instrucoes: string | null;
+};
+export function vagasPortal(token: string): Promise<PortalEstado> {
+  return req<PortalEstado>(`publico/vagas/portal/${encodeURIComponent(token)}`);
+}
+export function vagasPortalResponder(token: string, respostas: { pergunta_id: number; valor: string }[]): Promise<{ ok: boolean; avancou: boolean; faltam: number; fase: string }> {
+  return req<{ ok: boolean; avancou: boolean; faltam: number; fase: string }>(
+    `publico/vagas/portal/${encodeURIComponent(token)}/responder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ respostas }),
+    },
+  );
+}
+export function vagasPortalTeste(token: string, variacaoId: number, escolhas: number[]): Promise<{ ok: boolean; resultado: Record<string, number | string>; fase: string }> {
+  return req<{ ok: boolean; resultado: Record<string, number | string>; fase: string }>(
+    `publico/vagas/portal/${encodeURIComponent(token)}/teste`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ variacao_id: variacaoId, escolhas }),
+    },
+  );
+}

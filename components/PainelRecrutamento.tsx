@@ -1,0 +1,183 @@
+"use client";
+// 🔒 Painel de recrutamento acoplado ao ATENDIMENTO (wireframe v4): visível
+// SÓ para franqueado (admin da loja) e admin do sistema — o backend devolve
+// 403 para atendentes e o painel simplesmente não aparece. Mostra score +
+// breakdown, MBI, DISC, vídeos, respostas e permite ajustar nota manual.
+import { useEffect, useState } from "react";
+import {
+  vagasNotaManual, vagasPainel, type PainelCandidatura,
+} from "@/lib/api";
+
+export default function PainelRecrutamento({ id }: { id: number }) {
+  const [dados, setDados] = useState<PainelCandidatura | null>(null);
+  const [semAcesso, setSemAcesso] = useState(false);
+  const [aberto, setAberto] = useState(true);
+  const [editando, setEditando] = useState<number | null>(null);
+  const [nota, setNota] = useState(3);
+
+  function carregar() {
+    vagasPainel(id).then(setDados).catch(() => setSemAcesso(true));
+  }
+  useEffect(carregar, [id]);
+
+  if (semAcesso || !dados) return null;
+  const c = dados.candidato;
+  const videos = dados.respostas.filter((r) => r.tipo === "video");
+  const anexos = dados.respostas.filter((r) => r.tipo === "anexo");
+  const abertas = dados.respostas.filter((r) => r.tipo !== "video" && r.tipo !== "anexo");
+  const idxAtual = dados.fases.findIndex((f) => f.slug === dados.fase);
+
+  async function salvarNota(perguntaId: number) {
+    try {
+      await vagasNotaManual(id, perguntaId, nota);
+      setEditando(null);
+      carregar();
+    } catch { /* mantem */ }
+  }
+
+  const chipStatus =
+    dados.status === "aprovado" ? "✅ APROVADO"
+    : dados.status === "desclassificado" ? "✖ DESCLASSIFICADO"
+    : dados.status === "banco" ? "⏸ BANCO" : "EM PROCESSO";
+
+  return (
+    <div className="card p-5 border-2 border-red-200">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-sm font-semibold text-slate-700">
+          🔒 Recrutamento — visível só para franqueado/admin
+        </div>
+        <div className="flex items-center gap-2">
+          {dados.score != null && (
+            <span className="px-2 py-0.5 rounded-lg font-extrabold text-sm bg-emerald-100 text-emerald-800">
+              Score {Math.round(dados.score)}
+            </span>
+          )}
+          <span className="text-xs font-bold text-slate-500">{chipStatus}</span>
+          <button className="text-xs text-slate-400" onClick={() => setAberto(!aberto)}>
+            {aberto ? "▲ recolher" : "▼ abrir"}
+          </button>
+        </div>
+      </div>
+      {aberto && (
+        <div className="mt-3">
+          <div className="flex flex-wrap gap-1 mb-3">
+            {dados.fases.map((f, i) => (
+              <span key={f.slug}
+                className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                  i < idxAtual ? "bg-emerald-100 border-emerald-300 text-emerald-800"
+                  : i === idxAtual ? "bg-indigo-600 border-indigo-600 text-white"
+                  : "bg-slate-50 border-slate-200 text-slate-400"}`}>
+                {f.nome}
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              {c && (
+                <div className="text-xs text-slate-600 mb-2">
+                  {c.cpf_mascarado && <div>CPF {c.cpf_mascarado} · trava de recandidatura 12 meses</div>}
+                  {c.redes && Object.entries(c.redes).map(([k, v]) => (
+                    <div key={k}>
+                      {k}: <a className="text-indigo-600 underline" target="_blank" rel="noreferrer"
+                        href={v.startsWith("http") ? v : `https://${v}`}>{v}</a>
+                    </div>
+                  ))}
+                  {dados.capital && <div>Capital declarado: {dados.capital}</div>}
+                  {dados.cidade && <div>Cidade pretendida: {dados.cidade}/{dados.uf}</div>}
+                </div>
+              )}
+              {c?.ja_trabalhou && c.experiencia && c.experiencia.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-xs font-bold text-slate-500 mb-1">Experiência</div>
+                  {c.experiencia.map((e, i) => (
+                    <div key={i} className="text-xs text-slate-600 mb-1">
+                      <b>{e.empresa}</b> · {e.cargo} · {e.entrada}–{e.saida || "atual"}
+                      {e.descricao && <div className="text-slate-500">{e.descricao}</div>}
+                      {(e.telefone_ref || e.superior) && (
+                        <div className="text-slate-400">Referência: {e.superior} {e.telefone_ref}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {videos.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-xs font-bold text-slate-500 mb-1">🎥 Vídeos</div>
+                  <div className="flex flex-wrap gap-2">
+                    {videos.map((v, i) => (
+                      <a key={i} href={v.valor} target="_blank" rel="noreferrer"
+                        className="text-xs bg-slate-900 text-white rounded-lg px-3 py-2">▶ Vídeo {i + 1}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {anexos.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-xs font-bold text-slate-500 mb-1">📎 Anexos</div>
+                  {anexos.map((v, i) => (
+                    <a key={i} href={v.valor} target="_blank" rel="noreferrer"
+                      className="text-xs text-indigo-600 underline block">{v.pergunta || `Anexo ${i + 1}`}</a>
+                  ))}
+                </div>
+              )}
+              {dados.disc && (
+                <div className="mb-2">
+                  <div className="text-xs font-bold text-slate-500 mb-1">📊 DISC: {dados.disc.perfil}</div>
+                  {(["D", "I", "S", "C"] as const).map((d) => (
+                    <div key={d} className="flex items-center gap-2 text-[11px] mb-0.5">
+                      <span className="w-3">{d}</span>
+                      <div className="flex-1 h-2 bg-slate-100 rounded overflow-hidden">
+                        <div className="h-full bg-indigo-500" style={{ width: `${dados.disc?.[d] ?? 0}%` }} />
+                      </div>
+                      <span className="w-8 text-right">{dados.disc?.[d] ?? 0}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="text-xs font-bold text-slate-500 mb-1">Respostas do funil (nota × peso)</div>
+              {abertas.length === 0 && <div className="text-xs text-slate-400">Ainda sem respostas.</div>}
+              {abertas.map((r, i) => {
+                const notaFinal = r.nota_manual ?? r.nota ?? r.nota_ia;
+                return (
+                  <div key={i} className="text-xs border border-slate-100 rounded-lg p-2 mb-1.5">
+                    <div className="text-slate-500">{r.pergunta || `Pergunta #${r.pergunta_id}`}</div>
+                    <div className="text-slate-800 whitespace-pre-line">“{r.valor}”</div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {notaFinal != null ? (
+                        <span className="font-bold">
+                          nota {Number(notaFinal).toFixed(1)}
+                          {r.nota_manual != null ? " (manual)" : r.nota_ia != null && r.nota == null ? " (IA)" : ""}
+                        </span>
+                      ) : <span className="text-slate-400">sem nota</span>}
+                      {r.peso != null && <span className="text-slate-400">peso {r.peso}</span>}
+                      {r.rankeia && <span className="text-violet-600">{r.rankeia}</span>}
+                      {editando === r.pergunta_id ? (
+                        <span className="flex items-center gap-1">
+                          <select className="border border-slate-300 rounded px-1 py-0.5"
+                            value={nota} onChange={(e) => setNota(Number(e.target.value))}>
+                            {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                          <button className="text-emerald-700 font-bold" onClick={() => salvarNota(r.pergunta_id)}>✔</button>
+                          <button className="text-slate-400" onClick={() => setEditando(null)}>✕</button>
+                        </span>
+                      ) : (
+                        <button className="text-indigo-600" onClick={() => { setEditando(r.pergunta_id); setNota(Math.round(Number(notaFinal ?? 3))); }}>
+                          ✏️ ajustar nota
+                        </button>
+                      )}
+                    </div>
+                    {r.aval_ia && <div className="text-slate-400 mt-0.5">IA: {r.aval_ia}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -24,6 +24,7 @@ const NAV = [
   { href: "/minhas-lojas", label: "Minha Loja", icon: "🏬", vis: "franqueado" },
   { href: "/financeiro", label: "Financeiro", icon: "💳", vis: "franqueado" }, // rating + boletos + obrigações (admin da loja)
   { href: "/vagas/matriz", label: "Vagas", icon: "💼", vis: "franqueado" }, // matriz cargos×lojas (admin da loja)
+  { href: "/vagas/ranking", label: "Candidatos", icon: "🏆", vis: "franqueado" }, // ranking + ações em massa
   { href: "/importar", label: "Importar", icon: "📥", vis: "admin" },
   { href: "/equipe", label: "Equipe", icon: "🏪", vis: "admin" },
   { href: "/aprovacoes", label: "Aprovações", icon: "📝", vis: "admin" },

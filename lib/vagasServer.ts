@@ -34,8 +34,9 @@ export type CargoPub = {
   aberta?: boolean; aberta_em?: string | null;
 };
 
+export type BlocoPub = { escopo: string; titulo: string | null; texto: string | null };
 export function hubGeral() {
-  return pub<{ vagas: MarcaPub[]; franquias: MarcaPub[] }>("");
+  return pub<{ vagas: MarcaPub[]; franquias: MarcaPub[]; blocos?: BlocoPub[] }>("");
 }
 export function hubMarca(slug: string) {
   return pub<{ marca: MarcaPub; cargos: CargoPub[]; lojas: LojaPub[] }>(`/${slug}`);

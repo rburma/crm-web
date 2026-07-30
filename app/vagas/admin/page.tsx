@@ -4,6 +4,8 @@
 // + carga IBGE). Funil/perguntas/score chegam na Fase 2.
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
+import FunilAdmin from "./FunilAdmin";
+import { BlocosAdmin, TestesAdmin } from "./TestesBlocos";
 import {
   vagasCargosAdmin, vagasSalvarCargo, vagasCidades, vagasSalvarCidade,
   vagasImportarIbge, type VagaCargoAdmin, type VagaCidadeAdmin,
@@ -205,6 +207,12 @@ export default function VagasAdminPage() {
               <span className="text-xs text-slate-400">Nenhuma cidade prioritária ainda.</span>
             )}
           </div>
+        </div>
+
+        <div className="mt-4">
+          <FunilAdmin />
+          <TestesAdmin />
+          <BlocosAdmin />
         </div>
       </div>
     </Shell>

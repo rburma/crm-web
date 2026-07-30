@@ -1,84 +1,314 @@
 "use client";
-// Portal do candidato (link mágico ?t=token) — substitui o WhatsApp: o
-// candidato acompanha fase/status por aqui + e-mail. F1: linha do tempo
-// básica; as etapas interativas (vídeos/testes) chegam na Fase 2.
-import { Suspense, useEffect, useState } from "react";
+// Portal do candidato (link mágico ?t=token) — Fase 2: o candidato PERCORRE o
+// funil por aqui: responde as perguntas da fase, grava/enviar vídeos (máx 3
+// min), faz o teste de perfil. Sem WhatsApp: tudo por aqui + e-mail.
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { vagasAcompanhar, type VagasAcompanhar } from "@/lib/api";
+import {
+  vagasPortal, vagasPortalResponder, vagasPortalTeste, type PortalEstado,
+} from "@/lib/api";
 
-const FASES = ["inscricao", "triagem", "videos", "teste", "decisao", "entrevista"];
-const ROTULOS: Record<string, string> = {
-  inscricao: "Inscrição", triagem: "Triagem", videos: "Vídeos",
-  teste: "Teste", decisao: "Análise", entrevista: "Entrevista",
-};
+const MAX_VIDEO_SEG = 180; // 3 minutos (decisão 29/07)
+
+function Recorder({ token, perguntaId, aoEnviar }: {
+  token: string; perguntaId: number; aoEnviar: () => void;
+}) {
+  const [gravando, setGravando] = useState(false);
+  const [seg, setSeg] = useState(0);
+  const [blob, setBlob] = useState<Blob | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+  const media = useRef<MediaRecorder | null>(null);
+  const pedacos = useRef<Blob[]>([]);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  async function iniciar() {
+    setErro("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.muted = true;
+        void videoRef.current.play();
+      }
+      pedacos.current = [];
+      const rec = new MediaRecorder(stream);
+      rec.ondataavailable = (e) => { if (e.data.size > 0) pedacos.current.push(e.data); };
+      rec.onstop = () => {
+        setBlob(new Blob(pedacos.current, { type: rec.mimeType || "video/webm" }));
+        stream.getTracks().forEach((t) => t.stop());
+        if (videoRef.current) videoRef.current.srcObject = null;
+      };
+      media.current = rec;
+      rec.start();
+      setGravando(true);
+      setSeg(0);
+      timer.current = setInterval(() => setSeg((s) => {
+        if (s + 1 >= MAX_VIDEO_SEG) parar();
+        return s + 1;
+      }), 1000);
+    } catch {
+      setErro("Não foi possível acessar a câmera/microfone. Você pode anexar um arquivo de vídeo.");
+    }
+  }
+  function parar() {
+    if (timer.current) clearInterval(timer.current);
+    if (media.current && media.current.state !== "inactive") media.current.stop();
+    setGravando(false);
+  }
+
+  async function enviar(arquivo?: File) {
+    const dado = arquivo ?? (blob ? new File([blob], "video.webm", { type: blob.type }) : null);
+    if (!dado) return;
+    if (dado.size > 40 * 1024 * 1024) { setErro("Arquivo muito grande (máx 40MB)."); return; }
+    setEnviando(true); setErro("");
+    try {
+      const fd = new FormData();
+      fd.append("pergunta_id", String(perguntaId));
+      fd.append("arquivo", dado);
+      const r = await fetch(
+        `/api/render/publico/vagas/portal/${encodeURIComponent(token)}/video`,
+        { method: "POST", body: fd },
+      );
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error((j as { detail?: string }).detail || `Erro ${r.status}`);
+      }
+      setBlob(null);
+      aoEnviar();
+    } catch (e) { setErro((e as Error).message); }
+    finally { setEnviando(false); }
+  }
+
+  return (
+    <div className="mt-2">
+      <video ref={videoRef} className={`w-full rounded-lg bg-slate-900 ${gravando ? "" : "hidden"}`} playsInline />
+      {erro && <div className="text-xs text-red-600 my-1">{erro}</div>}
+      <div className="flex gap-2 flex-wrap mt-2">
+        {!gravando && !blob && (
+          <button type="button" onClick={iniciar}
+            className="text-sm bg-red-600 text-white rounded-lg px-3 py-2 font-semibold">⏺ Gravar agora</button>
+        )}
+        {gravando && (
+          <button type="button" onClick={parar}
+            className="text-sm bg-slate-800 text-white rounded-lg px-3 py-2 font-semibold">
+            ⏹ Parar ({Math.floor(seg / 60)}:{String(seg % 60).padStart(2, "0")} / 3:00)
+          </button>
+        )}
+        {blob && !enviando && (
+          <>
+            <button type="button" onClick={() => enviar()}
+              className="text-sm bg-emerald-600 text-white rounded-lg px-3 py-2 font-semibold">✔ Enviar vídeo</button>
+            <button type="button" onClick={() => setBlob(null)}
+              className="text-sm border border-slate-300 rounded-lg px-3 py-2">↺ Regravar</button>
+          </>
+        )}
+        {enviando && <span className="text-sm text-slate-500 self-center">Enviando…</span>}
+        <label className="text-sm border border-slate-300 rounded-lg px-3 py-2 cursor-pointer">
+          📎 ou anexar arquivo
+          <input type="file" accept="video/*" className="hidden"
+            onChange={(e) => e.target.files?.[0] && enviar(e.target.files[0])} />
+        </label>
+      </div>
+    </div>
+  );
+}
 
 function Conteudo() {
   const params = useSearchParams();
   const token = params.get("t") || "";
-  const [dados, setDados] = useState<VagasAcompanhar | null>(null);
+  const [dados, setDados] = useState<PortalEstado | null>(null);
   const [erro, setErro] = useState("");
+  const [valores, setValores] = useState<Record<number, string>>({});
+  const [escolhas, setEscolhas] = useState<Record<number, number>>({});
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState("");
 
-  useEffect(() => {
+  function carregar() {
     if (!token) { setErro("Link inválido."); return; }
-    vagasAcompanhar(token).then(setDados).catch((e: Error) => setErro(e.message));
-  }, [token]);
+    vagasPortal(token).then((d) => { setDados(d); setValores({}); setEscolhas({}); })
+      .catch((e: Error) => setErro(e.message));
+  }
+  useEffect(carregar, [token]);
 
   const cor = dados?.marca?.tema?.cor || "#0f172a";
-  const idxAtual = Math.max(0, FASES.indexOf(dados?.fase || "inscricao"));
+  const idxAtual = Math.max(0, (dados?.fases ?? []).findIndex((f) => f.slug === dados?.fase));
+  const pendentes = (dados?.perguntas ?? []).filter(
+    (p) => !p.respondida && p.tipo !== "video" && p.tipo !== "anexo",
+  );
+  const videos = (dados?.perguntas ?? []).filter(
+    (p) => !p.respondida && (p.tipo === "video" || p.tipo === "anexo"),
+  );
+
+  async function responder() {
+    setEnviando(true); setErro(""); setAviso("");
+    try {
+      const lista = pendentes
+        .map((p) => ({ pergunta_id: p.id, valor: valores[p.id] || "" }))
+        .filter((r) => r.valor.trim());
+      const r = await vagasPortalResponder(token, lista);
+      setAviso(r.avancou ? "Etapa concluída! 🎉" : `Respostas salvas — faltam ${r.faltam}.`);
+      carregar();
+    } catch (e) { setErro((e as Error).message); }
+    finally { setEnviando(false); }
+  }
+
+  async function enviarTeste() {
+    if (!dados?.teste) return;
+    const total = dados.teste.itens.length;
+    const feitas = Object.keys(escolhas).length;
+    if (feitas < total) { setErro(`Responda todas (${feitas}/${total}).`); return; }
+    setEnviando(true); setErro("");
+    try {
+      await vagasPortalTeste(
+        token, dados.teste.variacao_id,
+        dados.teste.itens.map((_, i) => escolhas[i]),
+      );
+      setAviso("Teste concluído! 🎉");
+      carregar();
+    } catch (e) { setErro((e as Error).message); }
+    finally { setEnviando(false); }
+  }
+
+  const inputCls = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm";
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="text-white px-4 py-6 text-center" style={{ background: cor }}>
-        <h1 className="font-extrabold text-lg">🔗 Acompanhe seu processo</h1>
-        {dados && (
-          <p className="text-xs opacity-90 mt-1">
-            {dados.nome} · {dados.cargo || `Franquia — ${dados.cidade || ""}`}
-            {dados.loja ? ` · ${dados.loja}` : ""}
-          </p>
-        )}
+    <main className="min-h-screen bg-slate-50 pb-10">
+      <header className="text-white px-4 py-5 text-center" style={{ background: cor }}>
+        <h1 className="font-extrabold text-lg">🔗 Seu processo seletivo</h1>
+        {dados && <p className="text-xs opacity-90 mt-1">{dados.nome} · {dados.marca?.nome}</p>}
       </header>
       <section className="max-w-md mx-auto p-4">
-        {erro && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{erro}</div>}
+        {erro && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3 mb-2">{erro}</div>}
+        {aviso && <div className="text-sm text-emerald-700 bg-emerald-50 rounded-lg p-3 mb-2">{aviso}</div>}
         {!dados && !erro && <div className="text-sm text-slate-500">Carregando…</div>}
         {dados && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-4">
+          <>
             <div className="flex flex-wrap gap-1.5 mb-4">
-              {FASES.map((f, i) => (
-                <span key={f}
+              {dados.fases.map((f, i) => (
+                <span key={f.slug}
                   className={`text-[11px] px-2.5 py-1 rounded-full border ${
                     i < idxAtual ? "bg-emerald-100 border-emerald-300 text-emerald-800"
                     : i === idxAtual ? "text-white border-transparent"
                     : "bg-slate-50 border-slate-200 text-slate-400"}`}
-                  style={i === idxAtual ? { background: cor } : undefined}
-                >
-                  {ROTULOS[f]}
+                  style={i === idxAtual ? { background: cor } : undefined}>
+                  {f.nome}
                 </span>
               ))}
             </div>
             {dados.status === "aprovado" && (
-              <p className="text-sm font-bold text-emerald-700">✅ Você foi aprovado! A loja vai entrar em contato.</p>
-            )}
-            {dados.status === "em_processo" && (
-              <p className="text-sm text-slate-600">
-                Sua candidatura está em análise. Os próximos passos chegam por
-                e-mail e aparecem aqui — não precisa fazer nada agora.
-              </p>
-            )}
-            {dados.status === "banco" && (
-              <p className="text-sm text-slate-600">
-                Seu perfil está no banco de talentos. Se uma vaga abrir, você já
-                está na frente.
-              </p>
+              <div className="bg-white border border-emerald-300 rounded-2xl p-4 text-sm font-bold text-emerald-700">
+                ✅ Você foi aprovado! A loja vai entrar em contato.
+              </div>
             )}
             {dados.status === "desclassificado" && (
-              <p className="text-sm text-slate-600">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 text-sm text-slate-600">
                 Este processo foi encerrado. Obrigado pelo interesse!
-              </p>
+              </div>
+            )}
+            {dados.status === "banco" && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 text-sm text-slate-600">
+                Seu perfil está guardado no banco de talentos. Se uma vaga abrir, você já está na frente.
+              </div>
+            )}
+            {dados.status === "em_processo" && dados.fase === "decisao" && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 text-sm text-slate-600">
+                Tudo certo por enquanto! Sua candidatura está com a equipe da loja.
+                Você recebe um e-mail assim que houver novidade.
+              </div>
+            )}
+            {dados.status === "em_processo" && dados.fase !== "decisao" && (
+              <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                {dados.texto && <p className="text-sm text-slate-700 mb-2 whitespace-pre-line">{dados.texto}</p>}
+                {dados.instrucoes && <p className="text-xs text-slate-500 mb-3 whitespace-pre-line">💡 {dados.instrucoes}</p>}
+
+                {dados.teste && (
+                  <div>
+                    <p className="text-sm font-bold mb-2">📊 Teste de perfil — marque a opção que MAIS combina com você:</p>
+                    {dados.teste.itens.map((item, i) => (
+                      <div key={i} className="mb-3">
+                        <p className="text-sm font-semibold mb-1">{i + 1}. {item.texto}</p>
+                        <div className="grid grid-cols-1 gap-1">
+                          {item.opcoes.map((op, j) => (
+                            <button key={j} type="button"
+                              onClick={() => setEscolhas({ ...escolhas, [i]: j })}
+                              className={`text-left text-sm rounded-lg px-3 py-2 border ${escolhas[i] === j ? "text-white border-transparent" : "bg-white border-slate-300"}`}
+                              style={escolhas[i] === j ? { background: cor } : undefined}>
+                              {op}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={enviarTeste} disabled={enviando}
+                      className="w-full text-white font-bold rounded-xl px-4 py-3 disabled:opacity-60"
+                      style={{ background: cor }}>
+                      {enviando ? "Enviando…" : "Concluir teste →"}
+                    </button>
+                  </div>
+                )}
+                {!dados.teste && (
+                  <div>
+                    {pendentes.map((p) => (
+                      <div key={p.id} className="mb-3">
+                        <p className="text-sm font-semibold mb-1">{p.texto}</p>
+                        {p.tipo === "sim_nao" && (
+                          <div className="flex gap-2">
+                            {["Sim", "Não"].map((op) => (
+                              <button key={op} type="button"
+                                onClick={() => setValores({ ...valores, [p.id]: op })}
+                                className={`flex-1 text-sm rounded-lg px-3 py-2 border ${valores[p.id] === op ? "text-white border-transparent" : "bg-white border-slate-300"}`}
+                                style={valores[p.id] === op ? { background: cor } : undefined}>
+                                {op}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {p.tipo === "multipla" && (
+                          <select className={inputCls} value={valores[p.id] || ""}
+                            onChange={(e) => setValores({ ...valores, [p.id]: e.target.value })}>
+                            <option value="">Escolha…</option>
+                            {(p.opcoes ?? []).map((op) => <option key={op}>{op}</option>)}
+                          </select>
+                        )}
+                        {(p.tipo === "numero" || p.tipo === "data") && (
+                          <input className={inputCls} type={p.tipo === "numero" ? "number" : "date"}
+                            value={valores[p.id] || ""}
+                            onChange={(e) => setValores({ ...valores, [p.id]: e.target.value })} />
+                        )}
+                        {p.tipo === "aberta" && (
+                          <textarea className={inputCls} rows={4}
+                            placeholder="Escreva com suas palavras — não há resposta certa."
+                            value={valores[p.id] || ""}
+                            onChange={(e) => setValores({ ...valores, [p.id]: e.target.value })} />
+                        )}
+                      </div>
+                    ))}
+                    {pendentes.length > 0 && (
+                      <button type="button" onClick={responder} disabled={enviando}
+                        className="w-full text-white font-bold rounded-xl px-4 py-3 disabled:opacity-60 mb-3"
+                        style={{ background: cor }}>
+                        {enviando ? "Enviando…" : "Enviar respostas →"}
+                      </button>
+                    )}
+                    {videos.map((p) => (
+                      <div key={p.id} className="mb-3 border-t border-slate-100 pt-3">
+                        <p className="text-sm font-semibold">🎥 {p.texto}</p>
+                        <p className="text-[11px] text-slate-400">máx. 3 minutos · pode gravar direto do celular</p>
+                        <Recorder token={token} perguntaId={p.id} aoEnviar={carregar} />
+                      </div>
+                    ))}
+                    {pendentes.length === 0 && videos.length === 0 && (
+                      <p className="text-sm text-slate-500">Nada pendente nesta etapa — aguarde o próximo passo por e-mail.</p>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
             <p className="text-[11px] text-slate-400 mt-4">
-              Dúvidas ou exclusão dos seus dados (LGPD): responda o e-mail de
-              confirmação que você recebeu.
+              Dúvidas ou exclusão dos seus dados (LGPD): responda o e-mail de confirmação.
             </p>
-          </div>
+          </>
         )}
       </section>
     </main>

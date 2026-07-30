@@ -25,12 +25,25 @@ const PUBLICAS = ["/f/", "/acompanhar", "/avaliar", "/vitrine", "/embed", "/chat
 // fluxo OAuth (Google -> /api/auth/google/callback) bateria no portão do piloto.
 const AUTH_LIVRE = ["/login", "/entrar", "/api/auth/"];
 
+// Modulo VAGAS/FRANQUIAS (30/07): paginas publicas de emprego/expansao — SEO.
+// /vagas/matriz (franqueado) e /vagas/admin (admin) NAO entram: exigem login.
+function vagasPublica(path: string): boolean {
+  if (path.startsWith("/vagas/matriz") || path.startsWith("/vagas/admin")) {
+    return false;
+  }
+  return (
+    path === "/vagas" || path.startsWith("/vagas/") ||
+    path === "/franquias" || path.startsWith("/franquias/")
+  );
+}
+
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   // ── Camada 1: rotas SEMPRE publicas (clientes finais / franqueado por token) ──
   const publica =
     path === "/baixar-app" || path.startsWith("/baixar-app/") ||
+    vagasPublica(path) ||
     path.startsWith("/minha-loja") ||
     path.startsWith("/api/render/franqueado/loja/") ||
     path.startsWith("/api/render/franqueado/por-sigla/") ||

@@ -5,7 +5,8 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  vagasPortal, vagasPortalResponder, vagasPortalTeste, type PortalEstado,
+  vagasPortal, vagasPortalResponder, vagasPortalTeste, vagasRecuperarLink,
+  type PortalEstado,
 } from "@/lib/api";
 
 const MAX_VIDEO_SEG = 180; // 3 minutos (decisão 29/07)
@@ -154,9 +155,26 @@ function Conteudo() {
   const [escolhas, setEscolhas] = useState<Record<number, number>>({});
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState("");
+  // Recuperação de link (31/07): candidato sem o e-mail entra com CPF +
+  // nascimento e recebe o link NA TELA — não depende do e-mail chegar.
+  const [recCpf, setRecCpf] = useState("");
+  const [recNasc, setRecNasc] = useState("");
+  const [recMsg, setRecMsg] = useState("");
+  const [recLink, setRecLink] = useState("");
+  const [recEnviando, setRecEnviando] = useState(false);
+
+  async function recuperar() {
+    setRecEnviando(true); setRecMsg("");
+    try {
+      const r = await vagasRecuperarLink(recCpf, recNasc);
+      if (r.ok && r.token) setRecLink(`/vagas/acompanhar?t=${r.token}`);
+      else setRecMsg(r.mensagem || "Não encontramos uma candidatura com esses dados.");
+    } catch (e) { setRecMsg((e as Error).message); }
+    finally { setRecEnviando(false); }
+  }
 
   function carregar() {
-    if (!token) { setErro("Link inválido."); return; }
+    if (!token) return; // sem token: mostra a RECUPERACAO de link abaixo
     vagasPortal(token).then((d) => {
       setDados(d);
       // RASCUNHO local (31/07): caiu a conexão no meio da fase -> respostas
@@ -235,7 +253,34 @@ function Conteudo() {
       <section className="max-w-md mx-auto p-4">
         {erro && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3 mb-2">{erro}</div>}
         {aviso && <div className="text-sm text-emerald-700 bg-emerald-50 rounded-lg p-3 mb-2">{aviso}</div>}
-        {!dados && !erro && <div className="text-sm text-slate-500">Carregando…</div>}
+        {token && !dados && !erro && <div className="text-sm text-slate-500">Carregando…</div>}
+        {!token && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4">
+            <p className="text-sm font-bold mb-1">🔑 Recuperar acesso à candidatura</p>
+            <p className="text-xs text-slate-500 mb-3">
+              Perdeu o link ou o e-mail não chegou? Informe seus dados e o link aparece aqui mesmo.
+            </p>
+            <label className="text-xs font-semibold text-slate-600">CPF</label>
+            <input className={inputCls} inputMode="numeric" placeholder="000.000.000-00"
+              value={recCpf} onChange={(e) => setRecCpf(e.target.value)} />
+            <label className="text-xs font-semibold text-slate-600 mt-2 block">Data de nascimento</label>
+            <input className={inputCls} type="date" value={recNasc}
+              onChange={(e) => setRecNasc(e.target.value)} />
+            {recMsg && <p className="text-xs text-red-600 mt-2">{recMsg}</p>}
+            {recLink ? (
+              <a href={recLink}
+                className="block text-center w-full bg-emerald-600 text-white font-bold rounded-xl px-4 py-3 mt-3">
+                ▶ Abrir minha candidatura
+              </a>
+            ) : (
+              <button type="button" disabled={recEnviando || !recCpf || !recNasc}
+                onClick={recuperar}
+                className="w-full bg-slate-900 text-white font-bold rounded-xl px-4 py-3 mt-3 disabled:opacity-60">
+                {recEnviando ? "Buscando…" : "Recuperar link →"}
+              </button>
+            )}
+          </div>
+        )}
         {dados && (
           <>
             <div className="flex flex-wrap gap-1.5 mb-4">
@@ -387,7 +432,12 @@ function Conteudo() {
               </div>
             )}
             <p className="text-[11px] text-slate-400 mt-4">
-              Dúvidas ou exclusão dos seus dados (LGPD): responda o e-mail de confirmação.
+              {dados.contato ? (
+                <>Problemas com o sistema, dúvidas ou exclusão dos seus dados (LGPD):
+                  {" "}escreva para <a className="underline" href={`mailto:${dados.contato}`}>{dados.contato}</a>.</>
+              ) : (
+                "Dúvidas ou exclusão dos seus dados (LGPD): responda o e-mail de confirmação."
+              )}
             </p>
           </>
         )}

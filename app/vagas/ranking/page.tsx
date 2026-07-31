@@ -66,6 +66,7 @@ export default function RankingPage() {
   const [convite, setConvite] = useState<{ dia: string; hora: string; local: string } | null>(null);
   const [msg, setMsg] = useState("");
   const [erro, setErro] = useState("");
+  const [smtpOk, setSmtpOk] = useState(true);
   const carregouCol = useRef(false);
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function RankingPage() {
 
   const carregar = useCallback(() => {
     vagasRanking({ escopo, q, status_f: statusF, sort, dir, pagina })
-      .then((r) => { setLinhas(r.linhas); setTotal(r.total); })
+      .then((r) => { setLinhas(r.linhas); setTotal(r.total); setSmtpOk(r.smtp_ok !== false); })
       .catch((e: Error) => setErro(e.message));
   }, [escopo, q, statusF, sort, dir, pagina]);
   useEffect(carregar, [carregar]);
@@ -244,6 +245,13 @@ export default function RankingPage() {
 
         {erro && <div className="mb-2 text-sm text-red-600">{erro}</div>}
         {msg && <div className="mb-2 text-sm text-emerald-700">{msg}</div>}
+        {!smtpOk && (
+          <div className="mb-2 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg p-2.5"
+            title="Sem essas variáveis o motor não envia NENHUM e-mail (confirmação, fases, dispensa).">
+            ⚠️ E-mails do sistema <b>desativados</b>: falta configurar SMTP_HOST e SMTP_FROM
+            (e SMTP_USER/SMTP_PASS) nas variáveis de ambiente do crm-motor no Render.
+          </div>
+        )}
         {sel.size > 0 && (
           <div className="border-2 border-indigo-400 bg-white rounded-xl p-2.5 mb-2 flex items-center gap-2 flex-wrap">
             <b className="text-sm">{sel.size} selecionado(s)</b>

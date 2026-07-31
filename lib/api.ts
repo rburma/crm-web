@@ -2253,11 +2253,12 @@ export type RankingLinha = {
 };
 export function vagasRanking(params: Record<string, string | number>): Promise<{
   total: number; pagina: number; por_pagina: number; linhas: RankingLinha[];
+  smtp_ok?: boolean;
 }> {
   const q = Object.entries(params)
     .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
     .join("&");
-  return req<{ total: number; pagina: number; por_pagina: number; linhas: RankingLinha[] }>(
+  return req<{ total: number; pagina: number; por_pagina: number; linhas: RankingLinha[]; smtp_ok?: boolean }>(
     `vagas/ranking?${q}`,
   );
 }
@@ -2275,6 +2276,10 @@ export type PainelCandidatura = {
   id: number; status: string; fase: string; tipo: string;
   score: number | null; score_detalhe: { itens: { pergunta_id: number; fase: string; rankeia: string | null; nota: number; peso: number }[] } | null;
   disc: { D: number; I: number; S: number; C: number; perfil: string } | null;
+  disc_fit: {
+    aderencia: number; faixa: "dentro" | "atencao" | "fora";
+    leitura: string; ideal: Record<string, string>;
+  } | null;
   candidato: {
     nome: string; email: string; telefone: string | null;
     nascimento: string | null; cidade: string | null;
@@ -2388,6 +2393,7 @@ export type PortalEstado = {
   perguntas: { id: number; texto: string; tipo: string; opcoes: string[] | null; respondida: boolean }[];
   teste: { variacao_id: number; itens: { texto: string; opcoes: string[] }[] } | null;
   texto: string | null; instrucoes: string | null;
+  contato: string | null;
 };
 export function vagasPortal(token: string): Promise<PortalEstado> {
   return req<PortalEstado>(`publico/vagas/portal/${encodeURIComponent(token)}`);
@@ -2409,6 +2415,20 @@ export function vagasPortalTeste(token: string, variacaoId: number, escolhas: nu
       body: JSON.stringify({ variacao_id: variacaoId, escolhas }),
     },
   );
+}
+
+export function vagasRecuperarLink(cpf: string, nascimento: string): Promise<{
+  ok: boolean; mensagem?: string; token?: string; link?: string;
+  nome?: string; contato?: string | null;
+}> {
+  return req<{
+    ok: boolean; mensagem?: string; token?: string; link?: string;
+    nome?: string; contato?: string | null;
+  }>("publico/vagas/portal/recuperar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cpf, nascimento }),
+  });
 }
 
 export function vagasApagarPergunta(id: number): Promise<{ ok: boolean }> {

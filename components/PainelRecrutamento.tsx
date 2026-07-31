@@ -227,6 +227,23 @@ export default function PainelRecrutamento({ id }: { id: number }) {
                   <p className="text-xs text-slate-700 mt-2 leading-relaxed">
                     {descreverDisc(dados.disc)}
                   </p>
+                  {dados.disc_fit && (
+                    <div className={`mt-2 rounded-lg border p-2 text-xs leading-relaxed ${
+                      dados.disc_fit.faixa === "dentro"
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        : dados.disc_fit.faixa === "atencao"
+                        ? "bg-amber-50 border-amber-300 text-amber-800"
+                        : "bg-red-50 border-red-200 text-red-800"}`}
+                      title={`Perfil ideal (vendedor campeão + potencial gestor): ${
+                        Object.entries(dados.disc_fit.ideal).map(([k, v]) => `${k} ${v}`).join(" · ")}`}>
+                      <b>Aderência ao perfil ideal: {dados.disc_fit.aderencia}%.</b>{" "}
+                      {dados.disc_fit.leitura}
+                      <span className="block text-[10px] opacity-70 mt-0.5">
+                        Comparação automática com o perfil-alvo de vendedor campeão com
+                        potencial de gestão — apoio à decisão, não reprova sozinha.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

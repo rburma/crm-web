@@ -109,7 +109,16 @@ export default function CandidatarForm(p: Props) {
         ja_trabalhou: jaTrabalhou === true,
         experiencia:
           jaTrabalhou === true
-            ? exps.filter((e) => e.empresa.trim() || e.cargo.trim())
+            ? exps
+                .filter((e) => e.empresa.trim() || e.cargo.trim())
+                .map((e) => ({
+                  ...e,
+                  // input type="month" devolve aaaa-mm -> exibimos mm/aaaa
+                  entrada: /^\d{4}-\d{2}$/.test(e.entrada)
+                    ? `${e.entrada.slice(5)}/${e.entrada.slice(0, 4)}` : e.entrada,
+                  saida: /^\d{4}-\d{2}$/.test(e.saida)
+                    ? `${e.saida.slice(5)}/${e.saida.slice(0, 4)}` : e.saida,
+                }))
             : [],
         consent,
       };
@@ -328,10 +337,16 @@ export default function CandidatarForm(p: Props) {
                 <input className={`${inputCls} mt-2`} placeholder="Cargo"
                   value={e.cargo} onChange={(ev) => setExp(i, "cargo", ev.target.value)} />
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <input className={inputCls} placeholder="Entrada (mm/aaaa)"
-                    value={e.entrada} onChange={(ev) => setExp(i, "entrada", ev.target.value)} />
-                  <input className={inputCls} placeholder="Saída (mm/aaaa)"
-                    value={e.saida} onChange={(ev) => setExp(i, "saida", ev.target.value)} />
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Entrada (mês/ano)</label>
+                    <input className={inputCls} type="month"
+                      value={e.entrada} onChange={(ev) => setExp(i, "entrada", ev.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Saída (vazio = atual)</label>
+                    <input className={inputCls} type="month"
+                      value={e.saida} onChange={(ev) => setExp(i, "saida", ev.target.value)} />
+                  </div>
                 </div>
                 <textarea className={`${inputCls} mt-2`} rows={2} placeholder="O que você fazia"
                   value={e.descricao} onChange={(ev) => setExp(i, "descricao", ev.target.value)} />

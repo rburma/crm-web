@@ -8,6 +8,47 @@ import {
   vagasNotaManual, vagasPainel, type PainelCandidatura,
 } from "@/lib/api";
 
+// Leitura interpretada do DISC (pedido 31/07: so as barras estavam cruas).
+// Texto deterministico por dimensao predominante + traco secundario.
+const DISC_INFO: Record<string, { nome: string; forte: string; loja: string; atencao: string }> = {
+  D: {
+    nome: "Dominância",
+    forte: "direto, decidido e focado em resultado — gosta de meta e resolve rápido",
+    loja: "rende com metas claras e autonomia; bom para puxar resultado e encarar situações difíceis",
+    atencao: "pode ser impaciente com processos lentos e rotina repetitiva",
+  },
+  I: {
+    nome: "Influência",
+    forte: "comunicativo e entusiasmado — cria conexão fácil com clientes e colegas",
+    loja: "brilha no salão e em vendas; é o cartão de visitas da loja",
+    atencao: "pode dispersar em tarefas longas e silenciosas (estoque, fechamento)",
+  },
+  S: {
+    nome: "Estabilidade",
+    forte: "paciente, constante e leal — escuta de verdade e mantém o ritmo",
+    loja: "segura a operação do dia a dia e atende com calma até o cliente difícil",
+    atencao: "tende a evitar conflito e a sofrer com mudanças bruscas",
+  },
+  C: {
+    nome: "Conformidade",
+    forte: "detalhista e organizado — segue o procedimento e entrega bem-feito",
+    loja: "preciso em caixa, estoque, fechamento e processos",
+    atencao: "pode travar buscando perfeição e demorar para decidir",
+  },
+};
+
+function descreverDisc(d: { D: number; I: number; S: number; C: number; perfil: string }): string {
+  const [p1, p2] = (d.perfil || "").split("-");
+  const a = DISC_INFO[p1];
+  if (!a) return "";
+  const pct = (k: string) => d[k as "D" | "I" | "S" | "C"] ?? 0;
+  let txt = `Predominante ${a.nome} (${pct(p1)}%): ${a.forte}.`;
+  const b = p2 ? DISC_INFO[p2] : null;
+  if (b) txt += ` Traço secundário ${b.nome} (${pct(p2)}%): ${b.forte}.`;
+  txt += ` Na loja: ${a.loja}. Ponto de atenção: ${a.atencao}.`;
+  return txt;
+}
+
 function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
   return (
     <div>
@@ -81,7 +122,7 @@ export default function PainelRecrutamento({ id }: { id: number }) {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <div>
               {c && (
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 mb-3">
@@ -170,17 +211,22 @@ export default function PainelRecrutamento({ id }: { id: number }) {
                 </div>
               )}
               {dados.disc && (
-                <div className="mb-2">
-                  <div className="text-xs font-bold text-slate-500 mb-1">📊 DISC: {dados.disc.perfil}</div>
-                  {(["D", "I", "S", "C"] as const).map((d) => (
-                    <div key={d} className="flex items-center gap-2 text-[11px] mb-0.5">
-                      <span className="w-3">{d}</span>
-                      <div className="flex-1 h-2 bg-slate-100 rounded overflow-hidden">
-                        <div className="h-full bg-indigo-500" style={{ width: `${dados.disc?.[d] ?? 0}%` }} />
+                <div className="mb-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
+                  <div className="text-xs font-bold text-slate-500 mb-1.5">📊 Perfil DISC: {dados.disc.perfil}</div>
+                  <div className="max-w-md">
+                    {(["D", "I", "S", "C"] as const).map((d) => (
+                      <div key={d} className="flex items-center gap-2 text-[11px] mb-0.5">
+                        <span className="w-3 font-bold">{d}</span>
+                        <div className="flex-1 h-2 bg-slate-200 rounded overflow-hidden">
+                          <div className="h-full bg-indigo-500" style={{ width: `${dados.disc?.[d] ?? 0}%` }} />
+                        </div>
+                        <span className="w-8 text-right">{dados.disc?.[d] ?? 0}%</span>
                       </div>
-                      <span className="w-8 text-right">{dados.disc?.[d] ?? 0}%</span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-700 mt-2 leading-relaxed">
+                    {descreverDisc(dados.disc)}
+                  </p>
                 </div>
               )}
             </div>

@@ -125,6 +125,32 @@ export default function RankingPage() {
 
   const visiveis = COLUNAS.filter((c) => colunas.has(c.chave));
 
+  // Hovers explicativos (31/07): cada campo diz o que significa + detalhe.
+  function titulo(l: RankingLinha, chave: string): string {
+    switch (chave) {
+      case "score":
+        return `Score ${l.score != null ? Math.round(l.score) : "—"}/100 = notas (1–5) × pesos das perguntas do funil. Breakdown completo na ficha.`;
+      case "mbi":
+        return `MBI ${l.mbi ?? "—"}/5 — média das avaliações de locus de controle interno (Carol Quinn) feitas pela IA nas respostas abertas. 5 = assume responsabilidade; 1 = culpa terceiros.`;
+      case "disc":
+        return l.disc
+          ? `Perfil DISC ${l.disc} — ${l.disc_pct || ""}. Leitura completa na ficha.`
+          : "Teste de perfil ainda não concluído.";
+      case "fase":
+        return `Fase atual do funil: ${l.fase}. O candidato avança sozinho ao concluir cada etapa.`;
+      case "status":
+        return "Em processo = ativo · Aprovado = contratado · Banco = guardado p/ vaga futura · Desclassificado = encerrado.";
+      case "parado_min":
+        return "Tempo desde a última movimentação (resposta, fase, decisão). ⏰ = parado há mais de 5 dias.";
+      case "alertas":
+        return "Sinais de alerta de Murphy/Quinn detectados pela IA nas respostas (culpa em terceiros, resposta hipotética, vitimismo…). Detalhe na ficha.";
+      case "criado_em":
+        return "Data da inscrição.";
+      default:
+        return "";
+    }
+  }
+
   function celula(l: RankingLinha, chave: string) {
     switch (chave) {
       case "score": return chipScore(l.score);
@@ -262,7 +288,48 @@ export default function RankingPage() {
           </div>
         )}
 
-        <div className="panel overflow-x-auto">
+        {/* MOBILE (31/07): cartões no lugar da tabela — sem rolagem horizontal */}
+        <div className="md:hidden">
+          {linhas.map((l, idx) => (
+            <div key={l.id} className="bg-white border border-slate-200 rounded-xl p-3 mb-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <input type="checkbox" className="w-4 h-4 accent-indigo-600"
+                  checked={sel.has(l.id)}
+                  onClick={(e) => marcar(l.id, idx, (e as unknown as MouseEvent).shiftKey)}
+                  onChange={() => undefined} />
+                {chipScore(l.score)}
+                <b className="text-sm flex-1">{l.nome}</b>
+                {chipStatus(l.status)}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                {[l.cargo, l.loja, [l.cidade, l.uf].filter(Boolean).join("/")]
+                  .filter(Boolean).join(" · ")}
+              </div>
+              <div className="flex items-center gap-3 flex-wrap text-xs text-slate-600 mt-1.5">
+                <span title={titulo(l, "fase")}>fase: <b>{l.fase}</b></span>
+                <span title={titulo(l, "mbi")}>MBI: <b>{l.mbi != null ? l.mbi.toFixed(1) : "—"}</b></span>
+                <span title={titulo(l, "disc")}>DISC: <b>{l.disc || "—"}</b></span>
+                <span title={titulo(l, "alertas")}>
+                  {l.alertas > 0 ? <b className="text-red-600">⚠ {l.alertas}</b> : <span className="text-emerald-600">✓ 0</span>}
+                </span>
+                <span title={titulo(l, "parado_min")} className="text-slate-400">{parado(l.parado_min)}</span>
+                {l.oportunidade_id && (
+                  <button className="text-indigo-600 font-semibold ml-auto"
+                    onClick={() => window.open(`/atendimentos/${l.oportunidade_id}`, "_blank")}>
+                    abrir ↗
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          {linhas.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-6">
+              Nenhum candidato neste filtro.
+            </p>
+          )}
+        </div>
+
+        <div className="hidden md:block panel overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-50 text-slate-500 uppercase">
@@ -292,7 +359,8 @@ export default function RankingPage() {
                       onChange={() => undefined} />
                   </td>
                   {visiveis.map((c) => (
-                    <td key={c.chave} className="p-2 border-b border-slate-100 whitespace-nowrap">
+                    <td key={c.chave} title={titulo(l, c.chave)}
+                      className="p-2 border-b border-slate-100 whitespace-nowrap">
                       {celula(l, c.chave)}
                     </td>
                   ))}

@@ -26,14 +26,26 @@ function Recorder({ token, perguntaId, aoEnviar, soAnexo }: {
   async function iniciar() {
     setErro("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      // Resolucao/bitrate CONTIDOS (31/07): 3 min ficam em ~15-20MB e o
+      // upload nao estoura limites de corpo (o 413 vinha do proxy Vercel).
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+        audio: true,
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true;
         void videoRef.current.play();
       }
       pedacos.current = [];
-      const rec = new MediaRecorder(stream);
+      let rec: MediaRecorder;
+      try {
+        rec = new MediaRecorder(stream, {
+          videoBitsPerSecond: 800_000, audioBitsPerSecond: 64_000,
+        });
+      } catch {
+        rec = new MediaRecorder(stream);
+      }
       rec.ondataavailable = (e) => { if (e.data.size > 0) pedacos.current.push(e.data); };
       rec.onstop = () => {
         setBlob(new Blob(pedacos.current, { type: rec.mimeType || "video/webm" }));
@@ -61,17 +73,35 @@ function Recorder({ token, perguntaId, aoEnviar, soAnexo }: {
   async function enviar(arquivo?: File) {
     const dado = arquivo ?? (blob ? new File([blob], "video.webm", { type: blob.type }) : null);
     if (!dado) return;
-    if (dado.size > 40 * 1024 * 1024) { setErro("Arquivo muito grande (máx 40MB)."); return; }
+    if (dado.size > 40 * 1024 * 1024) {
+      setErro("Arquivo muito grande (máx 40MB / 3 minutos) — grave novamente ou escolha um arquivo menor.");
+      return;
+    }
     setEnviando(true); setErro("");
     try {
       const fd = new FormData();
       fd.append("pergunta_id", String(perguntaId));
       fd.append("arquivo", dado);
-      const r = await fetch(
-        `/api/render/publico/vagas/portal/${encodeURIComponent(token)}/video`,
-        { method: "POST", body: fd },
-      );
+      const caminho = `publico/vagas/portal/${encodeURIComponent(token)}/video`;
+      // Upload DIRETO ao motor (31/07): o proxy da Vercel limita o corpo a
+      // 4,5MB e devolvia 413 sem explicação. Fallback: proxy (arquivos pequenos).
+      const motor = process.env.NEXT_PUBLIC_MOTOR_URL || "https://crm-motor.onrender.com";
+      let r: Response | null = null;
+      try {
+        r = await fetch(`${motor}/${caminho}`, { method: "POST", body: fd });
+      } catch {
+        r = null; // CORS/rede — tenta o proxy
+      }
+      if (!r || (!r.ok && r.status === 401)) {
+        r = await fetch(`/api/render/${caminho}`, { method: "POST", body: fd });
+      }
       if (!r.ok) {
+        if (r.status === 413) {
+          throw new Error(
+            "O vídeo ficou grande demais para o envio. Grave novamente "
+            + "(a nova gravação já sai compactada) ou anexe um arquivo menor.",
+          );
+        }
         const j = await r.json().catch(() => ({}));
         throw new Error((j as { detail?: string }).detail || `Erro ${r.status}`);
       }

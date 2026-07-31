@@ -54,7 +54,7 @@ export default function RankingPage() {
   const [total, setTotal] = useState(0);
   const [pagina, setPagina] = useState(1);
   const [q, setQ] = useState("");
-  const [statusF, setStatusF] = useState("");
+  const [statusF, setStatusF] = useState("em_processo"); // fila ativa por padrão
   const [sort, setSort] = useState("score");
   const [dir, setDir] = useState<"asc" | "desc">("desc");
   const [sel, setSel] = useState<Set<number>>(new Set());
@@ -189,8 +189,8 @@ export default function RankingPage() {
             onChange={(e) => { setQ(e.target.value); setPagina(1); }} />
           <select className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
             value={statusF} onChange={(e) => { setStatusF(e.target.value); setPagina(1); }}>
+            <option value="em_processo">Em processo (ativos)</option>
             <option value="">Todos os status</option>
-            <option value="em_processo">Em processo</option>
             <option value="aprovado">✅ Aprovados</option>
             <option value="banco">⏸ Banco</option>
             <option value="desclassificado">✖ Desclassificados</option>

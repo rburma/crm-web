@@ -83,6 +83,17 @@ export default function CandidatarForm(p: Props) {
       setErro("Preencha nome, CPF, data de nascimento e e-mail.");
       return;
     }
+    if (nascimento > nascMax) {
+      setErro("Data de nascimento inválida — confira o ano (idade mínima: 14 anos).");
+      return;
+    }
+    const mesFuturo = exps.some(
+      (e) => (e.entrada && e.entrada > mesAtual) || (e.saida && e.saida > mesAtual),
+    );
+    if (jaTrabalhou === true && mesFuturo) {
+      setErro("As datas de entrada/saída dos empregos não podem estar no futuro.");
+      return;
+    }
     if (p.tipo === "franquia" && !cidade.trim()) {
       setErro("Informe a cidade de interesse.");
       return;
@@ -134,6 +145,11 @@ export default function CandidatarForm(p: Props) {
   const inputCls =
     "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300";
   const labelCls = "block text-[11px] font-bold uppercase text-slate-500 mb-1 mt-3";
+  // Limites de data (31/07: sistema aceitava datas FUTURAS). Nascimento:
+  // no minimo 14 anos (menor aprendiz); mes de entrada/saida: ate o mes atual.
+  const hoje = new Date();
+  const nascMax = `${hoje.getFullYear() - 14}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
 
   if (fim) {
     return (
@@ -198,6 +214,7 @@ export default function CandidatarForm(p: Props) {
           <div>
             <label className={labelCls}>Data de nascimento *</label>
             <input className={inputCls} type="date" value={nascimento}
+              min="1930-01-01" max={nascMax}
               onChange={(e) => setNascimento(e.target.value)} />
           </div>
           <div>
@@ -340,11 +357,13 @@ export default function CandidatarForm(p: Props) {
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Entrada (mês/ano)</label>
                     <input className={inputCls} type="month"
+                      min="1970-01" max={mesAtual}
                       value={e.entrada} onChange={(ev) => setExp(i, "entrada", ev.target.value)} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Saída (vazio = atual)</label>
                     <input className={inputCls} type="month"
+                      min="1970-01" max={mesAtual}
                       value={e.saida} onChange={(ev) => setExp(i, "saida", ev.target.value)} />
                   </div>
                 </div>

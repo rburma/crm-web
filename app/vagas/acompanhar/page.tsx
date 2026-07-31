@@ -278,15 +278,22 @@ function Conteudo() {
 
                 {dados.teste && (
                   <div>
-                    <p className="text-sm font-bold mb-2">📊 Teste de perfil — marque a opção que MAIS combina com você:</p>
+                    <p className="text-sm font-bold mb-3">📊 Teste de perfil — marque a opção que MAIS combina com você:</p>
                     {dados.teste.itens.map((item, i) => (
-                      <div key={i} className="mb-3">
-                        <p className="text-sm font-semibold mb-1">{i + 1}. {item.texto}</p>
-                        <div className="grid grid-cols-1 gap-1">
+                      <div key={i}
+                        className={`rounded-xl p-3.5 mb-5 border ${escolhas[i] != null ? "bg-white border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+                        <p className="text-sm font-semibold mb-2.5 flex items-start gap-2">
+                          <span className={`shrink-0 w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center ${escolhas[i] != null ? "text-white" : "bg-slate-200 text-slate-600"}`}
+                            style={escolhas[i] != null ? { background: cor } : undefined}>
+                            {escolhas[i] != null ? "✓" : i + 1}
+                          </span>
+                          {item.texto}
+                        </p>
+                        <div className="grid grid-cols-1 gap-1.5">
                           {item.opcoes.map((op, j) => (
                             <button key={j} type="button"
                               onClick={() => setEscolhas({ ...escolhas, [i]: j })}
-                              className={`text-left text-sm rounded-lg px-3 py-2 border ${escolhas[i] === j ? "text-white border-transparent" : "bg-white border-slate-300"}`}
+                              className={`text-left text-sm rounded-lg px-3 py-2.5 border ${escolhas[i] === j ? "text-white border-transparent" : "bg-white border-slate-300 hover:bg-slate-50"}`}
                               style={escolhas[i] === j ? { background: cor } : undefined}>
                               {op}
                             </button>
@@ -294,6 +301,9 @@ function Conteudo() {
                         </div>
                       </div>
                     ))}
+                    <p className="text-xs text-slate-500 mb-2 text-center">
+                      {Object.keys(escolhas).length} de {dados.teste.itens.length} respondidas
+                    </p>
                     <button type="button" onClick={enviarTeste} disabled={enviando}
                       className="w-full text-white font-bold rounded-xl px-4 py-3 disabled:opacity-60"
                       style={{ background: cor }}>

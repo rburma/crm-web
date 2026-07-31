@@ -157,10 +157,32 @@ function Conteudo() {
 
   function carregar() {
     if (!token) { setErro("Link inválido."); return; }
-    vagasPortal(token).then((d) => { setDados(d); setValores({}); setEscolhas({}); })
-      .catch((e: Error) => setErro(e.message));
+    vagasPortal(token).then((d) => {
+      setDados(d);
+      // RASCUNHO local (31/07): caiu a conexão no meio da fase -> respostas
+      // digitadas voltam ao reabrir o link (limpas ao concluir a etapa).
+      try {
+        const v = localStorage.getItem(`vaga_rasc_${token}_${d.fase}`);
+        setValores(v ? (JSON.parse(v) as Record<number, string>) : {});
+        const e = localStorage.getItem(`vaga_rasc_${token}_teste`);
+        setEscolhas(d.teste && e ? (JSON.parse(e) as Record<number, number>) : {});
+      } catch {
+        setValores({}); setEscolhas({});
+      }
+    }).catch((e: Error) => setErro(e.message));
   }
   useEffect(carregar, [token]);
+
+  useEffect(() => {
+    if (!dados || Object.keys(valores).length === 0) return;
+    try { localStorage.setItem(`vaga_rasc_${token}_${dados.fase}`, JSON.stringify(valores)); } catch { /* */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valores]);
+  useEffect(() => {
+    if (!dados?.teste || Object.keys(escolhas).length === 0) return;
+    try { localStorage.setItem(`vaga_rasc_${token}_teste`, JSON.stringify(escolhas)); } catch { /* */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escolhas]);
 
   const cor = dados?.marca?.tema?.cor || "#0f172a";
   const idxAtual = Math.max(0, (dados?.fases ?? []).findIndex((f) => f.slug === dados?.fase));
@@ -178,6 +200,7 @@ function Conteudo() {
         .map((p) => ({ pergunta_id: p.id, valor: valores[p.id] || "" }))
         .filter((r) => r.valor.trim());
       const r = await vagasPortalResponder(token, lista);
+      try { localStorage.removeItem(`vaga_rasc_${token}_${dados?.fase}`); } catch { /* */ }
       setAviso(r.avancou ? "Etapa concluída! 🎉" : `Respostas salvas — faltam ${r.faltam}.`);
       carregar();
     } catch (e) { setErro((e as Error).message); }
@@ -195,6 +218,7 @@ function Conteudo() {
         token, dados.teste.variacao_id,
         dados.teste.itens.map((_, i) => escolhas[i]),
       );
+      try { localStorage.removeItem(`vaga_rasc_${token}_teste`); } catch { /* */ }
       setAviso("Teste concluído! 🎉");
       carregar();
     } catch (e) { setErro((e as Error).message); }

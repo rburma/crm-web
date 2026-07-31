@@ -59,6 +59,53 @@ export default function CandidatarForm(p: Props) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [fim, setFim] = useState<CandidatarResp | null>(null);
+  const [recuperado, setRecuperado] = useState(false);
+  const [processoAnterior, setProcessoAnterior] = useState<string | null>(null);
+
+  // RASCUNHO automático (31/07): caiu a conexão/recarregou -> nada se perde.
+  // Salvo no navegador a cada alteração; limpo após enviar com sucesso.
+  const RKEY = `vaga_rascunho_${p.marca}_${p.tipo}_${p.cargoId}_${p.lojaId}`;
+  const TKEY = `vaga_processo_${p.marca}`;
+
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem(TKEY);
+      if (t) {
+        const j = JSON.parse(t) as { token: string; ts: number };
+        if (j.token && Date.now() - j.ts < 30 * 86400e3) setProcessoAnterior(j.token);
+      }
+      const s = localStorage.getItem(RKEY);
+      if (s) {
+        const d = JSON.parse(s) as Record<string, unknown>;
+        if (typeof d.nome === "string") setNome(d.nome);
+        if (typeof d.cpf === "string") setCpf(d.cpf);
+        if (typeof d.nascimento === "string") setNascimento(d.nascimento);
+        if (typeof d.telefone === "string") setTelefone(d.telefone);
+        if (typeof d.email === "string") setEmail(d.email);
+        if (typeof d.instagram === "string") setInstagram(d.instagram);
+        if (typeof d.linkedin === "string") setLinkedin(d.linkedin);
+        if (typeof d.jaTrabalhou === "boolean") setJaTrabalhou(d.jaTrabalhou);
+        if (Array.isArray(d.exps) && d.exps.length) setExps(d.exps as Exp[]);
+        if (Array.isArray(d.interesse)) setInteresse(d.interesse as number[]);
+        if (typeof d.cidade === "string" && d.cidade) setCidade(d.cidade);
+        if (typeof d.uf === "string" && d.uf) setUf(d.uf);
+        if (typeof d.capital === "string") setCapital(d.capital);
+        setRecuperado(true);
+      }
+    } catch { /* sem storage */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RKEY, JSON.stringify({
+        nome, cpf, nascimento, telefone, email, instagram, linkedin,
+        jaTrabalhou, exps, interesse, cidade, uf, capital,
+      }));
+    } catch { /* sem storage */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nome, cpf, nascimento, telefone, email, instagram, linkedin,
+    jaTrabalhou, exps, interesse, cidade, uf, capital]);
 
   useEffect(() => {
     if (!p.marca) return;
@@ -135,6 +182,12 @@ export default function CandidatarForm(p: Props) {
       };
       const r = await vagasCandidatar(payload);
       setFim(r);
+      if (!r.travado && r.token) {
+        try {
+          localStorage.removeItem(RKEY);  // rascunho cumpriu a missão
+          localStorage.setItem(TKEY, JSON.stringify({ token: r.token, ts: Date.now() }));
+        } catch { /* sem storage */ }
+      }
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -195,6 +248,18 @@ export default function CandidatarForm(p: Props) {
         </div>
       </header>
       <section className="max-w-md mx-auto px-4">
+        {processoAnterior && (
+          <a href={`/vagas/acompanhar?t=${encodeURIComponent(processoAnterior)}`}
+            className="block mt-3 text-sm bg-amber-50 border border-amber-300 text-amber-800 rounded-lg p-3">
+            ▶ <b>Você já tem um processo em andamento</b> — toque aqui para
+            continuar de onde parou.
+          </a>
+        )}
+        {recuperado && !erro && (
+          <div className="mt-3 text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg p-2">
+            ✓ Recuperamos o que você já tinha preenchido.
+          </div>
+        )}
         {erro && <div className="mt-3 text-sm text-red-600 bg-red-50 rounded-lg p-2">{erro}</div>}
         <label className={labelCls}>Nome completo *</label>
         <input className={inputCls} value={nome} onChange={(e) => setNome(e.target.value)} />

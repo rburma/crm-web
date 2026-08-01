@@ -30,7 +30,23 @@ function agora(): string {
 export type ChatPre = {
   nome?: string; email?: string; telefone?: string; assunto?: string;
   campos?: Record<string, string>; lojaId?: number;
+  // produto sem cor/tamanho escolhidos no site -> o bot pergunta (1 etapa)
+  faltaVariacao?: boolean;
+  cpf?: string;  // do cadastro do e-commerce (so entra se for CPF valido)
 };
+
+// CPF do e-commerce: o motor REJEITA cpf invalido (422) — entao so anexamos
+// se os digitos verificadores baterem; senao descartamos em silencio.
+export function cpfValidoOuNada(v?: string): string | undefined {
+  const dig = (v || "").replace(/\D/g, "");
+  if (dig.length !== 11 || /^(\d)\1{10}$/.test(dig)) return undefined;
+  const dv = (n: number) => {
+    let soma = 0;
+    for (let i = 0; i < n; i++) soma += Number(dig[i]) * (n + 1 - i);
+    return ((soma * 10) % 11) % 10;
+  };
+  return dv(9) === Number(dig[9]) && dv(10) === Number(dig[10]) ? dig : undefined;
+}
 
 export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, pag, pre }:
   { slug: string; cb?: number; cor?: string; titulo?: string; saudacao?: string; pag?: string; pre?: ChatPre }) {
@@ -80,6 +96,7 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
       // (etapas cujo dado ja veio em `pre` sao PULADAS — minimo de digitacao)
       const r: string[] = [];
       if (!pre?.lojaId) r.push("loja");
+      if (pre?.faltaVariacao) r.push("variacao");
       if (!(pre?.nome)) r.push("nome");
       if (!(pre?.telefone)) r.push("telefone");
       if (!(pre?.assunto) && !(cfg?.assunto_fixo) && cfg?.perguntar_assunto !== false) r.push("assunto");
@@ -188,6 +205,7 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
 
   function perguntaDe(et: string): string {
     const nome1 = (resp.nome || "").split(" ")[0];
+    if (et === "variacao") return "Qual cor e tamanho você procura? (ex.: Branco/Preto, tamanho 37)";
     if (et === "nome") return "Perfeito! Qual é o seu nome?";
     if (et === "telefone") return "Prazer" + (nome1 ? ", " + nome1 : "") + "! Qual o seu telefone/WhatsApp com DDD?";
     if (et === "assunto") return "Sobre o que você quer falar? (assunto em poucas palavras)";
@@ -204,7 +222,8 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
   function escolherLoja(l: LojaPublica) {
     setLojaSel(l); setLojas([]); setEntrada("");
     eu(l.nome + (l.cidade ? " — " + l.cidade + (l.uf ? "/" + l.uf : "") : ""));
-    bot(perguntaDe("nome"));
+    // proxima etapa REAL do roteiro (com `pre`, nome/telefone podem ser pulados)
+    bot(perguntaDe(roteiro[passo + 1] || "mensagem"));
     avancar();
   }
 
@@ -218,6 +237,33 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
       if (ex?.obrigatorio && txt.length < 1) return "Preciso dessa informação para a loja te atender.";
     }
     return null;
+  }
+
+  // Abre o ATENDIMENTO no CRM (mesmo fluxo de sempre do chat) — usado pela
+  // etapa "mensagem" e pelo disparo automatico pos-LGPD do fluxo do e-commerce.
+  async function abrirNoCrm(txt: string) {
+    setEnviando(true);
+    try {
+      const campos: Record<string, string> = { ...(pre?.campos || {}) };
+      extras.forEach((ex, i) => { const v = resp["extra:" + i]; if (v && v.toLowerCase() !== "pular") campos[ex.rotulo.slice(0, 60)] = v; });
+      if (resp.variacao) campos["Cor/Tamanho desejado"] = resp.variacao.slice(0, 120);
+      const origem = pag || (typeof document !== "undefined" ? document.referrer : "");
+      if (origem) campos["Página de origem"] = origem.slice(0, 255);
+      const assuntoBase = pre?.assunto
+        ? pre.assunto + (resp.variacao ? " — " + resp.variacao : "")
+        : (box?.assunto_fixo || resp.assunto || "Chat com a loja");
+      const r = await publicoAbrir({
+        marca_slug: slug, loja_id: lojaSel ? lojaSel.id : undefined,
+        nome: resp.nome, email: resp.email, telefone: resp.telefone,
+        cpf: cpfValidoOuNada(pre?.cpf),
+        assunto: assuntoBase.slice(0, 255),
+        mensagem: txt, campos, aceita_contato: true, canal: "chat",
+      });
+      localStorage.setItem(chave, JSON.stringify({ numero: r.numero, email: resp.email }));
+      setNumero(r.numero); setEntrada("");
+      setPasso(roteiro.length - 1);   // direto p/ a conversa ao vivo
+    } catch (e) { setErro(e instanceof Error ? e.message : "Não consegui enviar — tente de novo."); }
+    setEnviando(false);
   }
 
   async function enviar() {
@@ -235,23 +281,7 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
       return;
     }
     if (etapa === "mensagem") {
-      setEnviando(true);
-      try {
-        const campos: Record<string, string> = { ...(pre?.campos || {}) };
-        extras.forEach((ex, i) => { const v = resp["extra:" + i]; if (v && v.toLowerCase() !== "pular") campos[ex.rotulo.slice(0, 60)] = v; });
-        const origem = pag || (typeof document !== "undefined" ? document.referrer : "");
-        if (origem) campos["Página de origem"] = origem.slice(0, 255);
-        const r = await publicoAbrir({
-          marca_slug: slug, loja_id: lojaSel ? lojaSel.id : undefined,
-          nome: resp.nome, email: resp.email, telefone: resp.telefone,
-          assunto: (pre?.assunto || box?.assunto_fixo || resp.assunto || "Chat com a loja").slice(0, 255),
-          mensagem: txt, campos, aceita_contato: true, canal: "chat",
-        });
-        localStorage.setItem(chave, JSON.stringify({ numero: r.numero, email: resp.email }));
-        setNumero(r.numero); setEntrada("");
-        avancar();
-      } catch (e) { setErro(e instanceof Error ? e.message : "Não consegui enviar — tente de novo."); }
-      setEnviando(false);
+      await abrirNoCrm(txt);
       return;
     }
     // etapas de coleta (nome/telefone/assunto/email/extras)
@@ -266,6 +296,18 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
 
   function aceitarLgpd() {
     eu("Aceito ✓");
+    if (pre?.assunto) {
+      // Veio do site com o produto: mensagem pronta, ZERO digitacao — abre o
+      // atendimento na hora e cai na conversa ao vivo com a loja.
+      const partes = [pre.assunto.replace(/^Comprar produto: /, "")];
+      if (resp.variacao) partes.push(resp.variacao);
+      const linkP = pre.campos ? pre.campos["Link do produto"] : "";
+      const precoP = pre.campos ? pre.campos["Preço no site"] : "";
+      const msg = "Olá! Vi este produto no site e quero comprar na loja: " + partes.join(" — ")
+        + (precoP ? "\nPreço no site: " + precoP : "") + (linkP ? "\n" + linkP : "");
+      void abrirNoCrm(msg);
+      return;
+    }
     bot(perguntaDe("mensagem"));
     avancar();
   }

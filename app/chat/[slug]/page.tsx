@@ -26,6 +26,8 @@ export default function ChatPage() {
         assunto: q?.get("assunto") || undefined,
         campos,
         lojaId: lojaRaw ? Number(lojaRaw) : undefined,
+        faltaVariacao: q?.get("falta") === "1",
+        cpf: q?.get("cpf") || undefined,
       }
       : undefined;
   return (

@@ -15,6 +15,19 @@ import {
 
 const LS_CHAVE = "crm_comprar_cliente"; // lembra nome/email/tel após 1º uso
 
+// CPF vindo do cadastro do e-commerce: o motor rejeita CPF inválido (422),
+// então só anexamos se os dígitos verificadores baterem (senão descarta).
+function cpfValidoOuNada(v?: string | null): string | undefined {
+  const dig = (v || "").replace(/\D/g, "");
+  if (dig.length !== 11 || /^(\d)\1{10}$/.test(dig)) return undefined;
+  const dv = (n: number) => {
+    let soma = 0;
+    for (let i = 0; i < n; i++) soma += Number(dig[i]) * (n + 1 - i);
+    return ((soma * 10) % 11) % 10;
+  };
+  return dv(9) === Number(dig[9]) && dv(10) === Number(dig[10]) ? dig : undefined;
+}
+
 function Conteudo() {
   const p = useSearchParams();
   const slug = p.get("m") || "wt";
@@ -105,6 +118,7 @@ function Conteudo() {
       const r = await publicoAbrir({
         marca_slug: slug, loja_id: lojaSel ? lojaSel.id : undefined,
         nome: nome.trim(), email: email.trim(), telefone: tel.trim(),
+        cpf: cpfValidoOuNada(p.get("cpf")),
         assunto, mensagem: msg, campos: camposProduto(),
         aceita_contato: true, canal: "ecommerce",
       });

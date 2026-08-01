@@ -119,10 +119,13 @@
 
   function dadosCliente(q) {
     var nome = d("nome"), email = d("email"), tel = d("telefone"), cpf = d("cpf");
+    var cep = d("cep"), cidade = d("cidade");
     if (nome) q.set("nome", nome.slice(0, 160));
     if (email) q.set("email", email.slice(0, 255));
     if (tel) q.set("tel", tel.slice(0, 20));
     if (cpf) q.set("cpf", cpf.replace(/[^0-9]/g, "").slice(0, 11));
+    if (cep) q.set("cep", cep.slice(0, 10));
+    if (cidade) q.set("cidade", cidade.slice(0, 80));
   }
 
   // CHAT do CRM direto (caminho principal): bot pergunta a loja, LGPD e o

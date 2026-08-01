@@ -28,6 +28,8 @@ export default function ChatPage() {
         lojaId: lojaRaw ? Number(lojaRaw) : undefined,
         faltaVariacao: q?.get("falta") === "1",
         cpf: q?.get("cpf") || undefined,
+        cep: q?.get("cep") || undefined,
+        cidade: q?.get("cidade") || undefined,
       }
       : undefined;
   return (

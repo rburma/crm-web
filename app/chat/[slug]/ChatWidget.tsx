@@ -33,6 +33,9 @@ export type ChatPre = {
   // produto sem cor/tamanho escolhidos no site -> o bot pergunta (1 etapa)
   faltaVariacao?: boolean;
   cpf?: string;  // do cadastro do e-commerce (so entra se for CPF valido)
+  // endereco do cadastro do e-commerce -> sugestao da loja mais proxima
+  cep?: string;
+  cidade?: string;
 };
 
 // CPF do e-commerce: o motor REJEITA cpf invalido (422) — entao so anexamos
@@ -56,6 +59,9 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
   const [entrada, setEntrada] = useState("");
   const [lojas, setLojas] = useState<LojaPublica[]>([]);
   const [lojaSel, setLojaSel] = useState<LojaPublica | null>(null);
+  // Sugestao "me parece que a sua loja e a X — confirma?" (CEP/cidade do
+  // cadastro do site OU a loja confirmada na ultima conversa deste navegador)
+  const [sugestao, setSugestao] = useState<LojaPublica | null>(null);
   const [passo, setPasso] = useState(0);      // indice no roteiro
   const [roteiro, setRoteiro] = useState<string[]>(["loja"]);
   const [resp, setResp] = useState<Record<string, string>>({});
@@ -130,15 +136,33 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
           }
         } catch { /* zera */ }
       }
-      // Saudacao casa com a PRIMEIRA etapa do roteiro (com `pre`, pode nao ser a loja)
+      // Saudacao CURTA (pedido Renato 01/08) casada com a 1a etapa do roteiro.
       const prim = r[0] || "mensagem";
-      const abertura = (cfg?.saudacao || saudacao)
-        || (pre?.assunto
-          ? "Olá! 👋 Vi que você veio do site sobre: " + pre.assunto + "."
-          : "Olá! 👋 Que bom te ver por aqui.");
-      bot(abertura + " " + (prim === "loja"
-        ? "Para falar com a loja mais próxima, me diga a sua cidade, o shopping ou o nome da loja:"
-        : perguntaDe(prim)));
+      const nome1 = (pre?.nome || "").trim().split(" ")[0];
+      const ola = (cfg?.saudacao || saudacao) || ("Olá" + (nome1 ? " " + nome1 : "") + "! 👋");
+      if (prim !== "loja") {
+        bot(ola + " " + perguntaDe(prim));
+        return;
+      }
+      // Etapa loja: tenta SUGERIR a mais provavel — loja confirmada na ultima
+      // conversa deste navegador OU busca pelo CEP/cidade do cadastro do site.
+      let cand: LojaPublica | null = null;
+      try { cand = JSON.parse(localStorage.getItem(chave + "_loja") || "null") as LojaPublica | null; } catch { cand = null; }
+      if (!cand && (pre?.cep || pre?.cidade)) {
+        try {
+          let ls: LojaPublica[] = [];
+          if (pre.cep) ls = (await publicoLojas(slug, pre.cep)).filter((l) => l.tipo === "fisica");
+          if (!ls.length && pre.cidade) ls = (await publicoLojas(slug, pre.cidade)).filter((l) => l.tipo === "fisica");
+          cand = ls[0] || null;
+        } catch { cand = null; }
+      }
+      if (cand && cand.id && cand.nome) {
+        setSugestao(cand);
+        bot(ola + " Me parece que a sua loja mais próxima é a " + cand.nome
+          + (cand.cidade ? " — " + cand.cidade + (cand.uf ? "/" + cand.uf : "") : "") + ". Confirma?");
+      } else {
+        bot(ola + " Qual é a sua loja mais próxima? Me diga a sua cidade, CEP, shopping ou o nome da loja:");
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, cb]);
@@ -149,6 +173,7 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
   useEffect(() => {
     if (etapa !== "loja") return;
     if (buscaRef.current) window.clearTimeout(buscaRef.current);
+    if (entrada.trim().length >= 2) setSugestao(null);  // preferiu buscar
     if (entrada.trim().length < 2) { setLojas([]); return; }
     buscaRef.current = window.setTimeout(async () => {
       try { setLojas((await publicoLojas(slug, entrada.trim())).filter((l) => l.tipo === "fisica").slice(0, 6)); }
@@ -220,11 +245,20 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
   }
 
   function escolherLoja(l: LojaPublica) {
-    setLojaSel(l); setLojas([]); setEntrada("");
+    setLojaSel(l); setLojas([]); setEntrada(""); setSugestao(null);
+    // guarda a loja confirmada -> vira a SUGESTAO da proxima conversa
+    try { localStorage.setItem(chave + "_loja", JSON.stringify(l)); } catch { /* sem storage */ }
     eu(l.nome + (l.cidade ? " — " + l.cidade + (l.uf ? "/" + l.uf : "") : ""));
     // proxima etapa REAL do roteiro (com `pre`, nome/telefone podem ser pulados)
     bot(perguntaDe(roteiro[passo + 1] || "mensagem"));
     avancar();
+  }
+
+  function recusarSugestao() {
+    setSugestao(null);
+    try { localStorage.removeItem(chave + "_loja"); } catch { /* sem storage */ }
+    eu("Não");
+    bot("Então me diga a sua cidade, CEP, shopping ou o nome da loja:");
   }
 
   function validar(et: string, txt: string): string | null {
@@ -325,7 +359,7 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
   const cab = box?.titulo || titulo || marca?.nome || marca?.slug || "Atendimento";
   const podeDigitar = etapa !== "lgpd";
   const placeholder =
-    etapa === "loja" ? "cidade, shopping ou loja…" :
+    etapa === "loja" ? "cidade, CEP, shopping ou loja…" :
     etapa === "nome" ? "seu nome…" :
     etapa === "telefone" ? "DDD + número (WhatsApp)…" :
     etapa === "assunto" ? "assunto…" :
@@ -377,6 +411,18 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
                 <span className="text-slate-500"> {l.shopping ? "· " + l.shopping : ""} {l.cidade ? "· " + l.cidade + (l.uf ? "/" + l.uf : "") : ""}</span>
               </button>
             ))}
+          </div>
+        ) : null}
+        {etapa === "loja" && sugestao ? (
+          <div className="flex justify-end gap-2">
+            <button onClick={recusarSugestao}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+              Não
+            </button>
+            <button onClick={() => escolherLoja(sugestao)}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700">
+              Sim ✓
+            </button>
           </div>
         ) : null}
         {etapa === "lgpd" ? (

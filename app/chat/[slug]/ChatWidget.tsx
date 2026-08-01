@@ -380,9 +380,11 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
           </div>
         ) : null}
         {etapa === "lgpd" ? (
-          <button onClick={aceitarLgpd} className="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow" style={{ background: cor }}>
-            Aceito continuar ✓
-          </button>
+          <div className="flex justify-end">
+            <button onClick={aceitarLgpd} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700">
+              Aceito continuar ✓
+            </button>
+          </div>
         ) : null}
         {etapa === "conversa" && !balões.some((m) => m.autor === "loja") ? (
           <div className="text-center text-[11px] text-slate-400">Sua mensagem chegou na loja 🛎 — se você sair, a resposta também vai para o seu e-mail.</div>

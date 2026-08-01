@@ -25,8 +25,15 @@ function agora(): string {
   return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, pag }:
-  { slug: string; cb?: number; cor?: string; titulo?: string; saudacao?: string; pag?: string }) {
+// `pre` (31/07, botao comprar-na-loja do e-commerce): dados que ja vieram do
+// site (cliente logado no Magento + produto) — o roteiro PULA o que ja sabe.
+export type ChatPre = {
+  nome?: string; email?: string; telefone?: string; assunto?: string;
+  campos?: Record<string, string>; lojaId?: number;
+};
+
+export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, pag, pre }:
+  { slug: string; cb?: number; cor?: string; titulo?: string; saudacao?: string; pag?: string; pre?: ChatPre }) {
   const [marca, setMarca] = useState<PublicoMarca | null>(null);
   const [box, setBox] = useState<ChatboxConfig | null>(null);
   const [balões, setBaloes] = useState<Msg[]>([]);
@@ -70,21 +77,51 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
         try { cfg = (await publicoChatbox(slug, cb)).config; setBox(cfg); } catch { /* roteiro padrão */ }
       }
       // monta o ROTEIRO: loja -> nome -> telefone -> assunto? -> email -> extras -> lgpd -> mensagem
-      const r: string[] = ["loja", "nome", "telefone"];
-      if (!(cfg?.assunto_fixo) && cfg?.perguntar_assunto !== false) r.push("assunto");
-      r.push("email");
+      // (etapas cujo dado ja veio em `pre` sao PULADAS — minimo de digitacao)
+      const r: string[] = [];
+      if (!pre?.lojaId) r.push("loja");
+      if (!(pre?.nome)) r.push("nome");
+      if (!(pre?.telefone)) r.push("telefone");
+      if (!(pre?.assunto) && !(cfg?.assunto_fixo) && cfg?.perguntar_assunto !== false) r.push("assunto");
+      if (!(pre?.email)) r.push("email");
       (cfg?.extras ?? []).forEach((_x, i) => r.push("extra:" + i));
       r.push("lgpd", "mensagem", "conversa");
       setRoteiro(r);
-      try {
-        const salvo = JSON.parse(localStorage.getItem(chave) || "null");
-        if (salvo && salvo.numero && salvo.email) {
-          setNumero(salvo.numero); setResp((x) => ({ ...x, email: salvo.email }));
-          setPasso(r.length - 1);  // direto p/ conversa
-          return;
+      if (pre) {
+        const seed: Record<string, string> = {};
+        if (pre.nome) seed.nome = pre.nome;
+        if (pre.telefone) seed.telefone = pre.telefone;
+        if (pre.email) seed.email = pre.email;
+        if (pre.assunto) seed.assunto = pre.assunto;
+        if (Object.keys(seed).length) setResp((x) => ({ ...x, ...seed }));
+        if (pre.lojaId) {
+          setLojaSel({
+            id: pre.lojaId, nome: "", endereco: "", cidade: null,
+            uf: null, shopping: null, tipo: "fisica",
+          });
         }
-      } catch { /* zera */ }
-      bot((cfg?.saudacao || saudacao) || "Olá! 👋 Que bom te ver por aqui. Para falar com a loja mais próxima, me diga a sua cidade, o shopping ou o nome da loja:");
+      }
+      // Com `pre.assunto` (pedido novo vindo do site) NAO retoma conversa
+      // antiga — o produto/loja podem ser outros; abre um fluxo novo.
+      if (!pre?.assunto) {
+        try {
+          const salvo = JSON.parse(localStorage.getItem(chave) || "null");
+          if (salvo && salvo.numero && salvo.email) {
+            setNumero(salvo.numero); setResp((x) => ({ ...x, email: salvo.email }));
+            setPasso(r.length - 1);  // direto p/ conversa
+            return;
+          }
+        } catch { /* zera */ }
+      }
+      // Saudacao casa com a PRIMEIRA etapa do roteiro (com `pre`, pode nao ser a loja)
+      const prim = r[0] || "mensagem";
+      const abertura = (cfg?.saudacao || saudacao)
+        || (pre?.assunto
+          ? "Olá! 👋 Vi que você veio do site sobre: " + pre.assunto + "."
+          : "Olá! 👋 Que bom te ver por aqui.");
+      bot(abertura + " " + (prim === "loja"
+        ? "Para falar com a loja mais próxima, me diga a sua cidade, o shopping ou o nome da loja:"
+        : perguntaDe(prim)));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, cb]);
@@ -200,14 +237,14 @@ export default function ChatWidget({ slug, cb, cor: corProp, titulo, saudacao, p
     if (etapa === "mensagem") {
       setEnviando(true);
       try {
-        const campos: Record<string, string> = {};
+        const campos: Record<string, string> = { ...(pre?.campos || {}) };
         extras.forEach((ex, i) => { const v = resp["extra:" + i]; if (v && v.toLowerCase() !== "pular") campos[ex.rotulo.slice(0, 60)] = v; });
         const origem = pag || (typeof document !== "undefined" ? document.referrer : "");
         if (origem) campos["Página de origem"] = origem.slice(0, 255);
         const r = await publicoAbrir({
           marca_slug: slug, loja_id: lojaSel ? lojaSel.id : undefined,
           nome: resp.nome, email: resp.email, telefone: resp.telefone,
-          assunto: (box?.assunto_fixo || resp.assunto || "Chat com a loja").slice(0, 255),
+          assunto: (pre?.assunto || box?.assunto_fixo || resp.assunto || "Chat com a loja").slice(0, 255),
           mensagem: txt, campos, aceita_contato: true, canal: "chat",
         });
         localStorage.setItem(chave, JSON.stringify({ numero: r.numero, email: resp.email }));

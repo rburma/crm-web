@@ -1167,6 +1167,7 @@ export type LojaPublica = {
   id: number; nome: string; endereco: string;
   cidade: string | null; uf: string | null; shopping: string | null;
   tipo: "fisica" | "virtual";
+  whatsapp?: string | null;
 };
 export function publicoLojas(slug: string, q = ""): Promise<LojaPublica[]> {
   return req(`publico/form/${encodeURIComponent(slug)}/lojas?q=${encodeURIComponent(q)}`);

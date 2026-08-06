@@ -159,13 +159,24 @@ export default function BaseConhecimentoPage() {
         setStatusIdx("Falta a chave VOYAGE_API_KEY no servidor.");
         return;
       }
+      let seguidas = 0;  // falhas em sequencia: nao girar em falso
       while (v.faltam > 0 && !pararRef.current) {
         setStatusIdx(`Entendendo o conteúdo: ${v.com_vetor} de ${v.total} (${v.percentual}%)`);
         try {
+          const antes = v.com_vetor;
           v = await baseVetoresLote(32);
-        } catch {
-          await new Promise((r) => setTimeout(r, 5000));
-          try { v = await baseVetoresProgresso(); } catch { break; }
+          seguidas = v.com_vetor > antes ? 0 : seguidas + 1;
+        } catch (e: unknown) {
+          seguidas += 1;
+          const msg = e instanceof Error ? e.message : String(e);
+          setStatusIdx(`Erro ao gerar vetores: ${msg}`);
+          if (seguidas >= 3) return;   // mostra o erro e para
+          await new Promise((r) => setTimeout(r, 4000));
+          try { v = await baseVetoresProgresso(); } catch { return; }
+        }
+        if (seguidas >= 3) {
+          setStatusIdx("Parou sem avançar — veja o motivo em /base/diagnostico");
+          return;
         }
         setVet(v);
       }

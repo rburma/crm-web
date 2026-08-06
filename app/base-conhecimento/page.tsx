@@ -7,9 +7,8 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseOpcoes, baseConteudos, baseIndexar,
-  baseIndexarDestravar, baseIndexarStatus, baseOpcoes, baseTicket,
-  baseUploadDireto,
+  BaseConteudoItem, BaseOpcoes, BaseProgresso, baseConteudos, baseLote,
+  baseOpcoes, basePreparar, baseProgresso, baseTicket, baseUploadDireto,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -113,35 +112,44 @@ export default function BaseConhecimentoPage() {
   const maxMb = opcoes?.max_mb ?? 45;
   const [statusIdx, setStatusIdx] = useState("");
 
-  function acompanharIndexacao() {
-    const timer = setInterval(async () => {
-      try {
-        const s = await baseIndexarStatus();
-        setStatusIdx(s.msg);
-        if (!s.rodando) clearInterval(timer);
-      } catch { clearInterval(timer); }
-    }, 4000);
-  }
+  const [prog, setProg] = useState<BaseProgresso | null>(null);
+  const pararRef = useRef(false);
 
-  async function reindexar(completo = false) {
+  // Indexa em lotes pequenos: cada volta e uma requisicao CURTA. Se o
+  // servidor reiniciar, e so clicar de novo — a fila fica no banco.
+  async function indexar(completo = false) {
     if (completo && !window.confirm(
-      "Refazer a indexação do ZERO? Leva bem mais tempo. " +
-      "Para continuar de onde parou, use o outro botão.")) return;
+      "Refazer a indexação do ZERO? Leva bem mais tempo.")) return;
+    pararRef.current = false;
+    setStatusIdx("Montando a fila de arquivos...");
     try {
-      const r = await baseIndexar(completo);
-      setStatusIdx(r.msg);
-      acompanharIndexacao();
+      let p = await basePreparar(completo);
+      setProg(p);
+      while (p.pendentes > 0 && !pararRef.current) {
+        setStatusIdx(`Indexando ${p.feitos} de ${p.total} (${p.percentual}%)`);
+        try {
+          p = await baseLote(4);
+        } catch {
+          // erro de rede/reinício: espera e tenta de novo do ponto atual
+          await new Promise((r) => setTimeout(r, 5000));
+          try { p = await baseProgresso(); } catch { break; }
+        }
+        setProg(p);
+      }
+      setStatusIdx(pararRef.current
+        ? `Pausado em ${p.feitos} de ${p.total}`
+        : `Concluída: ${p.ok} indexados, ${p.vazios} sem texto, ` +
+          `${p.erros} com erro, ${p.grandes} grandes demais — ` +
+          `${p.trechos} trechos no índice`);
     } catch (e: unknown) {
       setStatusIdx(e instanceof Error ? e.message : String(e));
     }
   }
 
-  // Ao abrir a página já mostra se há indexação em andamento (o estado vive
-  // no banco: sobrevive a restart do servidor).
   useEffect(() => {
-    baseIndexarStatus().then((s) => {
-      setStatusIdx(s.msg);
-      if (s.rodando) acompanharIndexacao();
+    baseProgresso().then((p) => {
+      setProg(p);
+      if (p.total) setStatusIdx(`${p.feitos} de ${p.total} indexados`);
     }).catch(() => {});
   }, []);
 
@@ -157,26 +165,29 @@ export default function BaseConhecimentoPage() {
             Arquivos acima de {maxMb} MB: suba direto na pasta do Box.
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <button onClick={() => reindexar(false)}
-              className="text-sm border rounded px-3 py-1 bg-white hover:bg-gray-50">
+            <button onClick={() => indexar(false)}
+              disabled={!!prog && prog.pendentes > 0 && !pararRef.current}
+              className="text-sm border rounded px-3 py-1 bg-white hover:bg-gray-50 disabled:opacity-40">
               ▶️ Indexar / continuar
             </button>
-            <button onClick={() => reindexar(true)}
+            <button onClick={() => indexar(true)}
               className="text-sm border rounded px-3 py-1 text-gray-500 hover:bg-gray-50">
               🔄 refazer do zero
             </button>
-            <button onClick={async () => {
-              const r = await baseIndexarDestravar();
-              setStatusIdx(r.msg);
-            }}
-              title="Use se ficar preso em 'já está rodando' sem avançar"
+            <button onClick={() => { pararRef.current = true; }}
               className="text-sm border rounded px-3 py-1 text-amber-700 hover:bg-amber-50">
-              🔓 destravar
+              ⏸ pausar
             </button>
             {statusIdx && (
               <span className="text-xs text-gray-600">{statusIdx}</span>
             )}
           </div>
+          {prog && prog.total > 0 && (
+            <div className="mt-1 h-2 w-full rounded bg-gray-200">
+              <div className="h-2 rounded bg-green-600 transition-all"
+                style={{ width: `${prog.percentual}%` }} />
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border bg-white p-4 space-y-3">

@@ -2510,3 +2510,31 @@ export function baseIndexarStatus(): Promise<BaseIndexStatus> {
 export function baseIndexarDestravar(): Promise<{ ok: boolean; msg: string }> {
   return req("base/indexar/destravar", { method: "POST" });
 }
+
+// Indexacao em LOTES: o navegador comanda o ritmo (nada de tarefa longa
+// no servidor, que morria no restart do Render).
+export type BaseProgresso = {
+  total: number; pendentes: number; feitos: number; percentual: number;
+  ok: number; vazios: number; erros: number; grandes: number; trechos: number;
+};
+
+export function basePreparar(completo = false): Promise<BaseProgresso> {
+  return req(`base/indexar/preparar?completo=${completo}`, { method: "POST" });
+}
+
+export function baseLote(quantos = 4): Promise<BaseProgresso> {
+  return req(`base/indexar/lote?quantos=${quantos}`, { method: "POST" });
+}
+
+export function baseProgresso(): Promise<BaseProgresso> {
+  return req("base/indexar/progresso");
+}
+
+export type BaseProblema = {
+  nome: string; estado: string; erro: string | null;
+  marca: string; nivel: string;
+};
+
+export function baseProblemas(): Promise<BaseProblema[]> {
+  return req("base/indexar/problemas");
+}

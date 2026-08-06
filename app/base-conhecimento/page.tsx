@@ -8,7 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
   BaseConteudoItem, BaseOpcoes, baseConteudos, baseIndexar,
-  baseIndexarStatus, baseOpcoes, baseTicket, baseUploadDireto,
+  baseIndexarDestravar, baseIndexarStatus, baseOpcoes, baseTicket,
+  baseUploadDireto,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -163,6 +164,14 @@ export default function BaseConhecimentoPage() {
             <button onClick={() => reindexar(true)}
               className="text-sm border rounded px-3 py-1 text-gray-500 hover:bg-gray-50">
               🔄 refazer do zero
+            </button>
+            <button onClick={async () => {
+              const r = await baseIndexarDestravar();
+              setStatusIdx(r.msg);
+            }}
+              title="Use se ficar preso em 'já está rodando' sem avançar"
+              className="text-sm border rounded px-3 py-1 text-amber-700 hover:bg-amber-50">
+              🔓 destravar
             </button>
             {statusIdx && (
               <span className="text-xs text-gray-600">{statusIdx}</span>

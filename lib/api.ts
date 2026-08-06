@@ -2506,3 +2506,7 @@ export type BaseIndexStatus = {
 export function baseIndexarStatus(): Promise<BaseIndexStatus> {
   return req("base/indexar/status");
 }
+
+export function baseIndexarDestravar(): Promise<{ ok: boolean; msg: string }> {
+  return req("base/indexar/destravar", { method: "POST" });
+}

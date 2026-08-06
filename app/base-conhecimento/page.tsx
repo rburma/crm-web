@@ -7,8 +7,9 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseOpcoes, BaseProgresso, baseConteudos, baseLote,
-  baseOpcoes, basePreparar, baseProgresso, baseTicket, baseUploadDireto,
+  BaseConteudoItem, BaseOpcoes, BaseProgresso, BaseVetores, baseConteudos,
+  baseLote, baseOpcoes, basePreparar, baseProgresso, baseTicket,
+  baseUploadDireto, baseVetoresLote, baseVetoresProgresso,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -146,11 +147,42 @@ export default function BaseConhecimentoPage() {
     }
   }
 
+  const [vet, setVet] = useState<BaseVetores | null>(null);
+
+  // Gera os vetores de significado em lotes (busca semantica).
+  async function gerarVetores() {
+    pararRef.current = false;
+    try {
+      let v = await baseVetoresProgresso();
+      setVet(v);
+      if (!v.configurado) {
+        setStatusIdx("Falta a chave VOYAGE_API_KEY no servidor.");
+        return;
+      }
+      while (v.faltam > 0 && !pararRef.current) {
+        setStatusIdx(`Entendendo o conteúdo: ${v.com_vetor} de ${v.total} (${v.percentual}%)`);
+        try {
+          v = await baseVetoresLote(32);
+        } catch {
+          await new Promise((r) => setTimeout(r, 5000));
+          try { v = await baseVetoresProgresso(); } catch { break; }
+        }
+        setVet(v);
+      }
+      setStatusIdx(pararRef.current
+        ? `Pausado: ${v.com_vetor} de ${v.total}`
+        : `Busca semântica pronta: ${v.com_vetor} trechos (${v.modelo})`);
+    } catch (e: unknown) {
+      setStatusIdx(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   useEffect(() => {
     baseProgresso().then((p) => {
       setProg(p);
       if (p.total) setStatusIdx(`${p.feitos} de ${p.total} indexados`);
     }).catch(() => {});
+    baseVetoresProgresso().then(setVet).catch(() => {});
   }, []);
 
   return (
@@ -173,6 +205,10 @@ export default function BaseConhecimentoPage() {
             <button onClick={() => indexar(true)}
               className="text-sm border rounded px-3 py-1 text-gray-500 hover:bg-gray-50">
               🔄 refazer do zero
+            </button>
+            <button onClick={gerarVetores}
+              className="text-sm border rounded px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100">
+              🧠 entender conteúdo{vet && vet.faltam > 0 ? ` (${vet.faltam})` : ""}
             </button>
             <button onClick={() => { pararRef.current = true; }}
               className="text-sm border rounded px-3 py-1 text-amber-700 hover:bg-amber-50">

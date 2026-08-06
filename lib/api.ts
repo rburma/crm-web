@@ -2538,3 +2538,17 @@ export type BaseProblema = {
 export function baseProblemas(): Promise<BaseProblema[]> {
   return req("base/indexar/problemas");
 }
+
+// Busca semântica: vetores de significado (Voyage AI).
+export type BaseVetores = {
+  total: number; com_vetor: number; faltam: number; percentual: number;
+  modelo: string; configurado: boolean;
+};
+
+export function baseVetoresLote(quantos = 32): Promise<BaseVetores> {
+  return req(`base/vetores/lote?quantos=${quantos}`, { method: "POST" });
+}
+
+export function baseVetoresProgresso(): Promise<BaseVetores> {
+  return req("base/vetores/progresso");
+}

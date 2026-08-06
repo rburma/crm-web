@@ -7,8 +7,8 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseOpcoes, baseConteudos, baseOpcoes, baseTicket,
-  baseUploadDireto,
+  BaseConteudoItem, BaseOpcoes, baseConteudos, baseIndexar,
+  baseIndexarStatus, baseOpcoes, baseTicket, baseUploadDireto,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -79,6 +79,23 @@ export default function BaseConhecimentoPage() {
 
   const aguardando = fila.filter((i) => i.estado === "aguardando").length;
   const maxMb = opcoes?.max_mb ?? 45;
+  const [statusIdx, setStatusIdx] = useState("");
+
+  async function reindexar() {
+    try {
+      await baseIndexar();
+      setStatusIdx("Indexação iniciada...");
+      const timer = setInterval(async () => {
+        try {
+          const s = await baseIndexarStatus();
+          setStatusIdx(s.msg);
+          if (!s.rodando) clearInterval(timer);
+        } catch { clearInterval(timer); }
+      }, 4000);
+    } catch (e: unknown) {
+      setStatusIdx(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   return (
     <Shell>
@@ -91,6 +108,15 @@ export default function BaseConhecimentoPage() {
             de transcrição; documentos ficam prontos para a indexação.
             Arquivos acima de {maxMb} MB: suba direto na pasta do Box.
           </p>
+          <div className="flex items-center gap-2 mt-2">
+            <button onClick={reindexar}
+              className="text-sm border rounded px-3 py-1 bg-white hover:bg-gray-50">
+              🔄 Reindexar base (Q&amp;A)
+            </button>
+            {statusIdx && (
+              <span className="text-xs text-gray-500">{statusIdx}</span>
+            )}
+          </div>
         </div>
 
         <div className="rounded-xl border bg-white p-4 space-y-3">

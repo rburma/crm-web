@@ -2477,3 +2477,26 @@ export async function baseUploadDireto(
   }
   return r.json();
 }
+
+// ── Q&A da Base de Conhecimento ──────────────────────────────────────
+export type BaseFonte = { titulo: string; url: string | null; marca: string };
+export type BaseResposta = {
+  resposta: string; fontes: BaseFonte[]; suspeita?: boolean; cota?: boolean;
+  carimbo?: { nome: string; email: string; ip: string; quando: string };
+};
+
+export function basePerguntar(pergunta: string): Promise<BaseResposta> {
+  return req("base/perguntar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta }),
+  });
+}
+
+export function baseIndexar(): Promise<{ ok: boolean; msg: string }> {
+  return req("base/indexar", { method: "POST" });
+}
+
+export function baseIndexarStatus(): Promise<{ rodando: boolean; msg: string }> {
+  return req("base/indexar/status");
+}

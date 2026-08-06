@@ -31,6 +31,7 @@ const NAV = [
   { href: "/usuarios", label: "Usuários", icon: "🔑", vis: "admin" },
   { href: "/base-conhecimento", label: "Base de Conhecimento", icon: "📚", vis: "admin" },
   { href: "/go-live", label: "Go-live", icon: "🚀", vis: "admin" },
+  { href: "/perguntar", label: "Tira-dúvidas", icon: "❓", vis: "todos" },
   { href: "/ajuda", label: "Ajuda", icon: "❓", vis: "todos" },
   { href: "/configuracoes", label: "Configurações", icon: "⚙️", vis: "admin" },
   { href: "/backup", label: "Backup", icon: "💾", vis: "admin" },

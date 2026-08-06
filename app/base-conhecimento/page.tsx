@@ -44,8 +44,10 @@ export default function BaseConhecimentoPage() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  async function enviarLote() {
-    if (!fila.some((i) => i.estado === "aguardando")) return;
+  // Sobe os arquivos indicados. LIMITE de 3 por vez + 3 tentativas com espera
+  // crescente: mandar tudo de uma vez derrubava o servidor ("Failed to fetch").
+  async function enviar(indices: number[]) {
+    if (indices.length === 0 || subindo) return;
     setSubindo(true);
     setErro("");
     try {
@@ -54,21 +56,39 @@ export default function BaseConhecimentoPage() {
         receituario ? "receituario" : "",
         soFranqueados ? "so_franqueados" : "",
       ].filter(Boolean).join(",");
-      const pendentes = fila
-        .map((item, idx) => ({ item, idx }))
-        .filter(({ item }) => item.estado === "aguardando");
-      await Promise.all(pendentes.map(async ({ item, idx }) => {
-        setFila((q) => q.map((x, i) => (i === idx ? { ...x, estado: "subindo" } : x)));
-        try {
-          const r = await baseUploadDireto(ticket, item.arquivo, marca, nivel, classes);
-          setFila((q) => q.map((x, i) =>
-            (i === idx ? { ...x, estado: "ok", link: r.box_link } : x)));
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e);
-          setFila((q) => q.map((x, i) =>
-            (i === idx ? { ...x, estado: "erro", msg } : x)));
+      const pendentes = [...indices];
+
+      async function trabalhador() {
+        for (;;) {
+          const idx = pendentes.shift();
+          if (idx === undefined) return;
+          const item = fila[idx];
+          if (!item) continue;
+          setFila((q) => q.map((x, i) => (i === idx ? { ...x, estado: "subindo", msg: undefined } : x)));
+          let ultimoErro = "";
+          for (let tentativa = 1; tentativa <= 3; tentativa++) {
+            try {
+              const r = await baseUploadDireto(ticket, item.arquivo, marca, nivel, classes);
+              setFila((q) => q.map((x, i) =>
+                (i === idx ? { ...x, estado: "ok", link: r.box_link, msg: undefined } : x)));
+              ultimoErro = "";
+              break;
+            } catch (e: unknown) {
+              ultimoErro = e instanceof Error ? e.message : String(e);
+              if (tentativa < 3) {
+                setFila((q) => q.map((x, i) => (i === idx
+                  ? { ...x, msg: `tentativa ${tentativa} falhou, repetindo...` } : x)));
+                await new Promise((r) => setTimeout(r, tentativa * 2500));
+              }
+            }
+          }
+          if (ultimoErro) {
+            setFila((q) => q.map((x, i) =>
+              (i === idx ? { ...x, estado: "erro", msg: ultimoErro } : x)));
+          }
         }
-      }));
+      }
+      await Promise.all([trabalhador(), trabalhador(), trabalhador()]);
       baseConteudos().then(setHistorico).catch(() => {});
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : String(e));
@@ -77,7 +97,18 @@ export default function BaseConhecimentoPage() {
     }
   }
 
+  function enviarLote() {
+    const idx = fila.map((i, n) => (i.estado === "aguardando" ? n : -1)).filter((n) => n >= 0);
+    return enviar(idx);
+  }
+
+  function repetirFalhas() {
+    const idx = fila.map((i, n) => (i.estado === "erro" ? n : -1)).filter((n) => n >= 0);
+    return enviar(idx);
+  }
+
   const aguardando = fila.filter((i) => i.estado === "aguardando").length;
+  const falhas = fila.filter((i) => i.estado === "erro").length;
   const maxMb = opcoes?.max_mb ?? 45;
   const [statusIdx, setStatusIdx] = useState("");
 
@@ -168,7 +199,23 @@ export default function BaseConhecimentoPage() {
               className="rounded px-4 py-2 text-sm bg-green-600 text-white disabled:opacity-40">
               {subindo ? "Enviando..." : `Enviar lote (${aguardando})`}
             </button>
+            {falhas > 0 && (
+              <button onClick={repetirFalhas} disabled={subindo}
+                className="rounded px-4 py-2 text-sm bg-amber-600 text-white disabled:opacity-40">
+                🔄 Tentar novamente as {falhas} que falharam
+              </button>
+            )}
+            {fila.length > 0 && !subindo && (
+              <button onClick={() => setFila((q) => q.filter((i) => i.estado !== "ok"))}
+                className="rounded border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
+                limpar concluídos
+              </button>
+            )}
           </div>
+          <p className="text-xs text-gray-400">
+            Os arquivos sobem 3 por vez, com 3 tentativas automáticas cada —
+            falhas de rede se resolvem sozinhas na maioria das vezes.
+          </p>
           {erro && <div className="text-sm text-red-600">{erro}</div>}
           {fila.length > 0 && (
             <ul className="text-sm divide-y">
@@ -186,7 +233,17 @@ export default function BaseConhecimentoPage() {
                     <a href={i.link} target="_blank" rel="noreferrer"
                       className="text-blue-600 underline">Box</a>
                   )}
-                  {i.msg && <span className="text-red-600">{i.msg}</span>}
+                  {i.msg && (
+                    <span className={i.estado === "erro" ? "text-red-600" : "text-gray-500"}>
+                      {i.msg}
+                    </span>
+                  )}
+                  {i.estado === "erro" && !subindo && (
+                    <button onClick={() => enviar([idx])}
+                      className="rounded border border-amber-400 px-2 py-0.5 text-xs text-amber-700 hover:bg-amber-50">
+                      tentar de novo
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

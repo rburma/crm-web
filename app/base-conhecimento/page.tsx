@@ -164,7 +164,7 @@ export default function BaseConhecimentoPage() {
         setStatusIdx(`Entendendo o conteúdo: ${v.com_vetor} de ${v.total} (${v.percentual}%)`);
         try {
           const antes = v.com_vetor;
-          v = await baseVetoresLote(32);
+          v = await baseVetoresLote(8);
           seguidas = v.com_vetor > antes ? 0 : seguidas + 1;
         } catch (e: unknown) {
           seguidas += 1;

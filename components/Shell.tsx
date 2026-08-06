@@ -29,6 +29,7 @@ const NAV = [
   { href: "/equipe", label: "Equipe", icon: "🏪", vis: "admin" },
   { href: "/aprovacoes", label: "Aprovações", icon: "📝", vis: "admin" },
   { href: "/usuarios", label: "Usuários", icon: "🔑", vis: "admin" },
+  { href: "/base-conhecimento", label: "Base de Conhecimento", icon: "📚", vis: "admin" },
   { href: "/go-live", label: "Go-live", icon: "🚀", vis: "admin" },
   { href: "/ajuda", label: "Ajuda", icon: "❓", vis: "todos" },
   { href: "/configuracoes", label: "Configurações", icon: "⚙️", vis: "admin" },

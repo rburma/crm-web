@@ -2435,3 +2435,45 @@ export function vagasRecuperarLink(cpf: string, nascimento: string): Promise<{
 export function vagasApagarPergunta(id: number): Promise<{ ok: boolean }> {
   return req<{ ok: boolean }>(`vagas/admin/perguntas/${id}`, { method: "DELETE" });
 }
+
+
+// ── Base de Conhecimento (upload em lote → Box) ──────────────────────
+export type BaseOpcoes = { marcas: string[]; niveis: string[]; max_mb: number };
+export type BaseConteudoItem = {
+  id: number; nome: string; marca: string; nivel: string;
+  classes: string | null; link: string | null; tamanho_mb: number;
+  status: string; criado_em: string | null;
+};
+
+export function baseOpcoes(): Promise<BaseOpcoes> {
+  return req("base/opcoes");
+}
+
+export function baseConteudos(): Promise<BaseConteudoItem[]> {
+  return req("base/conteudos");
+}
+
+export function baseTicket(): Promise<{ ticket: string }> {
+  return req("base/ticket", { method: "POST" });
+}
+
+// Upload DIRETO ao Render (o proxy da Vercel limita o corpo a 4,5MB).
+export async function baseUploadDireto(
+  ticket: string, arquivo: File, marca: string, nivel: string, classes: string,
+): Promise<{ id: number; box_link: string; status: string }> {
+  const motor = process.env.NEXT_PUBLIC_MOTOR_URL || "https://crm-motor.onrender.com";
+  const fd = new FormData();
+  fd.append("arquivo", arquivo);
+  fd.append("marca", marca);
+  fd.append("nivel", nivel);
+  fd.append("classes", classes);
+  const r = await fetch(`${motor}/base/upload-direto/${ticket}`, {
+    method: "POST", body: fd,
+  });
+  if (!r.ok) {
+    let msg = `Erro ${r.status}`;
+    try { const j = await r.json(); msg = j.detail || msg; } catch { /* segue */ }
+    throw new Error(msg);
+  }
+  return r.json();
+}

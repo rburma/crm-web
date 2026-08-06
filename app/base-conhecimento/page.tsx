@@ -112,21 +112,37 @@ export default function BaseConhecimentoPage() {
   const maxMb = opcoes?.max_mb ?? 45;
   const [statusIdx, setStatusIdx] = useState("");
 
-  async function reindexar() {
+  function acompanharIndexacao() {
+    const timer = setInterval(async () => {
+      try {
+        const s = await baseIndexarStatus();
+        setStatusIdx(s.msg);
+        if (!s.rodando) clearInterval(timer);
+      } catch { clearInterval(timer); }
+    }, 4000);
+  }
+
+  async function reindexar(completo = false) {
+    if (completo && !window.confirm(
+      "Refazer a indexação do ZERO? Leva bem mais tempo. " +
+      "Para continuar de onde parou, use o outro botão.")) return;
     try {
-      await baseIndexar();
-      setStatusIdx("Indexação iniciada...");
-      const timer = setInterval(async () => {
-        try {
-          const s = await baseIndexarStatus();
-          setStatusIdx(s.msg);
-          if (!s.rodando) clearInterval(timer);
-        } catch { clearInterval(timer); }
-      }, 4000);
+      const r = await baseIndexar(completo);
+      setStatusIdx(r.msg);
+      acompanharIndexacao();
     } catch (e: unknown) {
       setStatusIdx(e instanceof Error ? e.message : String(e));
     }
   }
+
+  // Ao abrir a página já mostra se há indexação em andamento (o estado vive
+  // no banco: sobrevive a restart do servidor).
+  useEffect(() => {
+    baseIndexarStatus().then((s) => {
+      setStatusIdx(s.msg);
+      if (s.rodando) acompanharIndexacao();
+    }).catch(() => {});
+  }, []);
 
   return (
     <Shell>
@@ -140,12 +156,16 @@ export default function BaseConhecimentoPage() {
             Arquivos acima de {maxMb} MB: suba direto na pasta do Box.
           </p>
           <div className="flex items-center gap-2 mt-2">
-            <button onClick={reindexar}
+            <button onClick={() => reindexar(false)}
               className="text-sm border rounded px-3 py-1 bg-white hover:bg-gray-50">
-              🔄 Reindexar base (Q&amp;A)
+              ▶️ Indexar / continuar
+            </button>
+            <button onClick={() => reindexar(true)}
+              className="text-sm border rounded px-3 py-1 text-gray-500 hover:bg-gray-50">
+              🔄 refazer do zero
             </button>
             {statusIdx && (
-              <span className="text-xs text-gray-500">{statusIdx}</span>
+              <span className="text-xs text-gray-600">{statusIdx}</span>
             )}
           </div>
         </div>

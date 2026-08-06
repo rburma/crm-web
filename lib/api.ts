@@ -2493,10 +2493,16 @@ export function basePerguntar(pergunta: string): Promise<BaseResposta> {
   });
 }
 
-export function baseIndexar(): Promise<{ ok: boolean; msg: string }> {
-  return req("base/indexar", { method: "POST" });
+// completo=false: continua de onde parou (pula o que ja esta indexado).
+export function baseIndexar(completo = false): Promise<{ ok: boolean; msg: string }> {
+  return req(`base/indexar?completo=${completo}`, { method: "POST" });
 }
 
-export function baseIndexarStatus(): Promise<{ rodando: boolean; msg: string }> {
+export type BaseIndexStatus = {
+  rodando: boolean; msg: string; arquivos?: number; trechos?: number;
+  detalhe?: { falhas?: string[]; grandes_pulados?: string[] };
+};
+
+export function baseIndexarStatus(): Promise<BaseIndexStatus> {
   return req("base/indexar/status");
 }

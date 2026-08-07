@@ -24,6 +24,7 @@ import {
   type AtendimentoItem,
   type MarcaItem,
   type ObrigacaoLojaItem,
+  discadorAdicionar,
 } from "@/lib/api";
 
 const PAGE = 50;
@@ -128,6 +129,25 @@ export default function AtendimentosPage() {
       await carregar(page);
     } catch (err) {
       setErro(err instanceof Error ? err.message : "Erro ao excluir");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  // Manda os selecionados para a fila de ligações da loja (06/08/2026).
+  // Vão na ordem em que foram marcados — e no discador dá para reordenar.
+  async function mandarAoDiscador() {
+    const ids = selec.ids.map(Number);
+    if (!ids.length) return;
+    setBulkBusy(true);
+    setErro("");
+    setMsg("");
+    try {
+      const r = await discadorAdicionar({ oportunidade_ids: ids });
+      setMsg(`${r.mensagem} — abrir o discador para ligar.`);
+      selec.limpar();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao enviar ao discador");
     } finally {
       setBulkBusy(false);
     }
@@ -316,6 +336,12 @@ useEffect(() => {
         {selec.count > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 mb-3 text-sm">
             <span className="text-blue-800 font-medium">{selec.count} selecionado(s)</span>
+            <span className="text-slate-300">·</span>
+            {/* Discador (06/08/2026): vão na ORDEM em que foram marcados */}
+            <button className="btn-ghost" disabled={bulkBusy} onClick={mandarAoDiscador}
+              title="Coloca os selecionados na fila de ligações da loja">
+              ☎ Adicionar ao discador
+            </button>
             <span className="text-slate-300">·</span>
             <select className="input py-1 text-xs w-32" value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)} disabled={bulkBusy}>
               <option value="aberta">Aberta</option>

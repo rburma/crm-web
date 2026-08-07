@@ -17,6 +17,7 @@ const NAV = [
   { href: "/", label: "Painel", icon: "📊", vis: "todos" },
   { href: "/clientes", label: "Clientes", icon: "👥", vis: "todos" }, // loja/franqueado veem SO os clientes do proprio escopo (backend)
   { href: "/atendimentos", label: "Oportunidades", icon: "💬", vis: "todos" },
+  { href: "/discador", label: "Discador", icon: "☎", vis: "todos" },
   { href: "/obrigacoes", label: "Obrigações", icon: "📋", vis: "todos" },
   { href: "/avaliacoes", label: "Avaliações", icon: "⭐", vis: "todos" },
   { href: "/reputacao", label: "Reputação", icon: "🏆", vis: "todos" },
@@ -56,6 +57,14 @@ export default function Shell({
   const path = usePathname() ?? "";
   const [u, setU] = useState<UsuarioLogado | null>(null);
   const [imp, setImp] = useState(false);
+  // EMBUTIDO (06/08/2026): a tela abre dentro de outra (ex.: o atendimento
+  // ao lado do discador). Esconde o cabeçalho para não repetir o menu.
+  const [embutido, setEmbutido] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setEmbutido(new URLSearchParams(window.location.search).get("embutido") === "1");
+    }
+  }, []);
   useEffect(() => {
     setU(usuarioLogado());
     setImp(impersonando());
@@ -114,7 +123,8 @@ export default function Shell({
       )}
       {/* MENU HORIZONTAL no topo (Renato 06/07): as listas ganham a largura
           inteira da tela. Mesmo NAV/permissoes do menu lateral antigo. */}
-      <header className="bg-slate-900 text-slate-300 sticky top-0 z-20">
+      <header className={`bg-slate-900 text-slate-300 sticky top-0 z-20${
+        embutido ? " hidden" : ""}`}>
         <div className="px-4 py-2 flex items-center gap-1 flex-wrap">
           <Link href="/" className="text-white font-bold tracking-tight text-sm mr-3">
             WT · CRM

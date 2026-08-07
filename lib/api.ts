@@ -2552,3 +2552,109 @@ export function baseVetoresLote(quantos = 32): Promise<BaseVetores> {
 export function baseVetoresProgresso(): Promise<BaseVetores> {
   return req("base/vetores/progresso");
 }
+
+// ── Discador da loja (fila de ligações ligada ao CRM) ────────────────
+export type DiscadorItem = {
+  id: number; nome: string | null; telefone: string | null;
+  estado: string; ordem: number;
+  desfecho: string | null; desfecho_rotulo: string;
+  oportunidade_id: number | null; consumidor_id: number | null;
+  importado: boolean; origem: string | null;
+  corrigir_telefone: boolean; tentativas: number;
+  retorno_em: string | null; visita_em: string | null;
+  em_uso_por: number | null;
+};
+export type DiscadorDesfecho = {
+  chave: string; rotulo: string; sai: boolean; data: string | null;
+};
+export type DiscadorFila = {
+  loja_id: number; loja: string | null; itens: DiscadorItem[];
+  pendentes: number; desfechos: DiscadorDesfecho[];
+};
+
+export function discadorFila(lojaId?: number): Promise<DiscadorFila> {
+  return req(`discador/fila${lojaId ? `?loja_id=${lojaId}` : ""}`);
+}
+
+export function discadorAdicionar(payload: {
+  loja_id?: number; oportunidade_ids?: number[]; consumidor_ids?: number[];
+}): Promise<{ ok: boolean; adicionados: number; mensagem: string }> {
+  return req("discador/adicionar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function discadorDesfecho(itemId: number, payload: {
+  desfecho: string; texto?: string; interna?: boolean; enviar_email?: boolean;
+  encerrar?: boolean; quando?: string | null; manter_na_fila?: boolean | null;
+  confirmar_opt_out?: boolean;
+}): Promise<{ ok: boolean; estado: string; oportunidade_id: number | null;
+              consumidor_id: number | null; mensagem: string }> {
+  return req(`discador/item/${itemId}/desfecho`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function discadorReordenar(ids: number[]): Promise<{ ok: boolean }> {
+  return req("discador/reordenar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function discadorAssumir(itemId: number): Promise<{ ok: boolean }> {
+  return req(`discador/item/${itemId}/assumir`, { method: "POST" });
+}
+
+export function discadorRemover(itemId: number): Promise<{ ok: boolean }> {
+  return req(`discador/item/${itemId}`, { method: "DELETE" });
+}
+
+export type DiscadorPrevia = {
+  total: number; validos: number;
+  itens: { nome: string; telefone: string; situacao: string;
+           detalhe: string; consumidor_id?: number }[];
+};
+
+export function discadorImportarPrevia(payload: {
+  loja_id?: number; origem: string; contatos: { nome: string; telefone: string }[];
+}): Promise<DiscadorPrevia> {
+  return req("discador/importar/previa", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, confirmo: true }),
+  });
+}
+
+export function discadorImportar(payload: {
+  loja_id?: number; origem: string; confirmo: boolean;
+  contatos: { nome: string; telefone: string }[]; cadastrar_no_crm: boolean;
+}): Promise<{ ok: boolean; na_fila: number; cadastrados: number;
+              vinculados: number; mensagem: string }> {
+  return req("discador/importar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export type DiscadorEncerrarPrevia = {
+  loja_id: number; total_fila: number;
+  sem_cadastro: { id: number; nome: string; telefone: string;
+                  origem: string | null; desfecho: string | null;
+                  tentativas: number }[];
+};
+
+export function discadorEncerrarPrevia(lojaId?: number): Promise<DiscadorEncerrarPrevia> {
+  return req(`discador/encerrar/previa${lojaId ? `?loja_id=${lojaId}` : ""}`);
+}
+
+export function discadorEncerrar(payload: {
+  loja_id?: number; cadastrar_ids: number[];
+  limpar_concluidos?: boolean; limpar_tudo?: boolean;
+}): Promise<{ ok: boolean; cadastrados: number; mensagem: string }> {
+  return req("discador/encerrar", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}

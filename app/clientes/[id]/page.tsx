@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Shell from "@/components/Shell";
-import { atualizarCliente, clienteIdentidade, clientePreferencias, clientePreferenciaSet, excluirCliente, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, usuarioLogado, type ClienteIdentidade, type ClientePrefs, type Ficha } from "@/lib/api";
+import { atualizarCliente, clienteIdentidade, clientePreferencias, clientePreferenciaSet, discadorAdicionar, excluirCliente, ficha360, fmtData, fmtTelefone, fmtCpf, cpfValido, usuarioLogado, type ClienteIdentidade, type ClientePrefs, type Ficha } from "@/lib/api";
 
 const fmt1 = (n: number) =>
   n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -69,6 +69,8 @@ export default function FichaPage({ params }: { params: { id: string } }) {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
   const [copiado, setCopiado] = useState(false);
+  const [discMsg, setDiscMsg] = useState("");
+  const [discBusy, setDiscBusy] = useState(false);
   const [prefs, setPrefs] = useState<ClientePrefs | null>(null);
   const [prefBusy, setPrefBusy] = useState(false);
   const [ident, setIdent] = useState<ClienteIdentidade | null>(null);
@@ -186,6 +188,20 @@ export default function FichaPage({ params }: { params: { id: string } }) {
     }
   }
 
+  // Manda este cliente para o fim da fila de ligações da loja.
+  async function paraODiscador() {
+    setDiscBusy(true);
+    setDiscMsg("");
+    try {
+      const r = await discadorAdicionar({ consumidor_ids: [Number(params.id)] });
+      setDiscMsg(r.mensagem);
+    } catch (e) {
+      setDiscMsg(e instanceof Error ? e.message : "Erro ao enviar ao discador");
+    } finally {
+      setDiscBusy(false);
+    }
+  }
+
   async function copiar() {
     if (!f) return;
     const txt = [
@@ -266,7 +282,22 @@ export default function FichaPage({ params }: { params: { id: string } }) {
                     <button onClick={copiar} className="btn-ghost text-xs px-3 py-1.5">
                       📋 {copiado ? "Copiado!" : "Copiar dados"}
                     </button>
+                    {f.telefone && (
+                      <button
+                        onClick={paraODiscador}
+                        disabled={discBusy}
+                        className="btn-ghost text-xs px-3 py-1.5 disabled:opacity-40"
+                        title="Coloca este cliente na fila de ligações da loja"
+                      >
+                        ☎️ {discBusy ? "Enviando…" : "+ discador"}
+                      </button>
+                    )}
                   </div>
+                  {discMsg && (
+                    <div className="mt-2 text-xs text-slate-600">
+                      {discMsg} — <Link href="/discador" className="text-brand-700 hover:underline">abrir o discador</Link>
+                    </div>
+                  )}
                 </div>
                 <span className="badge-blue shrink-0">{f.total_atendimentos} oportunidade(s)</span>
                 <button className="btn-secondary text-xs shrink-0" onClick={abrirEdicao}>

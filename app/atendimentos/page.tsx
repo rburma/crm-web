@@ -144,6 +144,8 @@ export default function AtendimentosPage() {
     setMsg("");
     try {
       const r = await discadorAdicionar({ oportunidade_ids: ids });
+      // Deixa o discador já apontado para a loja que recebeu os contatos.
+      if (r.loja_id) window.localStorage.setItem("discador_loja", String(r.loja_id));
       setMsg(`${r.mensagem} — abrir o discador para ligar.`);
       selec.limpar();
     } catch (err) {

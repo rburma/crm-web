@@ -4,8 +4,9 @@
 // a loja escolhe quais contatos importados que AINDA não estão no CRM devem
 // virar cadastro — os demais são descartados junto com a fila.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Shell from "@/components/Shell";
+import LojaDoDiscador from "@/components/LojaDoDiscador";
 import {
   DiscadorEncerrarPrevia, discadorEncerrar, discadorEncerrarPrevia,
 } from "@/lib/api";
@@ -16,17 +17,28 @@ export default function EncerrarListaPage() {
   const [limparTudo, setLimparTudo] = useState(false);
   const [msg, setMsg] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [lojaId, setLojaId] = useState<number | undefined>(undefined);
+  const [souGlobal, setSouGlobal] = useState(false);
 
-  useEffect(() => {
-    discadorEncerrarPrevia()
+  function carregar(lid?: number) {
+    discadorEncerrarPrevia(lid)
       .then((p) => {
         setPrevia(p);
+        setMsg("");
         // quem foi atendido merece cadastro: já vem marcado
         setMarcados(new Set(p.sem_cadastro
           .filter((i) => i.desfecho && i.tentativas > 0).map((i) => i.id)));
       })
       .catch((e) => setMsg(e instanceof Error ? e.message : String(e)));
-  }, []);
+  }
+
+  // O seletor avisa a loja ao montar (e a cada troca).
+  function trocarLoja(id: number | undefined, global: boolean) {
+    setLojaId(id);
+    setSouGlobal(global);
+    if (id || !global) carregar(id);
+    else setPrevia(null);
+  }
 
   function alternar(id: number) {
     setMarcados((s) => {
@@ -47,11 +59,11 @@ export default function EncerrarListaPage() {
     setOcupado(true);
     try {
       const r = await discadorEncerrar({
-        cadastrar_ids: [...marcados],
+        loja_id: lojaId, cadastrar_ids: [...marcados],
         limpar_concluidos: true, limpar_tudo: limparTudo,
       });
       setMsg(r.mensagem);
-      setPrevia(await discadorEncerrarPrevia());
+      setPrevia(await discadorEncerrarPrevia(lojaId));
       setMarcados(new Set());
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : String(e));
@@ -71,8 +83,13 @@ export default function EncerrarListaPage() {
           </a>
           <h1 className="text-2xl font-bold">Encerrar lista de ligações</h1>
           <p className="text-sm text-gray-500">
-            {previa ? `${previa.total_fila} contatos na fila` : "carregando..."}
+            {previa ? `${previa.total_fila} contatos na fila`
+                    : souGlobal && !lojaId ? "escolha a loja" : "carregando..."}
           </p>
+        </div>
+
+        <div className={souGlobal ? "rounded-xl border bg-white p-4" : ""}>
+          <LojaDoDiscador onTrocar={trocarLoja} />
         </div>
 
         <div className="rounded-xl border bg-white p-4">

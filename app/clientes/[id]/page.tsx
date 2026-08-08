@@ -194,6 +194,8 @@ export default function FichaPage({ params }: { params: { id: string } }) {
     setDiscMsg("");
     try {
       const r = await discadorAdicionar({ consumidor_ids: [Number(params.id)] });
+      // Deixa o discador já apontado para a loja que recebeu o contato.
+      if (r.loja_id) window.localStorage.setItem("discador_loja", String(r.loja_id));
       setDiscMsg(r.mensagem);
     } catch (e) {
       setDiscMsg(e instanceof Error ? e.message : "Erro ao enviar ao discador");

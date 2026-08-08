@@ -6,8 +6,9 @@
 // para o operador trabalhar por onde preferir).
 // A ligação sai pelo celular vinculado ao Windows (link tel:).
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Shell from "@/components/Shell";
+import LojaDoDiscador from "@/components/LojaDoDiscador";
 import {
   DiscadorDesfecho, DiscadorFila, DiscadorItem, discadorAssumir,
   discadorDesfecho, discadorFila, discadorRemover, discadorReordenar,
@@ -36,22 +37,34 @@ export default function DiscadorPage() {
   const [enviarEmail, setEnviarEmail] = useState(false);
   const [encerrar, setEncerrar] = useState(false);
   const [quando, setQuando] = useState("");
+  // Papel global (admin/rede/matriz) precisa dizer de qual loja é a fila.
+  const [lojaId, setLojaId] = useState<number | undefined>(undefined);
+  const [souGlobal, setSouGlobal] = useState(false);
   const arrastando = useRef<number | null>(null);
 
-  const carregar = useCallback(async (manterAtual = true) => {
+  const carregar = useCallback(async (manterAtual = true, lid?: number) => {
     try {
-      const f = await discadorFila();
+      const f = await discadorFila(lid);
       setFila(f);
+      setMsg("");
       const pendentes = f.itens.filter((i) => i.estado === "pendente");
       if (!manterAtual || !pendentes.some((i) => i.id === atualId)) {
         setAtualId(pendentes.length ? pendentes[0].id : null);
       }
     } catch (e: unknown) {
+      setFila(null);
       setMsg(e instanceof Error ? e.message : String(e));
     }
   }, [atualId]);
 
-  useEffect(() => { carregar(false); /* eslint-disable-next-line */ }, []);
+  // Espera o seletor dizer qual é a loja antes de bater no servidor —
+  // quem é global sem loja escolhida só levaria um "Informe a loja".
+  function trocarLoja(id: number | undefined, global: boolean) {
+    setLojaId(id);
+    setSouGlobal(global);
+    if (id || !global) carregar(false, id);
+    else setFila(null);
+  }
 
   const atual: DiscadorItem | null =
     fila?.itens.find((i) => i.id === atualId) ?? null;
@@ -87,7 +100,7 @@ export default function DiscadorPage() {
       });
       setMsg(r.mensagem);
       limparForm();
-      const f = await discadorFila();
+      const f = await discadorFila(lojaId);
       setFila(f);
       if (irProximo) {
         const pend = f.itens.filter(
@@ -114,13 +127,13 @@ export default function DiscadorPage() {
       ...ids.map((id) => fila.itens.find((i) => i.id === id)!),
       ...fila.itens.filter((i) => i.estado !== "pendente"),
     ] });
-    try { await discadorReordenar(ids); } catch { carregar(); }
+    try { await discadorReordenar(ids); } catch { carregar(true, lojaId); }
   }
 
   async function tirarDaFila(id: number) {
     if (!window.confirm("Tirar este contato da fila?")) return;
     await discadorRemover(id);
-    carregar(false);
+    carregar(false, lojaId);
   }
 
   const pendentes = fila?.itens.filter((i) => i.estado === "pendente") ?? [];
@@ -132,6 +145,7 @@ export default function DiscadorPage() {
       <div className="mx-auto max-w-[1500px] px-3">
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold">☎ Discador</h1>
+          <LojaDoDiscador onTrocar={trocarLoja} />
           <span className="text-sm text-gray-500">
             {fila?.loja ? `${fila.loja} · ` : ""}
             {pendentes.length} para ligar
@@ -150,7 +164,16 @@ export default function DiscadorPage() {
         <div className="grid gap-3 lg:grid-cols-2">
           {/* ─── Esquerda: ligar e registrar ─── */}
           <div className="space-y-3">
-            {!atual ? (
+            {souGlobal && !lojaId ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900">
+                <div className="text-lg">Escolha a loja da fila</div>
+                <div className="mt-1 text-sm">
+                  Você enxerga todas as lojas, então o sistema precisa saber de
+                  qual delas é esta fila de ligações. Use o seletor no topo — a
+                  escolha fica guardada neste computador.
+                </div>
+              </div>
+            ) : !atual ? (
               <div className="rounded-xl border bg-white p-6 text-center text-gray-500">
                 <div className="text-lg">Nenhum contato na fila</div>
                 <div className="mt-1 text-sm">

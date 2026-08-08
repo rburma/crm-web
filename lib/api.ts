@@ -2578,7 +2578,8 @@ export function discadorFila(lojaId?: number): Promise<DiscadorFila> {
 
 export function discadorAdicionar(payload: {
   loja_id?: number; oportunidade_ids?: number[]; consumidor_ids?: number[];
-}): Promise<{ ok: boolean; adicionados: number; mensagem: string }> {
+}): Promise<{ ok: boolean; adicionados: number; mensagem: string;
+              loja_id?: number; loja?: string | null }> {
   return req("discador/adicionar", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

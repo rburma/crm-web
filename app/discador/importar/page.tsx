@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import Shell from "@/components/Shell";
+import LojaDoDiscador from "@/components/LojaDoDiscador";
 import {
   DiscadorPrevia, discadorImportar, discadorImportarPrevia,
 } from "@/lib/api";
@@ -52,7 +53,16 @@ export default function ImportarDiscadorPage() {
   const [previa, setPrevia] = useState<DiscadorPrevia | null>(null);
   const [msg, setMsg] = useState("");
   const [ocupado, setOcupado] = useState(false);
-  const liberado = origem.trim().length >= 10 && confirmo;
+  // Papel global (admin/rede/matriz) precisa dizer para qual loja é a lista.
+  const [lojaId, setLojaId] = useState<number | undefined>(undefined);
+  const [souGlobal, setSouGlobal] = useState(false);
+  const faltaLoja = souGlobal && !lojaId;
+  const liberado = origem.trim().length >= 10 && confirmo && !faltaLoja;
+
+  function trocarLoja(id: number | undefined, global: boolean) {
+    setLojaId(id);
+    setSouGlobal(global);
+  }
 
   async function lerArquivo(f: File | null) {
     if (!f) return;
@@ -79,7 +89,7 @@ export default function ImportarDiscadorPage() {
     setOcupado(true);
     setMsg("");
     try {
-      setPrevia(await discadorImportarPrevia({ origem, contatos }));
+      setPrevia(await discadorImportarPrevia({ loja_id: lojaId, origem, contatos }));
     } catch (e: unknown) {
       setMsg(e instanceof Error ? e.message : String(e));
     } finally {
@@ -92,7 +102,8 @@ export default function ImportarDiscadorPage() {
     setMsg("");
     try {
       const r = await discadorImportar({
-        origem, confirmo, contatos, cadastrar_no_crm: cadastrar,
+        loja_id: lojaId, origem, confirmo, contatos,
+        cadastrar_no_crm: cadastrar,
       });
       setMsg(r.mensagem + " — abra o discador para começar a ligar.");
       setContatos([]);
@@ -117,6 +128,16 @@ export default function ImportarDiscadorPage() {
             ← voltar ao discador
           </a>
           <h1 className="text-2xl font-bold">Importar lista de contatos</h1>
+        </div>
+
+        <div className={souGlobal ? "rounded-xl border bg-white p-4" : ""}>
+          <LojaDoDiscador onTrocar={trocarLoja} />
+          {faltaLoja && (
+            <div className="mt-2 text-sm text-amber-800">
+              Você enxerga todas as lojas — escolha para qual delas vai esta
+              lista antes de continuar.
+            </div>
+          )}
         </div>
 
         {/* ── Barreira da LGPD ── */}

@@ -2511,6 +2511,41 @@ export function baseIndexarDestravar(): Promise<{ ok: boolean; msg: string }> {
   return req("base/indexar/destravar", { method: "POST" });
 }
 
+// Onboarding etapa 1: mede o custo de passar as transcricoes por um resumo.
+// So CONTA (count_tokens) — nao gera texto e nao grava nada. Vai em lotes
+// pelo mesmo motivo da indexacao: requisicao longa morre no Render/Vercel.
+export type BaseContagem = {
+  erro?: string;
+  arquivos: number;          // total do acervo
+  caracteres: number;        // total do acervo
+  inicio: number;
+  proximo: number | null;    // null = acabou
+  arquivos_medidos: number;  // nesta fatia
+  tokens: number;            // nesta fatia
+  caracteres_lote: number;
+  por_idioma: Record<string, number>;
+  falhas: string[];
+};
+
+export type BaseMedicao = {
+  arquivos: number;
+  tokens_entrada: number;
+  tokens_overhead_prompt: number;
+  tokens_entrada_total: number;
+  tokens_saida_estimados: number;
+  modelo_da_contagem: string;
+  custos: { modelo: string; rotulo: string; normal_usd: number; lote_usd: number }[];
+  nota: string;
+};
+
+export function baseContarOnboarding(inicio: number, qtd = 25): Promise<BaseContagem> {
+  return req(`base/onboarding/medir?inicio=${inicio}&qtd=${qtd}`, { method: "POST" });
+}
+
+export function baseProjetarOnboarding(tokens: number, arquivos: number): Promise<BaseMedicao> {
+  return req(`base/onboarding/projetar?tokens=${tokens}&arquivos=${arquivos}`);
+}
+
 // Indexacao em LOTES: o navegador comanda o ritmo (nada de tarefa longa
 // no servidor, que morria no restart do Render).
 export type BaseProgresso = {

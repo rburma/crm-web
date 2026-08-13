@@ -7,9 +7,10 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseOpcoes, BaseProgresso, BaseVetores, baseConteudos,
-  baseLote, baseOpcoes, basePreparar, baseProgresso, baseTicket,
-  baseUploadDireto, baseVetoresLote, baseVetoresProgresso,
+  BaseConteudoItem, BaseMedicao, BaseOpcoes, BaseProgresso, BaseVetores,
+  baseContarOnboarding, baseConteudos, baseLote, baseOpcoes, basePreparar,
+  baseProgresso, baseProjetarOnboarding, baseTicket, baseUploadDireto,
+  baseVetoresLote, baseVetoresProgresso,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -112,9 +113,44 @@ export default function BaseConhecimentoPage() {
   const falhas = fila.filter((i) => i.estado === "erro").length;
   const maxMb = opcoes?.max_mb ?? 45;
   const [statusIdx, setStatusIdx] = useState("");
+  const [medicao, setMedicao] = useState<BaseMedicao | null>(null);
+  const [idiomas, setIdiomas] = useState<Record<string, number>>({});
+  const [medindo, setMedindo] = useState("");
 
   const [prog, setProg] = useState<BaseProgresso | null>(null);
   const pararRef = useRef(false);
+
+  // Onboarding: so CONTA os tokens das transcricoes e mostra o preco.
+  // Nao gera texto nem grava nada — e seguro clicar. Em lotes, igual a
+  // indexacao: cada volta e uma requisicao curta.
+  async function medirCusto() {
+    setMedicao(null);
+    setIdiomas({});
+    setMedindo("Contando os tokens das transcrições...");
+    try {
+      let inicio = 0;
+      let tokens = 0;
+      let arquivos = 0;
+      const idi: Record<string, number> = {};
+      for (;;) {
+        const c = await baseContarOnboarding(inicio);
+        if (c.erro) { setMedindo(c.erro); return; }
+        tokens += c.tokens;
+        arquivos += c.arquivos_medidos;
+        for (const [k, v] of Object.entries(c.por_idioma)) {
+          idi[k] = (idi[k] || 0) + v;
+        }
+        setMedindo(`Contando ${arquivos} de ${c.arquivos} transcrições...`);
+        if (c.proximo === null) break;
+        inicio = c.proximo;
+      }
+      setIdiomas(idi);
+      setMedicao(await baseProjetarOnboarding(tokens, arquivos));
+      setMedindo("");
+    } catch (e) {
+      setMedindo("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
 
   // Indexa em lotes pequenos: cada volta e uma requisicao CURTA. Se o
   // servidor reiniciar, e so clicar de novo — a fila fica no banco.
@@ -227,6 +263,10 @@ export default function BaseConhecimentoPage() {
               className="text-sm border rounded px-3 py-1 text-amber-700 hover:bg-amber-50">
               ⏸ pausar
             </button>
+            <button onClick={medirCusto} disabled={!!medindo}
+              className="text-sm border rounded px-3 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+              💲 medir custo do onboarding
+            </button>
             {statusIdx && (
               <span className="text-xs text-gray-600">{statusIdx}</span>
             )}
@@ -235,6 +275,48 @@ export default function BaseConhecimentoPage() {
             <div className="mt-1 h-2 w-full rounded bg-gray-200">
               <div className="h-2 rounded bg-green-600 transition-all"
                 style={{ width: `${prog.percentual}%` }} />
+            </div>
+          )}
+          {medindo && (
+            <div className="mt-2 text-xs text-gray-600">{medindo}</div>
+          )}
+          {medicao && (
+            <div className="mt-2 rounded border bg-gray-50 p-3 text-sm">
+              <div className="font-semibold">
+                Custo de resumir {medicao.arquivos} transcrições
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                {medicao.tokens_entrada_total.toLocaleString("pt-BR")} tokens de
+                entrada (medidos) +{" "}
+                {medicao.tokens_saida_estimados.toLocaleString("pt-BR")} de saída
+                (estimados)
+                {Object.keys(idiomas).length > 0 && (
+                  <>. Idiomas:{" "}
+                    {Object.entries(idiomas)
+                      .map(([k, v]) => `${k}: ${v}`).join(", ")}</>
+                )}
+              </div>
+              <table className="mt-2 text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500">
+                    <th className="pr-6">modelo</th>
+                    <th className="pr-6">normal</th>
+                    <th>em lote (-50%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {medicao.custos.map((c) => (
+                    <tr key={c.modelo}>
+                      <td className="pr-6">{c.rotulo}</td>
+                      <td className="pr-6">US$ {c.normal_usd.toFixed(2)}</td>
+                      <td className="font-semibold">
+                        US$ {c.lote_usd.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-2 text-xs text-gray-500">{medicao.nota}</div>
             </div>
           )}
         </div>

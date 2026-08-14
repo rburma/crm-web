@@ -195,6 +195,31 @@ export default function BaseConhecimentoPage() {
     }
   }
 
+  // Reprocessa o acervo inteiro com o prompt novo. Este GASTA — por isso e o
+  // unico ponto da tela com confirmacao. Apaga os resumos e reenvia tudo.
+  async function reprocessarTudo() {
+    if (!confirm(
+      "Isto apaga os 288 resumos e gera todos de novo, com o prompt novo "
+      + "(módulos e marcas em lista fechada, pode/não pode só para regra, "
+      + "3 a 5 perguntas).\n\nCusta cerca de US$ 4,95 e leva até 1 hora.\n\n"
+      + "Confirma?")) return;
+    setExtrMsg("Apagando os resumos antigos e reenviando...");
+    try {
+      let primeira = true;   // só a primeira chamada apaga
+      for (;;) {
+        const r = await baseExtrairEnviar(50, primeira);
+        primeira = false;
+        if (!r.enviados) break;
+        setExtrMsg(`Reenviado — faltam ${r.faltam} transcrições`);
+      }
+      setExtr(await baseExtrairEstado());
+      setExtrMsg("Reenviado. Volte em cerca de 1 hora e clique em "
+        + "“resumos do onboarding” para colher.");
+    } catch (e) {
+      setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   // Panorama em TEXTO PURO, nao em tabela: a serventia dele e ser copiado e
   // colado inteiro numa conversa para decidir a arvore da trilha.
   async function verPanorama() {
@@ -476,6 +501,10 @@ export default function BaseConhecimentoPage() {
                   <button onClick={republicarTudo}
                     className="mt-1 block text-xs text-gray-500 underline hover:text-gray-800">
                     reescrever os {extr.resumos} arquivos no Box
+                  </button>
+                  <button onClick={reprocessarTudo}
+                    className="mt-1 block text-xs text-red-700 underline hover:text-red-900">
+                    reprocessar tudo com o prompt novo (custa ~US$ 4,95)
                   </button>
                 </>
               )}

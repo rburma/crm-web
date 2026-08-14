@@ -2577,10 +2577,12 @@ export type BaseExtracaoEstado = {
   } | null;
 };
 
-export function baseExtrairEnviar(qtd = 50): Promise<{
+// refazer=true APAGA os resumos e recomeça o acervo inteiro — custa de novo.
+export function baseExtrairEnviar(qtd = 50, refazer = false): Promise<{
   enviados: number; faltam: number; msg?: string;
 }> {
-  return req(`base/onboarding/extrair?qtd=${qtd}`, { method: "POST" });
+  return req(`base/onboarding/extrair?qtd=${qtd}&refazer=${refazer}`,
+    { method: "POST" });
 }
 
 export function baseExtrairEstado(): Promise<BaseExtracaoEstado> {

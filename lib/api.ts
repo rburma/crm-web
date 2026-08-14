@@ -2584,10 +2584,15 @@ export function baseExtrairColher(): Promise<{
   return req("base/onboarding/extrair/colher", { method: "POST" });
 }
 
-export function baseExtrairPublicar(limite = 8): Promise<{
+// refazer=true reescreve no Box tudo o que ja foi publicado (nova versao do
+// mesmo arquivo). Use quando o conteudo mudou — prompt novo ou reprocessamento.
+export function baseExtrairPublicar(limite = 8, refazer = false): Promise<{
   publicados: number; faltam: number;
 }> {
-  return req(`base/onboarding/extrair/publicar?limite=${limite}`, { method: "POST" });
+  return req(
+    `base/onboarding/extrair/publicar?limite=${limite}&refazer=${refazer}`,
+    { method: "POST" },
+  );
 }
 
 // Indexacao em LOTES: o navegador comanda o ritmo (nada de tarefa longa

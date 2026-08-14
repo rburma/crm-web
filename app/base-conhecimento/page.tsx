@@ -193,6 +193,26 @@ export default function BaseConhecimentoPage() {
     }
   }
 
+  // Reescreve no Box tudo o que ja foi publicado. Necessario quando o
+  // conteudo mudou depois da publicacao — prompt novo, reprocessamento, ou
+  // conserto (em 14/08 os 288 subiram em branco por causa de um filtro).
+  async function republicarTudo() {
+    setExtrMsg("Reescrevendo os resumos no Box...");
+    try {
+      let primeira = true;   // so a primeira chamada zera o que ja foi publicado
+      for (;;) {
+        const p = await baseExtrairPublicar(8, primeira);
+        primeira = false;
+        if (!p.publicados) break;
+        setExtrMsg(`Reescrevendo no Box... faltam ${p.faltam}`);
+      }
+      setExtr(await baseExtrairEstado());
+      setExtrMsg("Resumos reescritos no Box.");
+    } catch (e) {
+      setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   // Indexa em lotes pequenos: cada volta e uma requisicao CURTA. Se o
   // servidor reiniciar, e so clicar de novo — a fila fica no banco.
   async function indexar(completo = false) {
@@ -393,6 +413,12 @@ export default function BaseConhecimentoPage() {
                 )}
                 Modelo: {extr.modelo}.
               </div>
+              {extr.resumos > 0 && (
+                <button onClick={republicarTudo}
+                  className="mt-1 text-xs text-gray-500 underline hover:text-gray-800">
+                  reescrever os {extr.resumos} arquivos no Box
+                </button>
+              )}
               {extr.lotes.some((l) => l.falhas > 0) && (
                 <div className="mt-1 text-xs text-amber-800">
                   {extr.lotes.reduce((s, l) => s + l.falhas, 0)} transcrição(ões)

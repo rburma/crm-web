@@ -7,10 +7,11 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseMedicao, BaseOpcoes, BaseProgresso, BaseVetores,
-  baseContarOnboarding, baseConteudos, baseLote, baseOpcoes, basePreparar,
-  baseProgresso, baseProjetarOnboarding, baseTicket, baseUploadDireto,
-  baseVetoresLote, baseVetoresProgresso,
+  BaseConteudoItem, BaseExtracaoEstado, BaseMedicao, BaseOpcoes, BaseProgresso,
+  BaseVetores, baseContarOnboarding, baseConteudos, baseExtrairColher,
+  baseExtrairEnviar, baseExtrairEstado, baseExtrairPublicar, baseLote,
+  baseOpcoes, basePreparar, baseProgresso, baseProjetarOnboarding, baseTicket,
+  baseUploadDireto, baseVetoresLote, baseVetoresProgresso,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -116,6 +117,8 @@ export default function BaseConhecimentoPage() {
   const [medicao, setMedicao] = useState<BaseMedicao | null>(null);
   const [idiomas, setIdiomas] = useState<Record<string, number>>({});
   const [medindo, setMedindo] = useState("");
+  const [extr, setExtr] = useState<BaseExtracaoEstado | null>(null);
+  const [extrMsg, setExtrMsg] = useState("");
 
   const [prog, setProg] = useState<BaseProgresso | null>(null);
   const pararRef = useRef(false);
@@ -149,6 +152,39 @@ export default function BaseConhecimentoPage() {
       setMedindo("");
     } catch (e) {
       setMedindo("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  // Onboarding etapa 2. UM botao que faz "o proximo passo que der para fazer
+  // agora": envia o que falta, colhe o que voltou, publica no Box. Como o lote
+  // da Anthropic leva ate 1h, o normal e clicar hoje e clicar de novo depois —
+  // e ele se acerta sozinho a partir do que ja esta gravado.
+  async function resumosOnboarding() {
+    setExtrMsg("Verificando...");
+    try {
+      for (;;) {
+        const r = await baseExtrairEnviar();
+        if (!r.enviados) break;
+        setExtrMsg(`Enviado para a Anthropic — faltam ${r.faltam} transcrições`);
+      }
+      for (;;) {
+        const c = await baseExtrairColher();
+        if (!c.colhidos && !c.falhas) break;
+        setExtrMsg(`Gravando resumos... (${c.colhidos} neste lote)`);
+      }
+      for (;;) {
+        const p = await baseExtrairPublicar();
+        if (!p.publicados) break;
+        setExtrMsg(`Publicando no Box... faltam ${p.faltam}`);
+      }
+      const st = await baseExtrairEstado();
+      setExtr(st);
+      setExtrMsg(st.rodando > 0
+        ? `${st.rodando} lote(s) na fila da Anthropic. Costuma levar menos de `
+          + `1 hora (limite 24h). Volte aqui e clique de novo.`
+        : "");
+    } catch (e) {
+      setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }
   }
 
@@ -232,6 +268,7 @@ export default function BaseConhecimentoPage() {
       if (p.total) setStatusIdx(`${p.feitos} de ${p.total} indexados`);
     }).catch(() => {});
     baseVetoresProgresso().then(setVet).catch(() => {});
+    baseExtrairEstado().then(setExtr).catch(() => {});
   }, []);
 
   return (
@@ -266,6 +303,11 @@ export default function BaseConhecimentoPage() {
             <button onClick={medirCusto} disabled={!!medindo}
               className="text-sm border rounded px-3 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
               💲 medir custo do onboarding
+            </button>
+            <button onClick={resumosOnboarding}
+              className="text-sm border rounded px-3 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100">
+              🧾 resumos do onboarding
+              {extr && extr.faltam_enviar > 0 ? ` (${extr.faltam_enviar})` : ""}
             </button>
             {statusIdx && (
               <span className="text-xs text-gray-600">{statusIdx}</span>
@@ -317,6 +359,41 @@ export default function BaseConhecimentoPage() {
                 </tbody>
               </table>
               <div className="mt-2 text-xs text-gray-500">{medicao.nota}</div>
+            </div>
+          )}
+          {extrMsg && (
+            <div className="mt-2 text-xs text-gray-600">{extrMsg}</div>
+          )}
+          {extr && (extr.resumos > 0 || extr.rodando > 0
+                    || extr.faltam_enviar < extr.acervo) && (
+            <div className="mt-2 rounded border bg-amber-50 p-3 text-sm">
+              <div className="font-semibold">
+                Resumos do onboarding — {extr.resumos} de {extr.acervo} prontos
+              </div>
+              <div className="text-xs text-gray-700 mt-1">
+                {extr.faltam_enviar > 0 && (
+                  <>{extr.faltam_enviar} a enviar. </>
+                )}
+                {extr.rodando > 0 && (
+                  <>{extr.rodando} lote(s) rodando na Anthropic. </>
+                )}
+                {extr.a_colher > 0 && (
+                  <>{extr.a_colher} lote(s) prontos para gravar. </>
+                )}
+                {extr.a_publicar > 0 && (
+                  <>{extr.a_publicar} a publicar no Box. </>
+                )}
+                {extr.publicados_no_box > 0 && (
+                  <>{extr.publicados_no_box} já em <code>_resumos/</code>. </>
+                )}
+                Modelo: {extr.modelo}.
+              </div>
+              {extr.lotes.some((l) => l.falhas > 0) && (
+                <div className="mt-1 text-xs text-amber-800">
+                  {extr.lotes.reduce((s, l) => s + l.falhas, 0)} transcrição(ões)
+                  falharam — clicar de novo tenta só as que faltam.
+                </div>
+              )}
             </div>
           )}
         </div>

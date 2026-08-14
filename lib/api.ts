@@ -2546,6 +2546,45 @@ export function baseProjetarOnboarding(tokens: number, arquivos: number): Promis
   return req(`base/onboarding/projetar?tokens=${tokens}&arquivos=${arquivos}`);
 }
 
+// Onboarding etapa 2: as transcricoes viram resumos estruturados (a materia
+// -prima da trilha). Vai pela Batch API — metade do preco, ate 24h de espera.
+export type BaseExtracaoEstado = {
+  acervo: number;
+  faltam_enviar: number;      // transcricoes ainda sem resumo nem lote
+  rodando: number;            // lotes na fila da Anthropic
+  a_colher: number;           // lotes que terminaram e faltam gravar
+  resumos: number;            // ja no banco
+  publicados_no_box: number;
+  a_publicar: number;
+  modelo: string;
+  lotes: {
+    id: number; batch_id: string; estado: string;
+    total: number; colhidos: number; falhas: number; msg: string | null;
+  }[];
+};
+
+export function baseExtrairEnviar(qtd = 50): Promise<{
+  enviados: number; faltam: number; msg?: string;
+}> {
+  return req(`base/onboarding/extrair?qtd=${qtd}`, { method: "POST" });
+}
+
+export function baseExtrairEstado(): Promise<BaseExtracaoEstado> {
+  return req("base/onboarding/extrair/estado");
+}
+
+export function baseExtrairColher(): Promise<{
+  colhidos: number; falhas?: number; msg?: string;
+}> {
+  return req("base/onboarding/extrair/colher", { method: "POST" });
+}
+
+export function baseExtrairPublicar(limite = 8): Promise<{
+  publicados: number; faltam: number;
+}> {
+  return req(`base/onboarding/extrair/publicar?limite=${limite}`, { method: "POST" });
+}
+
 // Indexacao em LOTES: o navegador comanda o ritmo (nada de tarefa longa
 // no servidor, que morria no restart do Render).
 export type BaseProgresso = {

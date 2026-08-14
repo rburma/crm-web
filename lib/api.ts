@@ -2587,6 +2587,20 @@ export function baseExtrairEstado(): Promise<BaseExtracaoEstado> {
   return req("base/onboarding/extrair/estado");
 }
 
+// Panorama do que o acervo virou. So le o banco — nao chama modelo.
+export type BasePanorama = {
+  total: number;
+  modulos: { nome: string; videos: number }[];
+  marcas: { nome: string; videos: number }[];
+  publicos: { nome: string; videos: number }[];
+  perguntas_por_video: { nome: string; videos: number }[];
+  videos_sem_pode_nem_nao_pode: number;
+};
+
+export function basePanoramaOnboarding(): Promise<BasePanorama> {
+  return req("base/onboarding/panorama");
+}
+
 export function baseExtrairColher(): Promise<{
   colhidos: number; falhas?: number; msg?: string;
 }> {

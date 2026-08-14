@@ -7,11 +7,12 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseExtracaoEstado, BaseMedicao, BaseOpcoes, BaseProgresso,
-  BaseVetores, baseContarOnboarding, baseConteudos, baseExtrairColher,
-  baseExtrairEnviar, baseExtrairEstado, baseExtrairPublicar, baseLote,
-  baseOpcoes, basePreparar, baseProgresso, baseProjetarOnboarding, baseTicket,
-  baseUploadDireto, baseVetoresLote, baseVetoresProgresso,
+  BaseConteudoItem, BaseExtracaoEstado, BaseMedicao, BaseOpcoes, BasePanorama,
+  BaseProgresso, BaseVetores, baseContarOnboarding, baseConteudos,
+  baseExtrairColher, baseExtrairEnviar, baseExtrairEstado, baseExtrairPublicar,
+  baseLote, baseOpcoes, basePanoramaOnboarding, basePreparar, baseProgresso,
+  baseProjetarOnboarding, baseTicket, baseUploadDireto, baseVetoresLote,
+  baseVetoresProgresso,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -119,6 +120,7 @@ export default function BaseConhecimentoPage() {
   const [medindo, setMedindo] = useState("");
   const [extr, setExtr] = useState<BaseExtracaoEstado | null>(null);
   const [extrMsg, setExtrMsg] = useState("");
+  const [panorama, setPanorama] = useState<string>("");
 
   const [prog, setProg] = useState<BaseProgresso | null>(null);
   const pararRef = useRef(false);
@@ -190,6 +192,31 @@ export default function BaseConhecimentoPage() {
         : "");
     } catch (e) {
       setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  // Panorama em TEXTO PURO, nao em tabela: a serventia dele e ser copiado e
+  // colado inteiro numa conversa para decidir a arvore da trilha.
+  async function verPanorama() {
+    setPanorama("carregando...");
+    try {
+      const p: BasePanorama = await basePanoramaOnboarding();
+      const bloco = (titulo: string, itens: { nome: string; videos: number }[]) =>
+        [`${titulo} (${itens.length})`,
+          ...itens.map((i) => `  ${String(i.videos).padStart(4)}  ${i.nome}`),
+          ""].join("\n");
+      setPanorama([
+        `PANORAMA DO ONBOARDING — ${p.total} videos resumidos`,
+        "",
+        bloco("MODULOS", p.modulos),
+        bloco("MARCAS", p.marcas),
+        bloco("PUBLICOS", p.publicos),
+        bloco("PERGUNTAS POR VIDEO", p.perguntas_por_video),
+        `Videos sem nenhuma regra (pode/nao pode vazios): `
+          + `${p.videos_sem_pode_nem_nao_pode}`,
+      ].join("\n"));
+    } catch (e) {
+      setPanorama("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }
   }
 
@@ -441,10 +468,21 @@ export default function BaseConhecimentoPage() {
                 </div>
               )}
               {extr.resumos > 0 && (
-                <button onClick={republicarTudo}
-                  className="mt-2 block text-xs text-gray-500 underline hover:text-gray-800">
-                  reescrever os {extr.resumos} arquivos no Box
-                </button>
+                <>
+                  <button onClick={verPanorama}
+                    className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">
+                    ver panorama (módulos, marcas, públicos)
+                  </button>
+                  <button onClick={republicarTudo}
+                    className="mt-1 block text-xs text-gray-500 underline hover:text-gray-800">
+                    reescrever os {extr.resumos} arquivos no Box
+                  </button>
+                </>
+              )}
+              {panorama && (
+                <pre className="mt-2 max-h-96 overflow-auto rounded border bg-white p-2 text-xs whitespace-pre">
+                  {panorama}
+                </pre>
               )}
               {extr.lotes.some((l) => l.falhas > 0) && (
                 <div className="mt-1 text-xs text-amber-800">

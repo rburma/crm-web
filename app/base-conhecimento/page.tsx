@@ -162,6 +162,11 @@ export default function BaseConhecimentoPage() {
   async function resumosOnboarding() {
     setExtrMsg("Verificando...");
     try {
+      // Primeiro atualiza o estado dos lotes: e' esta chamada que marca como
+      // "pronto" o que a Anthropic ja terminou. Sem ela na frente, a colheita
+      // logo abaixo nao acha nada e o clique se perde (o lote so seria colhido
+      // no clique SEGUINTE).
+      setExtr(await baseExtrairEstado());
       for (;;) {
         const r = await baseExtrairEnviar();
         if (!r.enviados) break;
@@ -393,6 +398,31 @@ export default function BaseConhecimentoPage() {
                   {extr.lotes.reduce((s, l) => s + l.falhas, 0)} transcrição(ões)
                   falharam — clicar de novo tenta só as que faltam.
                 </div>
+              )}
+              {extr.lotes.length > 0 && (
+                <table className="mt-2 text-xs">
+                  <thead>
+                    <tr className="text-left text-gray-500">
+                      <th className="pr-4">lote</th>
+                      <th className="pr-4">estado</th>
+                      <th className="pr-4">arquivos</th>
+                      <th className="pr-4">colhidos</th>
+                      <th>identificação na Anthropic</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {extr.lotes.map((l) => (
+                      <tr key={l.id} className={l.estado === "enviado"
+                        ? "text-amber-800" : "text-gray-600"}>
+                        <td className="pr-4">{l.id}</td>
+                        <td className="pr-4">{l.estado}</td>
+                        <td className="pr-4">{l.total}</td>
+                        <td className="pr-4">{l.colhidos}</td>
+                        <td className="font-mono">{l.batch_id}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
           )}

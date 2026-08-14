@@ -2566,6 +2566,15 @@ export type BaseExtracaoEstado = {
   orfaos: {
     batch_id: string; status: string; criado_em: string; pedidos: number;
   }[];
+  // O que esta REALMENTE gravado numa linha, para nao termos que deduzir.
+  amostra: {
+    arquivo: string | null;
+    tipo_gravado: string;
+    campos: string[];
+    titulo: string | null;
+    letras_no_resumo: number;
+    publicado: boolean;
+  } | null;
 };
 
 export function baseExtrairEnviar(qtd = 50): Promise<{

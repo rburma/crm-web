@@ -200,14 +200,19 @@ export default function BaseConhecimentoPage() {
     setExtrMsg("Reescrevendo os resumos no Box...");
     try {
       let primeira = true;   // so a primeira chamada zera o que ja foi publicado
+      let total = 0;
       for (;;) {
         const p = await baseExtrairPublicar(8, primeira);
         primeira = false;
         if (!p.publicados) break;
+        total += p.publicados;
         setExtrMsg(`Reescrevendo no Box... faltam ${p.faltam}`);
       }
       setExtr(await baseExtrairEstado());
-      setExtrMsg("Resumos reescritos no Box.");
+      // O numero importa: "0 reescritos" e um diagnostico, nao um sucesso.
+      setExtrMsg(total > 0
+        ? `${total} arquivo(s) reescritos no Box.`
+        : "Nenhum arquivo foi reescrito — não há resumo com conteúdo gravado.");
     } catch (e) {
       setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }
@@ -413,9 +418,31 @@ export default function BaseConhecimentoPage() {
                 )}
                 Modelo: {extr.modelo}.
               </div>
+              {extr.amostra && (
+                <div className="mt-2 rounded border bg-white p-2 text-xs">
+                  <div className="font-semibold">O que está gravado (1ª linha)</div>
+                  <div className="text-gray-700">
+                    {extr.amostra.arquivo}
+                  </div>
+                  <div className={extr.amostra.campos.length === 0
+                    ? "text-red-700 font-semibold" : "text-gray-700"}>
+                    {extr.amostra.campos.length} campo(s)
+                    {extr.amostra.campos.length > 0
+                      && `: ${extr.amostra.campos.join(", ")}`}
+                    {" · "}resumo com {extr.amostra.letras_no_resumo} letras
+                    {" · "}tipo {extr.amostra.tipo_gravado}
+                    {" · "}{extr.amostra.publicado ? "publicado" : "não publicado"}
+                  </div>
+                  {extr.amostra.titulo && (
+                    <div className="text-gray-700">
+                      Título: {extr.amostra.titulo}
+                    </div>
+                  )}
+                </div>
+              )}
               {extr.resumos > 0 && (
                 <button onClick={republicarTudo}
-                  className="mt-1 text-xs text-gray-500 underline hover:text-gray-800">
+                  className="mt-2 block text-xs text-gray-500 underline hover:text-gray-800">
                   reescrever os {extr.resumos} arquivos no Box
                 </button>
               )}

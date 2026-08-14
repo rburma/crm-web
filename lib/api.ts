@@ -2561,6 +2561,11 @@ export type BaseExtracaoEstado = {
     id: number; batch_id: string; estado: string;
     total: number; colhidos: number; falhas: number; msg: string | null;
   }[];
+  // Lotes que existem na Anthropic e nao no nosso banco: foram pagos e
+  // ninguem registrou. Rastro de falha, nao operacao normal.
+  orfaos: {
+    batch_id: string; status: string; criado_em: string; pedidos: number;
+  }[];
 };
 
 export function baseExtrairEnviar(qtd = 50): Promise<{

@@ -399,6 +399,19 @@ export default function BaseConhecimentoPage() {
                   falharam — clicar de novo tenta só as que faltam.
                 </div>
               )}
+              {extr.orfaos && extr.orfaos.length > 0 && (
+                <div className="mt-2 rounded border border-red-300 bg-red-50 p-2 text-xs">
+                  <div className="font-semibold text-red-800">
+                    {extr.orfaos.length} lote(s) existem na Anthropic e não aqui
+                    — foram pagos sem ficar registrados.
+                  </div>
+                  {extr.orfaos.map((o) => (
+                    <div key={o.batch_id} className="text-red-700 font-mono">
+                      {o.batch_id} · {o.status} · {o.pedidos} pedidos · {o.criado_em}
+                    </div>
+                  ))}
+                </div>
+              )}
               {extr.lotes.length > 0 && (
                 <table className="mt-2 text-xs">
                   <thead>

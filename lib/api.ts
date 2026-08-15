@@ -2620,10 +2620,13 @@ export type BaseDuplicados = {
                 titulo: string | null; letras: number }[];
   }[];
   // semelhanca_pct: medida (Jaccard sobre trechos de 5 palavras) entre o
-  // primeiro do grupo e cada um dos outros. Acima de 80% é o mesmo conteúdo.
-  parecidos: (BaseDuplicados["identicos"][number] & {
+  // primeiro do grupo e cada um dos outros.
+  //   >= 95% -> praticamente_identicos: mesma gravação, entra na remoção
+  //   80-94% -> parecidos: alguém precisa olhar, nunca some sozinho
+  praticamente_identicos: (BaseDuplicados["identicos"][number] & {
     semelhanca_pct: number[];
   })[];
+  parecidos: BaseDuplicados["praticamente_identicos"];
   a_remover: number;
 };
 

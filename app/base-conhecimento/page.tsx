@@ -124,6 +124,7 @@ export default function BaseConhecimentoPage() {
   const [panorama, setPanorama] = useState<string>("");
   const [pan, setPan] = useState<BasePanorama | null>(null);
   const [dup, setDup] = useState<string>("");
+  const [dupARemover, setDupARemover] = useState(0);
   const [movDe, setMovDe] = useState("");
   const [movPara, setMovPara] = useState("");
 
@@ -240,23 +241,35 @@ export default function BaseConhecimentoPage() {
         g.arquivos.map((a) => `    - ${a.titulo || a.arquivo} `
           + `(${a.letras} letras)`).join("\n");
       setDup([
-        `IDENTICOS — mesmo texto, da para apagar (${d.identicos.length} grupos, `
-          + `${d.a_remover} a remover)`,
+        `A REMOVER: ${d.a_remover} resumo(s) redundantes`,
+        "",
+        `IDENTICOS — mesmo texto (${d.identicos.length} grupos)`,
         ...d.identicos.map((g) => `  grupo de ${g.quantos}:\n${grupo(g)}`),
         "",
-        `PARECIDOS — semelhanca MEDIDA, CONFERIR (${d.parecidos.length} grupos)`,
+        `PRATICAMENTE IDENTICOS — mesma gravação transcrita 2x `
+          + `(${d.praticamente_identicos.length} grupos)`,
+        ...d.praticamente_identicos.map((g) =>
+          `  grupo de ${g.quantos} — semelhança `
+          + `${g.semelhanca_pct.join("%, ")}%:\n${grupo(g)}`),
+        "",
+        `PARECIDOS — NAO entram na remoção, alguém precisa olhar `
+          + `(${d.parecidos.length} grupos)`,
         ...d.parecidos.map((g) =>
           `  grupo de ${g.quantos} — semelhança `
           + `${g.semelhanca_pct.join("%, ")}%:\n${grupo(g)}`),
       ].join("\n"));
+      setDupARemover(d.a_remover);
     } catch (e) {
       setDup("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }
   }
 
   async function apagarDuplicados() {
-    if (!confirm("Apaga o resumo redundante de cada grupo IDÊNTICO "
-      + "(mantém o primeiro). Não mexe nos vídeos do Box.\n\nConfirma?")) return;
+    if (!confirm(`Apaga ${dupARemover} resumo(s) redundantes: os grupos `
+      + "idênticos e os de 95% ou mais (mesma gravação transcrita duas vezes). "
+      + "Mantém o primeiro de cada grupo.\n\n"
+      + "Os grupos abaixo de 95% NÃO são tocados.\n"
+      + "Não mexe nos vídeos do Box.\n\nConfirma?")) return;
     setDup("apagando...");
     try {
       const r = await baseRemoverDuplicados();
@@ -672,7 +685,7 @@ export default function BaseConhecimentoPage() {
                   </pre>
                   <button onClick={apagarDuplicados}
                     className="mt-1 block text-xs text-red-700 underline hover:text-red-900">
-                    apagar os resumos redundantes dos grupos idênticos
+                    apagar os {dupARemover} resumos redundantes
                   </button>
                 </>
               )}

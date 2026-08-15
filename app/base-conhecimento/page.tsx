@@ -164,31 +164,37 @@ export default function BaseConhecimentoPage() {
   async function resumosOnboarding() {
     setExtrMsg("Verificando...");
     try {
-      // Primeiro atualiza o estado dos lotes: e' esta chamada que marca como
-      // "pronto" o que a Anthropic ja terminou. Sem ela na frente, a colheita
-      // logo abaixo nao acha nada e o clique se perde (o lote so seria colhido
-      // no clique SEGUINTE).
-      setExtr(await baseExtrairEstado());
-      for (;;) {
-        const r = await baseExtrairEnviar();
-        if (!r.enviados) break;
-        setExtrMsg(`Enviado para a Anthropic — faltam ${r.faltam} transcrições`);
+      // Repete o ciclo enquanto houver o que fazer. Um lote pode TERMINAR na
+      // Anthropic durante a propria colheita: na versao anterior isso ficava
+      // para o clique seguinte e o Renato via a tela parada em 100 de 288 sem
+      // saber que faltava clicar. Quem descobre lote terminado e' a consulta
+      // de estado, entao ela abre e fecha cada volta.
+      let st = await baseExtrairEstado();
+      for (let volta = 0; volta < 12; volta++) {
+        for (;;) {
+          const r = await baseExtrairEnviar();
+          if (!r.enviados) break;
+          setExtrMsg(`Enviado para a Anthropic — faltam ${r.faltam} transcrições`);
+        }
+        for (;;) {
+          const c = await baseExtrairColher();
+          if (!c.colhidos && !c.falhas) break;
+          setExtrMsg(`Gravando resumos... (${c.colhidos} neste lote)`);
+        }
+        for (;;) {
+          const p = await baseExtrairPublicar();
+          if (!p.publicados) break;
+          setExtrMsg(`Publicando no Box... faltam ${p.faltam}`);
+        }
+        st = await baseExtrairEstado();
+        setExtr(st);
+        if (st.faltam_enviar === 0 && st.a_colher === 0 && st.a_publicar === 0) {
+          break;   // so resta esperar a Anthropic, ou acabou mesmo
+        }
       }
-      for (;;) {
-        const c = await baseExtrairColher();
-        if (!c.colhidos && !c.falhas) break;
-        setExtrMsg(`Gravando resumos... (${c.colhidos} neste lote)`);
-      }
-      for (;;) {
-        const p = await baseExtrairPublicar();
-        if (!p.publicados) break;
-        setExtrMsg(`Publicando no Box... faltam ${p.faltam}`);
-      }
-      const st = await baseExtrairEstado();
-      setExtr(st);
       setExtrMsg(st.rodando > 0
-        ? `${st.rodando} lote(s) na fila da Anthropic. Costuma levar menos de `
-          + `1 hora (limite 24h). Volte aqui e clique de novo.`
+        ? `${st.rodando} lote(s) ainda na fila da Anthropic. Costuma levar `
+          + `menos de 1 hora (limite 24h). Volte e clique de novo.`
         : "");
     } catch (e) {
       setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
@@ -452,6 +458,21 @@ export default function BaseConhecimentoPage() {
               <div className="font-semibold">
                 Resumos do onboarding — {extr.resumos} de {extr.acervo} prontos
               </div>
+              {/* Contador nao diz o que fazer. Esta linha diz. */}
+              {(extr.a_colher > 0 || extr.a_publicar > 0
+                || extr.faltam_enviar > 0) && (
+                <div className="mt-1 rounded bg-amber-200 px-2 py-1 text-amber-900">
+                  Tem trabalho pronto esperando — clique em
+                  {" "}<strong>🧾 resumos do onboarding</strong> aí em cima.
+                </div>
+              )}
+              {extr.a_colher === 0 && extr.a_publicar === 0
+                && extr.faltam_enviar === 0 && extr.rodando > 0 && (
+                <div className="mt-1 text-gray-700">
+                  Nada a fazer agora: {extr.rodando} lote(s) ainda sendo
+                  processados na Anthropic. Volte mais tarde.
+                </div>
+              )}
               <div className="text-xs text-gray-700 mt-1">
                 {extr.faltam_enviar > 0 && (
                   <>{extr.faltam_enviar} a enviar. </>

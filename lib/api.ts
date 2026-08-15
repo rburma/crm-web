@@ -2597,6 +2597,9 @@ export type BasePanorama = {
   publicos: { nome: string; videos: number }[];
   perguntas_por_video: { nome: string; videos: number }[];
   videos_sem_pode_nem_nao_pode: number;
+  sem_regra_por_modulo: { nome: string; videos: number }[];
+  fora_do_escopo: string[];
+  com_menos_de_3_perguntas: string[];
 };
 
 export function basePanoramaOnboarding(): Promise<BasePanorama> {

@@ -243,8 +243,16 @@ export default function BaseConhecimentoPage() {
         bloco("MARCAS", p.marcas),
         bloco("PUBLICOS", p.publicos),
         bloco("PERGUNTAS POR VIDEO", p.perguntas_por_video),
-        `Videos sem nenhuma regra (pode/nao pode vazios): `
-          + `${p.videos_sem_pode_nem_nao_pode}`,
+        `SEM REGRA (pode/nao pode vazios): `
+          + `${p.videos_sem_pode_nem_nao_pode} de ${p.total}`,
+        ...p.sem_regra_por_modulo.map(
+          (i) => `  ${String(i.videos).padStart(4)}  ${i.nome}`),
+        "",
+        `FORA DO ESCOPO (${p.fora_do_escopo.length})`,
+        ...p.fora_do_escopo.map((t) => `  - ${t}`),
+        "",
+        `COM MENOS DE 3 PERGUNTAS (${p.com_menos_de_3_perguntas.length})`,
+        ...p.com_menos_de_3_perguntas.map((t) => `  - ${t}`),
       ].join("\n"));
     } catch (e) {
       setPanorama("Falhou: " + (e instanceof Error ? e.message : String(e)));

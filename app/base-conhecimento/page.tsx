@@ -7,11 +7,12 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseExtracaoEstado, BaseMedicao, BaseOpcoes, BasePanorama,
-  BaseProgresso, BaseVetores, baseContarOnboarding, baseConteudos,
-  baseExtrairColher, baseExtrairEnviar, baseExtrairEstado, baseExtrairPublicar,
-  baseLote, baseOpcoes, basePanoramaOnboarding, basePreparar, baseProgresso,
-  baseProjetarOnboarding, baseTicket, baseUploadDireto, baseVetoresLote,
+  BaseConteudoItem, BaseDuplicados, BaseExtracaoEstado, BaseMedicao, BaseOpcoes,
+  BasePanorama, BaseProgresso, BaseVetores, baseContarOnboarding, baseConteudos,
+  baseDuplicados, baseExtrairColher, baseExtrairEnviar, baseExtrairEstado,
+  baseExtrairPublicar, baseLote, baseMoverModulo, baseOpcoes,
+  basePanoramaOnboarding, basePreparar, baseProgresso, baseProjetarOnboarding,
+  baseRemoverDuplicados, baseTicket, baseUploadDireto, baseVetoresLote,
   baseVetoresProgresso,
 } from "@/lib/api";
 
@@ -121,6 +122,10 @@ export default function BaseConhecimentoPage() {
   const [extr, setExtr] = useState<BaseExtracaoEstado | null>(null);
   const [extrMsg, setExtrMsg] = useState("");
   const [panorama, setPanorama] = useState<string>("");
+  const [pan, setPan] = useState<BasePanorama | null>(null);
+  const [dup, setDup] = useState<string>("");
+  const [movDe, setMovDe] = useState("");
+  const [movPara, setMovPara] = useState("");
 
   const [prog, setProg] = useState<BaseProgresso | null>(null);
   const pararRef = useRef(false);
@@ -226,6 +231,56 @@ export default function BaseConhecimentoPage() {
     }
   }
 
+  // Duplicados: detecta pelo TEXTO. Titulo parecido nao prova nada.
+  async function verDuplicados() {
+    setDup("procurando...");
+    try {
+      const d = await baseDuplicados();
+      const grupo = (g: BaseDuplicados["identicos"][number]) =>
+        g.arquivos.map((a) => `    - ${a.titulo || a.arquivo} `
+          + `(${a.letras} letras)`).join("\n");
+      setDup([
+        `IDENTICOS — mesmo texto, da para apagar (${d.identicos.length} grupos, `
+          + `${d.a_remover} a remover)`,
+        ...d.identicos.map((g) => `  grupo de ${g.quantos}:\n${grupo(g)}`),
+        "",
+        `PARECIDOS — comeco igual mas texto diferente, CONFERIR `
+          + `(${d.parecidos.length} grupos)`,
+        ...d.parecidos.map((g) => `  grupo de ${g.quantos}:\n${grupo(g)}`),
+      ].join("\n"));
+    } catch (e) {
+      setDup("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  async function apagarDuplicados() {
+    if (!confirm("Apaga o resumo redundante de cada grupo IDÊNTICO "
+      + "(mantém o primeiro). Não mexe nos vídeos do Box.\n\nConfirma?")) return;
+    setDup("apagando...");
+    try {
+      const r = await baseRemoverDuplicados();
+      setExtr(await baseExtrairEstado());
+      setDup(`${r.removidos} resumo(s) redundantes removidos. ${r.aviso}`);
+    } catch (e) {
+      setDup("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  // Reatribui modulo sem repagar extracao: quando so o rotulo esta errado.
+  async function moverModulo() {
+    if (!movDe || !movPara || movDe === movPara) return;
+    setDup("movendo...");
+    try {
+      const r = await baseMoverModulo(movDe, movPara);
+      setDup(r.erro ? r.erro
+        : `${r.movidos} vídeo(s) movidos de “${movDe}” para “${movPara}”. `
+          + `${r.nota || ""}`);
+      await verPanorama();
+    } catch (e) {
+      setDup("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   // Refaz SO o que ficou errado: os classificados como "Fora do escopo" (a
   // lista de modulos tinha um buraco, e o modelo jogou tudo la) e os que
   // sairam com menos de 3 perguntas. Sao ~23 arquivos, centavos.
@@ -258,6 +313,7 @@ export default function BaseConhecimentoPage() {
     setPanorama("carregando...");
     try {
       const p: BasePanorama = await basePanoramaOnboarding();
+      setPan(p);
       const bloco = (titulo: string, itens: { nome: string; videos: number }[]) =>
         [`${titulo} (${itens.length})`,
           ...itens.map((i) => `  ${String(i.videos).padStart(4)}  ${i.nome}`),
@@ -577,6 +633,47 @@ export default function BaseConhecimentoPage() {
                 <pre className="mt-2 max-h-96 overflow-auto rounded border bg-white p-2 text-xs whitespace-pre">
                   {panorama}
                 </pre>
+              )}
+              {pan && (
+                <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
+                  <span className="text-gray-600">mover módulo:</span>
+                  <select value={movDe} onChange={(e) => setMovDe(e.target.value)}
+                    className="border rounded px-1 py-0.5">
+                    <option value="">de...</option>
+                    {pan.titulos_por_modulo.map((m) => (
+                      <option key={m.modulo} value={m.modulo}>
+                        {m.modulo} ({m.titulos.length})
+                      </option>
+                    ))}
+                  </select>
+                  <select value={movPara} onChange={(e) => setMovPara(e.target.value)}
+                    className="border rounded px-1 py-0.5">
+                    <option value="">para...</option>
+                    {pan.titulos_por_modulo.map((m) => (
+                      <option key={m.modulo} value={m.modulo}>{m.modulo}</option>
+                    ))}
+                  </select>
+                  <button onClick={moverModulo}
+                    disabled={!movDe || !movPara || movDe === movPara}
+                    className="border rounded px-2 py-0.5 disabled:opacity-40">
+                    mover
+                  </button>
+                </div>
+              )}
+              <button onClick={verDuplicados}
+                className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">
+                procurar duplicados (compara o texto)
+              </button>
+              {dup && (
+                <>
+                  <pre className="mt-1 max-h-72 overflow-auto rounded border bg-white p-2 text-xs whitespace-pre">
+                    {dup}
+                  </pre>
+                  <button onClick={apagarDuplicados}
+                    className="mt-1 block text-xs text-red-700 underline hover:text-red-900">
+                    apagar os resumos redundantes dos grupos idênticos
+                  </button>
+                </>
               )}
               {extr.lotes.some((l) => l.falhas > 0) && (
                 <div className="mt-1 text-xs text-amber-800">

@@ -2611,6 +2611,35 @@ export function basePanoramaOnboarding(): Promise<BasePanorama> {
   return req("base/onboarding/panorama");
 }
 
+// Duplicados detectados pelo TEXTO da transcrição, não pelo título.
+// "identicos" é certeza; "parecidos" é suspeita e nunca some sozinho.
+export type BaseDuplicados = {
+  identicos: {
+    quantos: number;
+    arquivos: { box_file_id: string; arquivo: string | null;
+                titulo: string | null; letras: number }[];
+  }[];
+  parecidos: BaseDuplicados["identicos"];
+  a_remover: number;
+};
+
+export function baseDuplicados(): Promise<BaseDuplicados> {
+  return req("base/onboarding/duplicados");
+}
+
+export function baseRemoverDuplicados(): Promise<{
+  removidos: number; aviso: string;
+}> {
+  return req("base/onboarding/duplicados/remover", { method: "POST" });
+}
+
+export function baseMoverModulo(de: string, para: string): Promise<{
+  movidos?: number; erro?: string; nota?: string;
+}> {
+  const p = new URLSearchParams({ de, para });
+  return req(`base/onboarding/mover-modulo?${p}`, { method: "POST" });
+}
+
 export function baseExtrairColher(): Promise<{
   colhidos: number; falhas?: number; msg?: string;
 }> {

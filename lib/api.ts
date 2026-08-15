@@ -2619,7 +2619,11 @@ export type BaseDuplicados = {
     arquivos: { box_file_id: string; arquivo: string | null;
                 titulo: string | null; letras: number }[];
   }[];
-  parecidos: BaseDuplicados["identicos"];
+  // semelhanca_pct: medida (Jaccard sobre trechos de 5 palavras) entre o
+  // primeiro do grupo e cada um dos outros. Acima de 80% é o mesmo conteúdo.
+  parecidos: (BaseDuplicados["identicos"][number] & {
+    semelhanca_pct: number[];
+  })[];
   a_remover: number;
 };
 

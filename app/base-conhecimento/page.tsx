@@ -244,9 +244,10 @@ export default function BaseConhecimentoPage() {
           + `${d.a_remover} a remover)`,
         ...d.identicos.map((g) => `  grupo de ${g.quantos}:\n${grupo(g)}`),
         "",
-        `PARECIDOS — comeco igual mas texto diferente, CONFERIR `
-          + `(${d.parecidos.length} grupos)`,
-        ...d.parecidos.map((g) => `  grupo de ${g.quantos}:\n${grupo(g)}`),
+        `PARECIDOS — semelhanca MEDIDA, CONFERIR (${d.parecidos.length} grupos)`,
+        ...d.parecidos.map((g) =>
+          `  grupo de ${g.quantos} — semelhança `
+          + `${g.semelhanca_pct.join("%, ")}%:\n${grupo(g)}`),
       ].join("\n"));
     } catch (e) {
       setDup("Falhou: " + (e instanceof Error ? e.message : String(e)));

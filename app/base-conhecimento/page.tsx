@@ -226,6 +226,32 @@ export default function BaseConhecimentoPage() {
     }
   }
 
+  // Refaz SO o que ficou errado: os classificados como "Fora do escopo" (a
+  // lista de modulos tinha um buraco, e o modelo jogou tudo la) e os que
+  // sairam com menos de 3 perguntas. Sao ~23 arquivos, centavos.
+  async function corrigirClassificacao() {
+    if (!confirm(
+      "Isto refaz apenas os vídeos classificados como “Fora do escopo” e os "
+      + "que ficaram com menos de 3 perguntas — cerca de 23 arquivos.\n\n"
+      + "Custa uns US$ 0,40 e leva até 1 hora.\n\nConfirma?")) return;
+    setExtrMsg("Apagando os resumos errados e reenviando...");
+    try {
+      let primeira = true;   // só a primeira chamada apaga
+      for (;;) {
+        const r = await baseExtrairEnviar(
+          50, false, primeira ? "Fora do escopo" : undefined, primeira);
+        primeira = false;
+        if (!r.enviados) break;
+        setExtrMsg(`Reenviado — faltam ${r.faltam}`);
+      }
+      setExtr(await baseExtrairEstado());
+      setExtrMsg("Reenviado. Volte em cerca de 1 hora e clique em "
+        + "“resumos do onboarding”.");
+    } catch (e) {
+      setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   // Panorama em TEXTO PURO, nao em tabela: a serventia dele e ser copiado e
   // colado inteiro numa conversa para decidir a arvore da trilha.
   async function verPanorama() {
@@ -253,6 +279,12 @@ export default function BaseConhecimentoPage() {
         "",
         `COM MENOS DE 3 PERGUNTAS (${p.com_menos_de_3_perguntas.length})`,
         ...p.com_menos_de_3_perguntas.map((t) => `  - ${t}`),
+        "",
+        "TITULOS POR MODULO",
+        ...p.titulos_por_modulo.flatMap((m) => [
+          "", `${m.modulo} (${m.titulos.length})`,
+          ...m.titulos.map((t) => `  - ${t}`),
+        ]),
       ].join("\n"));
     } catch (e) {
       setPanorama("Falhou: " + (e instanceof Error ? e.message : String(e)));
@@ -530,6 +562,10 @@ export default function BaseConhecimentoPage() {
                   <button onClick={republicarTudo}
                     className="mt-1 block text-xs text-gray-500 underline hover:text-gray-800">
                     reescrever os {extr.resumos} arquivos no Box
+                  </button>
+                  <button onClick={corrigirClassificacao}
+                    className="mt-1 block text-xs text-amber-800 underline hover:text-amber-950">
+                    corrigir “fora do escopo” e testes incompletos (~US$ 0,40)
                   </button>
                   <button onClick={reprocessarTudo}
                     className="mt-1 block text-xs text-red-700 underline hover:text-red-900">

@@ -2578,11 +2578,15 @@ export type BaseExtracaoEstado = {
 };
 
 // refazer=true APAGA os resumos e recomeça o acervo inteiro — custa de novo.
-export function baseExtrairEnviar(qtd = 50, refazer = false): Promise<{
+// refazerModulo / refazerIncompletos refazem só parte, e custam proporcional.
+export function baseExtrairEnviar(qtd = 50, refazer = false,
+  refazerModulo?: string, refazerIncompletos = false): Promise<{
   enviados: number; faltam: number; msg?: string;
 }> {
-  return req(`base/onboarding/extrair?qtd=${qtd}&refazer=${refazer}`,
-    { method: "POST" });
+  const p = new URLSearchParams({ qtd: String(qtd), refazer: String(refazer) });
+  if (refazerModulo) p.set("refazer_modulo", refazerModulo);
+  if (refazerIncompletos) p.set("refazer_incompletos", "true");
+  return req(`base/onboarding/extrair?${p}`, { method: "POST" });
 }
 
 export function baseExtrairEstado(): Promise<BaseExtracaoEstado> {
@@ -2600,6 +2604,7 @@ export type BasePanorama = {
   sem_regra_por_modulo: { nome: string; videos: number }[];
   fora_do_escopo: string[];
   com_menos_de_3_perguntas: string[];
+  titulos_por_modulo: { modulo: string; titulos: string[] }[];
 };
 
 export function basePanoramaOnboarding(): Promise<BasePanorama> {

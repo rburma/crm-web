@@ -142,12 +142,14 @@ export default function BaseConhecimentoPage() {
       let inicio = 0;
       let tokens = 0;
       let arquivos = 0;
+      let documentos = 0;
       const idi: Record<string, number> = {};
       for (;;) {
         const c = await baseContarOnboarding(inicio);
         if (c.erro) { setMedindo(c.erro); return; }
         tokens += c.tokens;
         arquivos += c.arquivos_medidos;
+        documentos += c.documentos || 0;
         for (const [k, v] of Object.entries(c.por_idioma)) {
           idi[k] = (idi[k] || 0) + v;
         }
@@ -156,7 +158,7 @@ export default function BaseConhecimentoPage() {
         inicio = c.proximo;
       }
       setIdiomas(idi);
-      setMedicao(await baseProjetarOnboarding(tokens, arquivos));
+      setMedicao(await baseProjetarOnboarding(tokens, arquivos, documentos));
       setMedindo("");
     } catch (e) {
       setMedindo("Falhou: " + (e instanceof Error ? e.message : String(e)));
@@ -523,7 +525,12 @@ export default function BaseConhecimentoPage() {
           {medicao && (
             <div className="mt-2 rounded border bg-gray-50 p-3 text-sm">
               <div className="font-semibold">
-                Custo de resumir {medicao.arquivos} transcrições
+                Custo de resumir {medicao.arquivos} arquivos
+                {medicao.documentos > 0 && (
+                  <span className="font-normal">
+                    {" "}({medicao.videos} vídeos + {medicao.documentos} documentos)
+                  </span>
+                )}
               </div>
               <div className="text-xs text-gray-600 mt-1">
                 {medicao.tokens_entrada_total.toLocaleString("pt-BR")} tokens de

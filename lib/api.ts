@@ -2521,6 +2521,7 @@ export type BaseContagem = {
   inicio: number;
   proximo: number | null;    // null = acabou
   arquivos_medidos: number;  // nesta fatia
+  documentos: number;        // quantos da fatia sao PDF/Office (saida maior)
   tokens: number;            // nesta fatia
   caracteres_lote: number;
   por_idioma: Record<string, number>;
@@ -2529,6 +2530,8 @@ export type BaseContagem = {
 
 export type BaseMedicao = {
   arquivos: number;
+  documentos: number;
+  videos: number;
   tokens_entrada: number;
   tokens_overhead_prompt: number;
   tokens_entrada_total: number;
@@ -2542,8 +2545,13 @@ export function baseContarOnboarding(inicio: number, qtd = 25): Promise<BaseCont
   return req(`base/onboarding/medir?inicio=${inicio}&qtd=${qtd}`, { method: "POST" });
 }
 
-export function baseProjetarOnboarding(tokens: number, arquivos: number): Promise<BaseMedicao> {
-  return req(`base/onboarding/projetar?tokens=${tokens}&arquivos=${arquivos}`);
+export function baseProjetarOnboarding(tokens: number, arquivos: number,
+  documentos = 0): Promise<BaseMedicao> {
+  const p = new URLSearchParams({
+    tokens: String(tokens), arquivos: String(arquivos),
+    documentos: String(documentos),
+  });
+  return req(`base/onboarding/projetar?${p}`);
 }
 
 // Onboarding etapa 2: as transcricoes viram resumos estruturados (a materia

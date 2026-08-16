@@ -2919,3 +2919,25 @@ export function trilhaResponder(modulo: string, respostas: Record<string, string
     body: JSON.stringify({ respostas }),
   });
 }
+
+// Conversão dos documentos em Markdown — mecânica, sem modelo, sem custo.
+// Sobe o .md AO LADO do original; não apaga e não move nada.
+export type BaseMarkdownRelatorio = {
+  convertidos: number;
+  total_registrado: number;
+  faltam: number;
+  encolheram: { arquivo: string; antes: number; depois: number;
+                perdeu_pct: number }[];
+  sem_texto_provavel_ocr: string[];
+  falhas: string[];
+};
+
+export function baseConverterMarkdown(limite = 5): Promise<{
+  convertidos: number; faltam: number; avisos?: string[]; msg?: string;
+}> {
+  return req(`base/onboarding/markdown?limite=${limite}`, { method: "POST" });
+}
+
+export function baseRelatorioMarkdown(): Promise<BaseMarkdownRelatorio> {
+  return req("base/onboarding/markdown/relatorio");
+}

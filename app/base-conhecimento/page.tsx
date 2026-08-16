@@ -7,12 +7,12 @@
 import { useEffect, useRef, useState } from "react";
 import Shell from "@/components/Shell";
 import {
-  BaseConteudoItem, BaseDuplicados, BaseExtracaoEstado, BaseMedicao, BaseOpcoes,
+  BaseConteudoItem, BaseDuplicados, BaseMarkdownRelatorio, BaseExtracaoEstado, BaseMedicao, BaseOpcoes,
   BasePanorama, BaseProgresso, BaseVetores, baseContarOnboarding, baseConteudos,
-  baseDuplicados, baseExtrairColher, baseExtrairEnviar, baseExtrairEstado,
+  baseConverterMarkdown, baseDuplicados, baseExtrairColher, baseExtrairEnviar, baseExtrairEstado,
   baseExtrairPublicar, baseLote, baseMoverModulo, baseOpcoes,
   basePanoramaOnboarding, basePreparar, baseProgresso, baseProjetarOnboarding,
-  baseRemoverDuplicados, baseTicket, baseUploadDireto, baseVetoresLote,
+  baseRelatorioMarkdown, baseRemoverDuplicados, baseTicket, baseUploadDireto, baseVetoresLote,
   baseVetoresProgresso,
 } from "@/lib/api";
 
@@ -124,6 +124,7 @@ export default function BaseConhecimentoPage() {
   const [panorama, setPanorama] = useState<string>("");
   const [pan, setPan] = useState<BasePanorama | null>(null);
   const [dup, setDup] = useState<string>("");
+  const [md, setMd] = useState<string>("");
   const [dupARemover, setDupARemover] = useState(0);
   const [movDe, setMovDe] = useState("");
   const [movPara, setMovPara] = useState("");
@@ -231,6 +232,50 @@ export default function BaseConhecimentoPage() {
         + "“resumos do onboarding” para colher.");
     } catch (e) {
       setExtrMsg("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  // Converte os documentos (PDF/Word/PPT/Excel) em .md ao lado do original.
+  // Mecanico: sem modelo, sem custo, sem risco de inventar conteudo. Nao
+  // apaga e nao move nada — o Renato tira os originais depois, ele mesmo.
+  async function converterMarkdown() {
+    setMd("Convertendo...");
+    try {
+      let total = 0;
+      for (;;) {
+        const r = await baseConverterMarkdown();
+        if (!r.convertidos && !r.avisos?.length) break;
+        total += r.convertidos;
+        setMd(`Convertidos ${total} — faltam ${r.faltam}`);
+        if (r.faltam === 0) break;
+      }
+      await verRelatorioMd();
+    } catch (e) {
+      setMd("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  async function verRelatorioMd() {
+    try {
+      const r: BaseMarkdownRelatorio = await baseRelatorioMarkdown();
+      setMd([
+        `${r.convertidos} documento(s) convertidos · faltam ${r.faltam}`,
+        "",
+        // Encolher é o único jeito de a troca piorar a busca: o Q&A passa a
+        // consultar o .md, e o que não veio junto some para quem pergunta.
+        `ENCOLHERAM — NÃO trocar sem olhar (${r.encolheram.length})`,
+        ...r.encolheram.map((e) =>
+          `  -${e.perdeu_pct}%  ${e.arquivo}  (${e.antes} → ${e.depois})`),
+        "",
+        `SEM TEXTO — provável PDF escaneado, precisa de OCR `
+          + `(${r.sem_texto_provavel_ocr.length})`,
+        ...r.sem_texto_provavel_ocr.map((a) => `  - ${a}`),
+        "",
+        `FALHAS (${r.falhas.length})`,
+        ...r.falhas.map((a) => `  - ${a}`),
+      ].join("\n"));
+    } catch (e) {
+      setMd("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }
   }
 
@@ -680,6 +725,15 @@ export default function BaseConhecimentoPage() {
                     mover
                   </button>
                 </div>
+              )}
+              <button onClick={converterMarkdown}
+                className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">
+                converter documentos em Markdown (grátis, não move nada)
+              </button>
+              {md && (
+                <pre className="mt-1 max-h-72 overflow-auto rounded border bg-white p-2 text-xs whitespace-pre">
+                  {md}
+                </pre>
               )}
               <button onClick={verDuplicados}
                 className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">

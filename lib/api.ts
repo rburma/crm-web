@@ -2812,3 +2812,102 @@ export function discadorEncerrar(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+
+// ── Trilha de onboarding ────────────────────────────────────────────
+// Carimbo em toda tela, sem impressão, sem mobile: decisão do Renato em
+// 13/08 ("se abrirmos, vai para a concorrência em um minuto").
+export type TrilhaCarimbo = {
+  nome: string; login: string; loja: string; ip: string; hora: string;
+};
+
+export type TrilhaModuloResumo = {
+  modulo: string;
+  videos: number;
+  vistos: number;
+  pode_fazer_teste: boolean;
+  aprovado: boolean;
+  acertos: number | null;
+  total_perguntas: number | null;
+  espera_ate: string | null;
+  liberado: boolean;
+};
+
+export type MinhaTrilha = {
+  precisa_escolher_cargo?: boolean;
+  cargos?: Record<string, string>;
+  cargo?: string;
+  cargo_nome?: string;
+  marca?: string;
+  modulos?: TrilhaModuloResumo[];
+  concluidos?: number;
+  total_modulos?: number;
+  carimbo?: TrilhaCarimbo;
+  reconfirmar_identidade?: boolean;
+};
+
+export type TrilhaItem = {
+  box_file_id: string;
+  titulo: string | null;
+  resumo: string | null;
+  pontos_chave: string[];
+  pode: string[];
+  nao_pode: string[];
+  passo_a_passo: string[];
+  visto: boolean;
+};
+
+export type TrilhaConteudo = {
+  modulo: string;
+  itens: TrilhaItem[];
+  carimbo?: TrilhaCarimbo;
+};
+
+export type TrilhaTeste = {
+  modulo: string;
+  perguntas?: { n: number; pergunta: string; de: string }[];
+  bloqueado_ate?: string;
+  ja_aprovado?: boolean;
+};
+
+export type TrilhaResultado = {
+  modulo: string;
+  acertos: number;
+  total: number;
+  aprovado: boolean;
+  refazer_em_horas: number | null;
+  itens: {
+    pergunta: string; sua_resposta: string; certo: boolean;
+    comentario: string; gabarito: string;
+  }[];
+};
+
+export function trilhaMinha(): Promise<MinhaTrilha> {
+  return req("trilha/minha");
+}
+
+export function trilhaDefinirCargo(cargo: string): Promise<{ cargo: string }> {
+  return req(`trilha/cargo?cargo=${encodeURIComponent(cargo)}`, { method: "POST" });
+}
+
+export function trilhaModulo(modulo: string): Promise<TrilhaConteudo> {
+  return req(`trilha/modulo/${encodeURIComponent(modulo)}`);
+}
+
+export function trilhaVisto(boxFileId: string, modulo: string): Promise<{ ok: boolean }> {
+  const p = new URLSearchParams({ box_file_id: boxFileId, modulo });
+  return req(`trilha/visto?${p}`, { method: "POST" });
+}
+
+export function trilhaTeste(modulo: string): Promise<TrilhaTeste> {
+  return req(`trilha/teste/${encodeURIComponent(modulo)}`);
+}
+
+export function trilhaResponder(modulo: string, respostas: Record<string, string>):
+  Promise<TrilhaResultado> {
+  return req(`trilha/teste/${encodeURIComponent(modulo)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ respostas }),
+  });
+}

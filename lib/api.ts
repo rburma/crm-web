@@ -2930,6 +2930,10 @@ export type BaseMarkdownRelatorio = {
                 perdeu_pct: number }[];
   sem_texto_provavel_ocr: string[];
   falhas: string[];
+  // Arquivo indexado N vezes: infla a base, devolve a mesma passagem N vezes
+  // na busca e custa vetor N vezes.
+  duplicados_no_indice: { arquivo: string; vezes_no_indice: number;
+                          letras_reais: number }[];
 };
 
 export function baseConverterMarkdown(limite = 5): Promise<{

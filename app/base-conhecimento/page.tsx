@@ -273,6 +273,11 @@ export default function BaseConhecimentoPage() {
         "",
         `FALHAS (${r.falhas.length})`,
         ...r.falhas.map((a) => `  - ${a}`),
+        "",
+        `INDEXADOS MAIS DE UMA VEZ (${r.duplicados_no_indice.length})`,
+        ...r.duplicados_no_indice.map((d) =>
+          `  ${d.vezes_no_indice}x  ${d.arquivo}  `
+          + `(texto real: ${d.letras_reais})`),
       ].join("\n"));
     } catch (e) {
       setMd("Falhou: " + (e instanceof Error ? e.message : String(e)));

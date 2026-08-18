@@ -315,7 +315,8 @@ Apagar as cópias, mantendo uma de cada?`)) return;
         g.arquivos.map((a) => `    - ${a.titulo || a.arquivo} `
           + `(${a.letras} letras)`).join("\n");
       setDup([
-        `A REMOVER: ${d.a_remover} resumo(s) redundantes`,
+        `A REMOVER: ${d.a_remover} resumo(s) · A MARCAR como ignorados: `
+          + `${d.a_marcar} (já apagados antes; marcar impede o reenvio)`,
         "",
         `IDENTICOS — mesmo texto (${d.identicos.length} grupos)`,
         ...d.identicos.map((g) => `  grupo de ${g.quantos}:\n${grupo(g)}`),
@@ -332,7 +333,7 @@ Apagar as cópias, mantendo uma de cada?`)) return;
           `  grupo de ${g.quantos} — semelhança `
           + `${g.semelhanca_pct.join("%, ")}%:\n${grupo(g)}`),
       ].join("\n"));
-      setDupARemover(d.a_remover);
+      setDupARemover(d.a_remover + d.a_marcar);
     } catch (e) {
       setDup("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }
@@ -348,7 +349,8 @@ Apagar as cópias, mantendo uma de cada?`)) return;
     try {
       const r = await baseRemoverDuplicados();
       setExtr(await baseExtrairEstado());
-      setDup(`${r.removidos} resumo(s) redundantes removidos. ${r.aviso}`);
+      setDup(`${r.removidos} removido(s) e ${r.marcados} marcado(s) como `
+        + `ignorados — estes não voltam mais para a fila. ${r.aviso}`);
     } catch (e) {
       setDup("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }

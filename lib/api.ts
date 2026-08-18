@@ -2635,7 +2635,8 @@ export type BaseDuplicados = {
     semelhanca_pct: number[];
   })[];
   parecidos: BaseDuplicados["praticamente_identicos"];
-  a_remover: number;
+  a_remover: number;   // resumos que ainda existem e vao sair
+  a_marcar: number;    // ja apagados antes: so precisam entrar em ignorados
 };
 
 export function baseDuplicados(): Promise<BaseDuplicados> {
@@ -2643,7 +2644,7 @@ export function baseDuplicados(): Promise<BaseDuplicados> {
 }
 
 export function baseRemoverDuplicados(): Promise<{
-  removidos: number; aviso: string;
+  removidos: number; marcados: number; aviso: string;
 }> {
   return req("base/onboarding/duplicados/remover", { method: "POST" });
 }

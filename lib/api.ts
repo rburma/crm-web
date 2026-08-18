@@ -2945,3 +2945,17 @@ export function baseConverterMarkdown(limite = 5): Promise<{
 export function baseRelatorioMarkdown(): Promise<BaseMarkdownRelatorio> {
   return req("base/onboarding/markdown/relatorio");
 }
+
+// Trechos repetidos no índice: a mesma passagem volta 2, 3 vezes na busca.
+export function baseDuplicidadeIndice(): Promise<{
+  trechos: number; duplicados: number; duplicados_ja_vetorizados: number;
+}> {
+  return req("base/indice/duplicidade");
+}
+
+export function baseLimparDuplicidadeIndice(): Promise<{
+  removidos: number;
+  depois: { trechos: number; duplicados: number };
+}> {
+  return req("base/indice/duplicidade/limpar", { method: "POST" });
+}

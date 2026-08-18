@@ -9,7 +9,8 @@ import Shell from "@/components/Shell";
 import {
   BaseConteudoItem, BaseDuplicados, BaseMarkdownRelatorio, BaseExtracaoEstado, BaseMedicao, BaseOpcoes,
   BasePanorama, BaseProgresso, BaseVetores, baseContarOnboarding, baseConteudos,
-  baseConverterMarkdown, baseDuplicados, baseExtrairColher, baseExtrairEnviar, baseExtrairEstado,
+  baseConverterMarkdown, baseDuplicados, baseDuplicidadeIndice,
+  baseLimparDuplicidadeIndice, baseExtrairColher, baseExtrairEnviar, baseExtrairEstado,
   baseExtrairPublicar, baseLote, baseMoverModulo, baseOpcoes,
   basePanoramaOnboarding, basePreparar, baseProgresso, baseProjetarOnboarding,
   baseRelatorioMarkdown, baseRemoverDuplicados, baseTicket, baseUploadDireto, baseVetoresLote,
@@ -279,6 +280,27 @@ export default function BaseConhecimentoPage() {
           `  ${d.vezes_no_indice}x  ${d.arquivo}  `
           + `(texto real: ${d.letras_reais})`),
       ].join("\n"));
+    } catch (e) {
+      setMd("Falhou: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
+  // Trecho repetido no indice: a mesma passagem volta 2 ou 3 vezes na busca
+  // e empurra resultado bom para baixo. Some junto o vetor da linha apagada,
+  // por isso a copia que FICA e' de preferencia uma que ja tem vetor.
+  async function limparIndice() {
+    const d = await baseDuplicidadeIndice();
+    if (!d.duplicados) { setMd("Nenhum trecho repetido no índice."); return; }
+    if (!confirm(`O índice tem ${d.trechos} trechos, dos quais `
+      + `${d.duplicados} são cópia (${d.duplicados_ja_vetorizados} já `
+      + `vetorizados).
+
+Apagar as cópias, mantendo uma de cada?`)) return;
+    setMd("Limpando...");
+    try {
+      const r = await baseLimparDuplicidadeIndice();
+      setMd(`${r.removidos} trecho(s) repetidos removidos. `
+        + `O índice ficou com ${r.depois.trechos}.`);
     } catch (e) {
       setMd("Falhou: " + (e instanceof Error ? e.message : String(e)));
     }
@@ -731,6 +753,10 @@ export default function BaseConhecimentoPage() {
                   </button>
                 </div>
               )}
+              <button onClick={limparIndice}
+                className="mt-2 block text-xs text-red-700 underline hover:text-red-900">
+                limpar trechos repetidos no índice
+              </button>
               <button onClick={converterMarkdown}
                 className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">
                 converter documentos em Markdown (grátis, não move nada)

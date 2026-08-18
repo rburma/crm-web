@@ -24,6 +24,24 @@ type ItemFila = {
   link?: string;
 };
 
+/** Uma ferramenta de manutenção: o que ela faz vem escrito do lado.
+ *  Link solto sem explicação vira "salada de links que ninguém sabe para
+ *  que serve" — foi o que a tela virou em um dia. */
+function Ferramenta({ onClick, rotulo, ajuda, perigo }: {
+  onClick: () => void; rotulo: string; ajuda: string; perigo?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <button onClick={onClick}
+        className={`shrink-0 rounded border px-2 py-0.5 text-xs hover:bg-gray-50 ${
+          perigo ? "border-red-300 text-red-700" : "text-gray-700"}`}>
+        {rotulo}
+      </button>
+      <span className="text-xs text-gray-500">{ajuda}</span>
+    </div>
+  );
+}
+
 export default function BaseConhecimentoPage() {
   const [opcoes, setOpcoes] = useState<BaseOpcoes | null>(null);
   const [marca, setMarca] = useState("Todas as marcas");
@@ -126,6 +144,10 @@ export default function BaseConhecimentoPage() {
   const [pan, setPan] = useState<BasePanorama | null>(null);
   const [dup, setDup] = useState<string>("");
   const [md, setMd] = useState<string>("");
+  // Regra 11: a tela juntou 15 controles em um dia. O que se usa no
+  // dia a dia fica a vista; o resto e ferramenta de manutencao e so
+  // aparece quando pedida.
+  const [ferramentas, setFerramentas] = useState(false);
   const [dupARemover, setDupARemover] = useState(0);
   const [movDe, setMovDe] = useState("");
   const [movPara, setMovPara] = useState("");
@@ -704,32 +726,40 @@ Apagar as cópias, mantendo uma de cada?`)) return;
                   )}
                 </div>
               )}
-              {extr.resumos > 0 && (
-                <>
-                  <button onClick={verPanorama}
-                    className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">
-                    ver panorama (módulos, marcas, públicos)
-                  </button>
-                  <button onClick={republicarTudo}
-                    className="mt-1 block text-xs text-gray-500 underline hover:text-gray-800">
-                    reescrever os {extr.resumos} arquivos no Box
-                  </button>
-                  <button onClick={corrigirClassificacao}
-                    className="mt-1 block text-xs text-amber-800 underline hover:text-amber-950">
-                    corrigir “fora do escopo” e testes incompletos (~US$ 0,40)
-                  </button>
-                  <button onClick={reprocessarTudo}
-                    className="mt-1 block text-xs text-red-700 underline hover:text-red-900">
-                    reprocessar tudo com o prompt novo (custa ~US$ 4,95)
-                  </button>
-                </>
+              <button onClick={() => setFerramentas(!ferramentas)}
+                className="mt-2 text-xs text-gray-500 underline hover:text-gray-800">
+                {ferramentas ? "▾ esconder" : "▸ mostrar"} ferramentas de manutenção
+              </button>
+              {ferramentas && extr.resumos > 0 && (
+                <div className="mt-2 space-y-2 rounded border bg-white p-2">
+                  <div className="text-xs text-gray-500">
+                    Cada uma faz uma coisa só. As de custo dizem quanto custam.
+                  </div>
+                  <Ferramenta onClick={verPanorama} rotulo="ver panorama"
+                    ajuda="Conta quantos vídeos há em cada módulo, marca e público. Só lê." />
+                  <Ferramenta onClick={verDuplicados} rotulo="procurar duplicados"
+                    ajuda="Acha arquivos com o mesmo conteúdo. A lista nunca esvazia: os arquivos continuam no acervo." />
+                  <Ferramenta onClick={limparIndice} rotulo="limpar trechos repetidos no índice"
+                    ajuda="Apaga a cópia do mesmo trecho, que hoje aparece 2 ou 3 vezes na busca." perigo />
+                  <Ferramenta onClick={converterMarkdown} rotulo="converter documentos em Markdown"
+                    ajuda="PDF/Word/PPT viram .md ao lado do original. Grátis, não move nem apaga nada." />
+                  <Ferramenta onClick={republicarTudo}
+                    rotulo={`reescrever os ${extr.resumos} arquivos no Box`}
+                    ajuda="Regrava os .md de _resumos/ com o conteúdo atual do banco." />
+                  <Ferramenta onClick={corrigirClassificacao}
+                    rotulo="corrigir “fora do escopo” e testes incompletos"
+                    ajuda="Refaz só os vídeos mal classificados. Custa ~US$ 0,40." perigo />
+                  <Ferramenta onClick={reprocessarTudo}
+                    rotulo="reprocessar TUDO com o prompt novo"
+                    ajuda="Apaga os 283 resumos e gera todos de novo. Custa ~US$ 4,95 e leva 1 hora." perigo />
+                </div>
               )}
               {panorama && (
                 <pre className="mt-2 max-h-96 overflow-auto rounded border bg-white p-2 text-xs whitespace-pre">
                   {panorama}
                 </pre>
               )}
-              {pan && (
+              {ferramentas && pan && (
                 <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
                   <span className="text-gray-600">mover módulo:</span>
                   <select value={movDe} onChange={(e) => setMovDe(e.target.value)}
@@ -755,23 +785,11 @@ Apagar as cópias, mantendo uma de cada?`)) return;
                   </button>
                 </div>
               )}
-              <button onClick={limparIndice}
-                className="mt-2 block text-xs text-red-700 underline hover:text-red-900">
-                limpar trechos repetidos no índice
-              </button>
-              <button onClick={converterMarkdown}
-                className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">
-                converter documentos em Markdown (grátis, não move nada)
-              </button>
               {md && (
                 <pre className="mt-1 max-h-72 overflow-auto rounded border bg-white p-2 text-xs whitespace-pre">
                   {md}
                 </pre>
               )}
-              <button onClick={verDuplicados}
-                className="mt-2 block text-xs text-gray-600 underline hover:text-gray-900">
-                procurar duplicados (compara o texto)
-              </button>
               {dup && (
                 <>
                   <pre className="mt-1 max-h-72 overflow-auto rounded border bg-white p-2 text-xs whitespace-pre">

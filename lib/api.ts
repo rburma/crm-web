@@ -2449,11 +2449,14 @@ export function baseOpcoes(): Promise<BaseOpcoes> {
   return req("base/opcoes");
 }
 
-export function baseCorrigirNomes(limite = 25): Promise<{
-  corrigidos: number; sumidos_do_box: number; ja_estavam_certos: number;
-  faltam: number; falhas: string[];
+export function baseCorrigirNomes(limite = 25, antesDe?: number): Promise<{
+  verificados: number; corrigidos: number; sumidos_do_box: number;
+  ja_estavam_certos: number; proximo_cursor: number | null; acabou: boolean;
+  exemplos: { id: number; banco: string }[]; falhas: string[];
 }> {
-  return req(`base/conteudos/corrigir-nomes?limite=${limite}`, { method: "POST" });
+  const cursor = antesDe ? `&antes_de=${antesDe}` : "";
+  return req(`base/conteudos/corrigir-nomes?limite=${limite}&todos=true${cursor}`,
+             { method: "POST" });
 }
 
 export function baseConteudos(limite = 8): Promise<BaseConteudoItem[]> {

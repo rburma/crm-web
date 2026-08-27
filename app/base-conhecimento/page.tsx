@@ -158,22 +158,33 @@ export default function BaseConhecimentoPage() {
   // Conserta os nomes de envio gravados com encoding errado (26/08). Repete
   // em lote ate' zerar, como as outras rotinas da tela.
   async function corrigirNomes() {
-    setNomesMsg("Perguntando ao Box os nomes certos...");
+    setNomesMsg("Conferindo cada envio com o Box...");
     try {
-      let total = 0;
+      let cursor: number | undefined = undefined;
+      let vistos = 0, total = 0;
+      let amostra = "";
       for (let i = 0; i < 40; i++) {
-        const r = await baseCorrigirNomes(25);
+        const r = await baseCorrigirNomes(25, cursor);
+        vistos += r.verificados;
         total += r.corrigidos;
-        setNomesMsg(`${total} nome(s) corrigido(s) · faltam ${r.faltam}`);
-        if (r.faltam === 0 || (r.corrigidos === 0 && r.sumidos_do_box === 0)) break;
+        if (!amostra && r.exemplos.length) amostra = r.exemplos[0].banco;
+        setNomesMsg(`conferidos ${vistos} · corrigidos ${total}`);
+        if (r.acabou || !r.proximo_cursor) break;
+        cursor = r.proximo_cursor;
       }
-      setNomesMsg(total ? `Pronto: ${total} nome(s) corrigido(s).`
-                        : "Nenhum nome torto encontrado.");
+      // Diagnostico honesto: "0 corrigidos" sem dizer o que foi visto nao
+      // ajuda ninguem (foi o que aconteceu na 1a tentativa, em 26/08).
+      setNomesMsg(total
+        ? `Pronto: ${total} nome(s) corrigido(s) de ${vistos} conferidos.`
+        : `Conferi ${vistos} envio(s) e o Box devolveu o mesmo nome em todos`
+          + (amostra ? ` (ex.: ${amostra})` : "")
+          + ". Ou seja: o nome torto está no próprio Box, não só aqui.");
       baseConteudos().then(setHistorico).catch(() => {});
     } catch (e: unknown) {
       setNomesMsg(e instanceof Error ? e.message : String(e));
     }
   }
+
   const [ondb, setOndb] = useState(false);
   const [dupARemover, setDupARemover] = useState(0);
   const [movDe, setMovDe] = useState("");

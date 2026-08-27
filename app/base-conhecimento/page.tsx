@@ -585,9 +585,11 @@ Apagar as cópias, mantendo uma de cada?`)) return;
           </p>
         </div>
 
-        <div className="text-sm font-semibold text-gray-700">➕ Adicionar material</div>
         <div className="rounded-xl border bg-white p-4 space-y-3">
-          <div className="font-semibold text-sm">1. Público do lote</div>
+          <div className="font-semibold">➕ Adicionar material</div>
+          <div className="text-xs text-gray-500 -mt-2">
+            Passo 1 de 2 — para quem é este lote
+          </div>
           <div className="flex flex-wrap gap-3 items-center">
             <label className="text-sm">
               Marca{" "}
@@ -622,7 +624,9 @@ Apagar as cópias, mantendo uma de cada?`)) return;
         </div>
 
         <div className="rounded-xl border bg-white p-4 space-y-3">
-          <div className="font-semibold text-sm">2. Arquivos</div>
+          <div className="text-xs text-gray-500">
+            Passo 2 de 2 — os arquivos
+          </div>
           <div className="flex items-center gap-3 flex-wrap">
             <label className="cursor-pointer inline-block bg-blue-600 text-white rounded px-4 py-2 text-sm">
               Escolher arquivos

@@ -2449,6 +2449,13 @@ export function baseOpcoes(): Promise<BaseOpcoes> {
   return req("base/opcoes");
 }
 
+export function baseCorrigirNomes(limite = 25): Promise<{
+  corrigidos: number; sumidos_do_box: number; ja_estavam_certos: number;
+  faltam: number; falhas: string[];
+}> {
+  return req(`base/conteudos/corrigir-nomes?limite=${limite}`, { method: "POST" });
+}
+
 export function baseConteudos(limite = 8): Promise<BaseConteudoItem[]> {
   return req(`base/conteudos?limite=${limite}`);
 }

@@ -15,6 +15,7 @@ import {
   basePanoramaOnboarding, basePreparar, baseProgresso, baseProjetarOnboarding,
   baseRelatorioMarkdown, baseRemoverDuplicados, baseTicket, baseUploadDireto, baseVetoresLote,
   baseVetoresProgresso,
+  baseCorrigirNomes,
 } from "@/lib/api";
 
 type ItemFila = {
@@ -152,6 +153,27 @@ export default function BaseConhecimentoPage() {
   // padrao — quem abre e' quem sabe que precisa.
   const [manut, setManut] = useState(false);
   const [verTodos, setVerTodos] = useState(false);
+  const [nomesMsg, setNomesMsg] = useState("");
+
+  // Conserta os nomes de envio gravados com encoding errado (26/08). Repete
+  // em lote ate' zerar, como as outras rotinas da tela.
+  async function corrigirNomes() {
+    setNomesMsg("Perguntando ao Box os nomes certos...");
+    try {
+      let total = 0;
+      for (let i = 0; i < 40; i++) {
+        const r = await baseCorrigirNomes(25);
+        total += r.corrigidos;
+        setNomesMsg(`${total} nome(s) corrigido(s) · faltam ${r.faltam}`);
+        if (r.faltam === 0 || (r.corrigidos === 0 && r.sumidos_do_box === 0)) break;
+      }
+      setNomesMsg(total ? `Pronto: ${total} nome(s) corrigido(s).`
+                        : "Nenhum nome torto encontrado.");
+      baseConteudos().then(setHistorico).catch(() => {});
+    } catch (e: unknown) {
+      setNomesMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
   const [ondb, setOndb] = useState(false);
   const [dupARemover, setDupARemover] = useState(0);
   const [movDe, setMovDe] = useState("");
@@ -791,12 +813,19 @@ Apagar as cópias, mantendo uma de cada?`)) return;
               className="text-sm border rounded px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100">
               🧠 entender conteúdo{vet && vet.faltam > 0 ? ` (${vet.faltam})` : ""}
             </button>
+            <button onClick={corrigirNomes}
+              className="text-sm border rounded px-3 py-1 text-gray-600 hover:bg-gray-50">
+              ✍️ corrigir nomes dos envios antigos
+            </button>
             <button onClick={() => { pararRef.current = true; }}
               className="text-sm border rounded px-3 py-1 text-amber-700 hover:bg-amber-50">
               ⏸ pausar
             </button>
             {statusIdx && (
               <span className="text-xs text-gray-600">{statusIdx}</span>
+            )}
+            {nomesMsg && (
+              <span className="text-xs text-gray-600">{nomesMsg}</span>
             )}
           </div>
             </div>

@@ -148,6 +148,11 @@ export default function BaseConhecimentoPage() {
   // dia a dia fica a vista; o resto e ferramenta de manutencao e so
   // aparece quando pedida.
   const [ferramentas, setFerramentas] = useState(false);
+  // Gavetas (26/08/2026): o que virou automatico sai da cara. Fechadas por
+  // padrao — quem abre e' quem sabe que precisa.
+  const [manut, setManut] = useState(false);
+  const [verTodos, setVerTodos] = useState(false);
+  const [ondb, setOndb] = useState(false);
   const [dupARemover, setDupARemover] = useState(0);
   const [movDe, setMovDe] = useState("");
   const [movPara, setMovPara] = useState("");
@@ -573,11 +578,205 @@ Apagar as cópias, mantendo uma de cada?`)) return;
         <div>
           <h1 className="text-2xl font-bold">📚 Base de Conhecimento</h1>
           <p className="text-sm text-gray-500">
-            O <b>lote define o público</b>: escolha marca e nível, selecione
-            vários arquivos de uma vez e envie. Áudio e vídeo entram na fila
-            de transcrição; documentos ficam prontos para a indexação.
-            Arquivos acima de {maxMb} MB: suba direto na pasta do Box.
+            Escolha o público, jogue os arquivos e pronto: eles sobem para o
+            Box e <b>já ficam buscáveis</b> — indexados e entendidos, sem mais
+            nenhum passo. Áudio e vídeo vão para a fila de transcrição.
+            Acima de {maxMb} MB: suba direto na pasta do Box.
           </p>
+        </div>
+
+        <div className="rounded-xl border bg-white p-4 space-y-3">
+          <div className="font-semibold">➕ Adicionar material</div>
+          <div className="text-xs text-gray-500 -mt-2">
+            Passo 1 de 2 — para quem é este lote
+          </div>
+          <div className="flex flex-wrap gap-3 items-center">
+            <label className="text-sm">
+              Marca{" "}
+              <select value={marca} onChange={(e) => setMarca(e.target.value)}
+                disabled={nivel === "Interno"}
+                className="border rounded px-2 py-1">
+                {(opcoes?.marcas ?? [marca]).map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Nível{" "}
+              <select value={nivel} onChange={(e) => setNivel(e.target.value)}
+                className="border rounded px-2 py-1">
+                {(opcoes?.niveis ?? [nivel]).map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm flex items-center gap-1">
+              <input type="checkbox" checked={receituario}
+                onChange={(e) => setReceituario(e.target.checked)} />
+              Receituário (proteção anti-extração)
+            </label>
+            <label className="text-sm flex items-center gap-1">
+              <input type="checkbox" checked={soFranqueados}
+                onChange={(e) => setSoFranqueados(e.target.checked)} />
+              Só franqueados (nem callcenter)
+            </label>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-4 space-y-3">
+          <div className="text-xs text-gray-500">
+            Passo 2 de 2 — os arquivos
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="cursor-pointer inline-block bg-blue-600 text-white rounded px-4 py-2 text-sm">
+              Escolher arquivos
+              <input ref={inputRef} type="file" multiple className="hidden"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.mp3,.m4a,.wav,.mp4,.mov,.wmv,.avi"
+                onChange={(e) => escolher(e.target.files)} />
+            </label>
+            <button onClick={enviarLote}
+              disabled={subindo || aguardando === 0}
+              className="rounded px-4 py-2 text-sm bg-green-600 text-white disabled:opacity-40">
+              {subindo ? "Enviando..." : `Enviar lote (${aguardando})`}
+            </button>
+            {falhas > 0 && (
+              <button onClick={repetirFalhas} disabled={subindo}
+                className="rounded px-4 py-2 text-sm bg-amber-600 text-white disabled:opacity-40">
+                🔄 Tentar novamente as {falhas} que falharam
+              </button>
+            )}
+            {fila.length > 0 && !subindo && (
+              <button onClick={() => setFila((q) => q.filter((i) => i.estado !== "ok"))}
+                className="rounded border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
+                limpar concluídos
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-400">
+            Os arquivos sobem 3 por vez, com 3 tentativas automáticas cada —
+            falhas de rede se resolvem sozinhas na maioria das vezes.
+          </p>
+          {erro && <div className="text-sm text-red-600">{erro}</div>}
+          {fila.length > 0 && (
+            <ul className="text-sm divide-y">
+              {fila.map((i, idx) => (
+                <li key={idx} className="py-1 flex items-center gap-2">
+                  <span>
+                    {i.estado === "ok" ? "✅" : i.estado === "erro" ? "❌"
+                      : i.estado === "subindo" ? "⏳" : "•"}
+                  </span>
+                  <span className="flex-1 truncate">{i.arquivo.name}</span>
+                  <span className="text-gray-400">
+                    {(i.arquivo.size / 1048576).toFixed(1)} MB
+                  </span>
+                  {i.link && (
+                    <a href={i.link} target="_blank" rel="noreferrer"
+                      className="text-blue-600 underline">Box</a>
+                  )}
+                  {i.msg && (
+                    <span className={i.estado === "erro" ? "text-red-600" : "text-gray-500"}>
+                      {i.msg}
+                    </span>
+                  )}
+                  {i.estado === "erro" && !subindo && (
+                    <button onClick={() => enviar([idx])}
+                      className="rounded border border-amber-400 px-2 py-0.5 text-xs text-amber-700 hover:bg-amber-50">
+                      tentar de novo
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-white p-4">
+          <div className="font-semibold text-sm mb-1">💚 Saúde da base</div>
+          <div className="text-sm text-gray-700">
+            {prog ? `${prog.feitos} de ${prog.total} arquivos · ${prog.trechos} trechos` : "carregando..."}
+            {vet && vet.total > 0 && (
+              <> · {vet.faltam === 0
+                ? `busca por significado pronta (${vet.com_vetor} trechos)`
+                : `entendendo conteúdo: ${vet.com_vetor} de ${vet.total}`}</>
+            )}
+          </div>
+          {prog && prog.total > 0 && (
+            <div className="mt-1 h-2 w-full rounded bg-gray-200">
+              <div className="h-2 rounded bg-green-600 transition-all"
+                style={{ width: `${prog.percentual}%` }} />
+            </div>
+          )}
+          {statusIdx && (
+            <div className="mt-1 text-xs text-gray-600">{statusIdx}</div>
+          )}
+          {prog && prog.pendentes > 0 && (
+            <div className="mt-1 text-xs text-amber-700">
+              {prog.pendentes} arquivo(s) na fila — a base termina sozinha.
+              {" "}<button onClick={() => indexar(false)} className="underline">
+                terminar agora
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-white p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-semibold text-sm">Últimos envios</div>
+            {historico.length > 5 && (
+              <button onClick={() => setVerTodos(!verTodos)}
+                className="text-xs text-gray-500 underline hover:text-gray-800">
+                {verTodos ? "mostrar menos" : `ver todos (${historico.length})`}
+              </button>
+            )}
+          </div>
+          {historico.length === 0 ? (
+            <div className="text-sm text-gray-400">Nada enviado ainda.</div>
+          ) : (
+            <ul className="text-sm divide-y">
+              {(verTodos ? historico : historico.slice(0, 5)).map((h) => (
+                <li key={h.id} className="py-1 flex items-center gap-2 flex-wrap">
+                  <span className="flex-1 truncate">{h.nome}</span>
+                  {h.criado_em && (
+                    <span className="text-gray-400 whitespace-nowrap">
+                      {new Date(h.criado_em).toLocaleDateString("pt-BR")}
+                    </span>
+                  )}
+                  {h.status === "indexado" && (
+                    <span className="text-green-700">indexado</span>
+                  )}
+                  {h.status === "sem_texto" && (
+                    <span className="text-amber-700">sem texto (OCR?)</span>
+                  )}
+                  {h.status === "aguarda_transcricao" && (
+                    <span className="text-blue-700">transcrevendo</span>
+                  )}
+                  <span className="text-gray-500">{h.marca} · {h.nivel}</span>
+                  {h.classes && (
+                    <span className="text-amber-600">{h.classes}</span>
+                  )}
+                  <span className="text-gray-400">{h.tamanho_mb} MB</span>
+                  {h.link && (
+                    <a href={h.link} target="_blank" rel="noreferrer"
+                      className="text-blue-600 underline">Box</a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+
+        <div className="rounded-xl border bg-white p-4">
+          <button onClick={() => setManut(!manut)}
+            className="text-sm font-semibold text-gray-600 hover:text-gray-900">
+            {manut ? "▾" : "▸"} ⚙ Manutenção avançada
+          </button>
+          {manut && (
+            <div className="mt-2 space-y-2">
+              <div className="text-xs text-gray-500">
+                Nada aqui é rotina: subir arquivo pela tela já faz tudo. Isto é
+                para o que entrou direto na pasta do Box ou para consertar algo.
+              </div>
           <div className="flex items-center gap-2 mt-2">
             <button onClick={() => indexar(false)}
               disabled={!!prog && prog.pendentes > 0 && !pararRef.current}
@@ -596,6 +795,27 @@ Apagar as cópias, mantendo uma de cada?`)) return;
               className="text-sm border rounded px-3 py-1 text-amber-700 hover:bg-amber-50">
               ⏸ pausar
             </button>
+            {statusIdx && (
+              <span className="text-xs text-gray-600">{statusIdx}</span>
+            )}
+          </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-white p-4">
+          <button onClick={() => setOndb(!ondb)}
+            className="text-sm font-semibold text-gray-600 hover:text-gray-900">
+            {ondb ? "▾" : "▸"} 🎓 Onboarding (outro assunto)
+            {extr && extr.faltam_enviar > 0 ? ` — ${extr.faltam_enviar} a enviar` : ""}
+          </button>
+          {ondb && (
+            <div className="mt-2">
+              <div className="text-xs text-gray-500 mb-2">
+                Resumos dos vídeos do acervo. Vive aqui por enquanto; merece
+                tela própria.
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mb-2">
             <button onClick={medirCusto} disabled={!!medindo}
               className="text-sm border rounded px-3 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
               💲 medir custo do onboarding
@@ -605,16 +825,7 @@ Apagar as cópias, mantendo uma de cada?`)) return;
               🧾 resumos do onboarding
               {extr && extr.faltam_enviar > 0 ? ` (${extr.faltam_enviar})` : ""}
             </button>
-            {statusIdx && (
-              <span className="text-xs text-gray-600">{statusIdx}</span>
-            )}
-          </div>
-          {prog && prog.total > 0 && (
-            <div className="mt-1 h-2 w-full rounded bg-gray-200">
-              <div className="h-2 rounded bg-green-600 transition-all"
-                style={{ width: `${prog.percentual}%` }} />
-            </div>
-          )}
+              </div>
           {medindo && (
             <div className="mt-2 text-xs text-gray-600">{medindo}</div>
           )}
@@ -847,129 +1058,7 @@ Apagar as cópias, mantendo uma de cada?`)) return;
               )}
             </div>
           )}
-        </div>
-
-        <div className="rounded-xl border bg-white p-4 space-y-3">
-          <div className="font-semibold text-sm">1. Público do lote</div>
-          <div className="flex flex-wrap gap-3 items-center">
-            <label className="text-sm">
-              Marca{" "}
-              <select value={marca} onChange={(e) => setMarca(e.target.value)}
-                disabled={nivel === "Interno"}
-                className="border rounded px-2 py-1">
-                {(opcoes?.marcas ?? [marca]).map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Nível{" "}
-              <select value={nivel} onChange={(e) => setNivel(e.target.value)}
-                className="border rounded px-2 py-1">
-                {(opcoes?.niveis ?? [nivel]).map((n) => (
-                  <option key={n}>{n}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm flex items-center gap-1">
-              <input type="checkbox" checked={receituario}
-                onChange={(e) => setReceituario(e.target.checked)} />
-              Receituário (proteção anti-extração)
-            </label>
-            <label className="text-sm flex items-center gap-1">
-              <input type="checkbox" checked={soFranqueados}
-                onChange={(e) => setSoFranqueados(e.target.checked)} />
-              Só franqueados (nem callcenter)
-            </label>
-          </div>
-        </div>
-
-        <div className="rounded-xl border bg-white p-4 space-y-3">
-          <div className="font-semibold text-sm">2. Arquivos</div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <label className="cursor-pointer inline-block bg-blue-600 text-white rounded px-4 py-2 text-sm">
-              Escolher arquivos
-              <input ref={inputRef} type="file" multiple className="hidden"
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.mp3,.m4a,.wav,.mp4,.mov,.wmv,.avi"
-                onChange={(e) => escolher(e.target.files)} />
-            </label>
-            <button onClick={enviarLote}
-              disabled={subindo || aguardando === 0}
-              className="rounded px-4 py-2 text-sm bg-green-600 text-white disabled:opacity-40">
-              {subindo ? "Enviando..." : `Enviar lote (${aguardando})`}
-            </button>
-            {falhas > 0 && (
-              <button onClick={repetirFalhas} disabled={subindo}
-                className="rounded px-4 py-2 text-sm bg-amber-600 text-white disabled:opacity-40">
-                🔄 Tentar novamente as {falhas} que falharam
-              </button>
-            )}
-            {fila.length > 0 && !subindo && (
-              <button onClick={() => setFila((q) => q.filter((i) => i.estado !== "ok"))}
-                className="rounded border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
-                limpar concluídos
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-gray-400">
-            Os arquivos sobem 3 por vez, com 3 tentativas automáticas cada —
-            falhas de rede se resolvem sozinhas na maioria das vezes.
-          </p>
-          {erro && <div className="text-sm text-red-600">{erro}</div>}
-          {fila.length > 0 && (
-            <ul className="text-sm divide-y">
-              {fila.map((i, idx) => (
-                <li key={idx} className="py-1 flex items-center gap-2">
-                  <span>
-                    {i.estado === "ok" ? "✅" : i.estado === "erro" ? "❌"
-                      : i.estado === "subindo" ? "⏳" : "•"}
-                  </span>
-                  <span className="flex-1 truncate">{i.arquivo.name}</span>
-                  <span className="text-gray-400">
-                    {(i.arquivo.size / 1048576).toFixed(1)} MB
-                  </span>
-                  {i.link && (
-                    <a href={i.link} target="_blank" rel="noreferrer"
-                      className="text-blue-600 underline">Box</a>
-                  )}
-                  {i.msg && (
-                    <span className={i.estado === "erro" ? "text-red-600" : "text-gray-500"}>
-                      {i.msg}
-                    </span>
-                  )}
-                  {i.estado === "erro" && !subindo && (
-                    <button onClick={() => enviar([idx])}
-                      className="rounded border border-amber-400 px-2 py-0.5 text-xs text-amber-700 hover:bg-amber-50">
-                      tentar de novo
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="rounded-xl border bg-white p-4">
-          <div className="font-semibold text-sm mb-2">Últimos envios</div>
-          {historico.length === 0 ? (
-            <div className="text-sm text-gray-400">Nada enviado ainda.</div>
-          ) : (
-            <ul className="text-sm divide-y">
-              {historico.map((h) => (
-                <li key={h.id} className="py-1 flex items-center gap-2 flex-wrap">
-                  <span className="flex-1 truncate">{h.nome}</span>
-                  <span className="text-gray-500">{h.marca} · {h.nivel}</span>
-                  {h.classes && (
-                    <span className="text-amber-600">{h.classes}</span>
-                  )}
-                  <span className="text-gray-400">{h.tamanho_mb} MB</span>
-                  {h.link && (
-                    <a href={h.link} target="_blank" rel="noreferrer"
-                      className="text-blue-600 underline">Box</a>
-                  )}
-                </li>
-              ))}
-            </ul>
+            </div>
           )}
         </div>
       </div>

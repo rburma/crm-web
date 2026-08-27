@@ -2449,8 +2449,8 @@ export function baseOpcoes(): Promise<BaseOpcoes> {
   return req("base/opcoes");
 }
 
-export function baseConteudos(): Promise<BaseConteudoItem[]> {
-  return req("base/conteudos");
+export function baseConteudos(limite = 8): Promise<BaseConteudoItem[]> {
+  return req(`base/conteudos?limite=${limite}`);
 }
 
 export function baseTicket(): Promise<{ ticket: string }> {

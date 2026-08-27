@@ -151,6 +151,7 @@ export default function BaseConhecimentoPage() {
   // Gavetas (26/08/2026): o que virou automatico sai da cara. Fechadas por
   // padrao — quem abre e' quem sabe que precisa.
   const [manut, setManut] = useState(false);
+  const [verTodos, setVerTodos] = useState(false);
   const [ondb, setOndb] = useState(false);
   const [dupARemover, setDupARemover] = useState(0);
   const [movDe, setMovDe] = useState("");
@@ -715,14 +716,36 @@ Apagar as cópias, mantendo uma de cada?`)) return;
         </div>
 
         <div className="rounded-xl border bg-white p-4">
-          <div className="font-semibold text-sm mb-2">Últimos envios</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-semibold text-sm">Últimos envios</div>
+            {historico.length > 5 && (
+              <button onClick={() => setVerTodos(!verTodos)}
+                className="text-xs text-gray-500 underline hover:text-gray-800">
+                {verTodos ? "mostrar menos" : `ver todos (${historico.length})`}
+              </button>
+            )}
+          </div>
           {historico.length === 0 ? (
             <div className="text-sm text-gray-400">Nada enviado ainda.</div>
           ) : (
             <ul className="text-sm divide-y">
-              {historico.map((h) => (
+              {(verTodos ? historico : historico.slice(0, 5)).map((h) => (
                 <li key={h.id} className="py-1 flex items-center gap-2 flex-wrap">
                   <span className="flex-1 truncate">{h.nome}</span>
+                  {h.criado_em && (
+                    <span className="text-gray-400 whitespace-nowrap">
+                      {new Date(h.criado_em).toLocaleDateString("pt-BR")}
+                    </span>
+                  )}
+                  {h.status === "indexado" && (
+                    <span className="text-green-700">indexado</span>
+                  )}
+                  {h.status === "sem_texto" && (
+                    <span className="text-amber-700">sem texto (OCR?)</span>
+                  )}
+                  {h.status === "aguarda_transcricao" && (
+                    <span className="text-blue-700">transcrevendo</span>
+                  )}
                   <span className="text-gray-500">{h.marca} · {h.nivel}</span>
                   {h.classes && (
                     <span className="text-amber-600">{h.classes}</span>
